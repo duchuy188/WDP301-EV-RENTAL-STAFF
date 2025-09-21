@@ -1,20 +1,22 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
-import Header from './Header';
-import Footer from './Footer';
-import FloatingChat from '@/components/FloatingChat';
+import { ReactNode } from 'react'
+import { Sidebar } from './Sidebar'
+import { TopBar } from './TopBar'
 
-const Layout: React.FC = () => {
+interface LayoutProps {
+  children: ReactNode
+  onLogout: () => void
+}
+
+export function Layout({ children, onLogout }: LayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
-      <Header />
-      <main className="flex-1">
-        <Outlet />
-      </main>
-      <Footer />
-      <FloatingChat />
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
+      <Sidebar />
+      <div className="flex flex-col flex-1 min-w-0">
+        <TopBar onLogout={onLogout} />
+        <main className="flex-1 p-6 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
-  );
-};
-
-export default Layout;
+  )
+}

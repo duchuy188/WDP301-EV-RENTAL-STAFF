@@ -1,160 +1,211 @@
-import { Car, Booking, User, FAQ, Testimonial } from '../types';
+// Mock data for the Station Staff Dashboard
+export interface Vehicle {
+  id: string
+  name: string
+  licensePlate: string
+  batteryLevel: number
+  status: 'available' | 'rented' | 'maintenance' | 'reserved'
+  lastMaintenance: string
+  image: string
+}
 
-export const mockCars: Car[] = [
+export interface Customer {
+  id: string
+  name: string
+  email: string
+  phone: string
+  licenseNumber: string
+  isVerified: boolean
+  avatar?: string
+}
+
+export interface Rental {
+  id: string
+  customerId: string
+  vehicleId: string
+  startDate: string
+  endDate: string
+  totalAmount: number
+  status: 'pending' | 'active' | 'completed' | 'cancelled'
+  depositAmount: number
+}
+
+export interface Payment {
+  id: string
+  rentalId: string
+  amount: number
+  type: 'deposit' | 'final' | 'refund'
+  status: 'pending' | 'completed' | 'failed'
+  date: string
+}
+
+export interface Staff {
+  id: string
+  name: string
+  email: string
+  avatar: string
+  role: string
+}
+
+// Mock data
+export const mockVehicles: Vehicle[] = [
   {
-    id: '1',
-    name: 'VinFast VF e34',
-    type: 'car',
-    batteryLevel: 85,
-    pricePerHour: 150000,
-    image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-    location: 'Quận 1, TP.HCM',
-    available: true,
-  },
-  {
-    id: '2',
+    id: 'v1',
     name: 'Tesla Model 3',
-    type: 'car',
+    licensePlate: '29A-12345',
+    batteryLevel: 85,
+    status: 'available',
+    lastMaintenance: '2024-12-15',
+    image: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=400'
+  },
+  {
+    id: 'v2',
+    name: 'VinFast VF8',
+    licensePlate: '30B-67890',
     batteryLevel: 92,
-    pricePerHour: 200000,
-    image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-    location: 'Quận 3, TP.HCM',
-    available: true,
+    status: 'rented',
+    lastMaintenance: '2024-12-10',
+    image: 'https://images.pexels.com/photos/12789670/pexels-photo-12789670.jpeg?auto=compress&cs=tinysrgb&w=400'
   },
   {
-    id: '3',
-    name: 'Feliz S Electric',
-    type: 'scooter',
-    batteryLevel: 78,
-    pricePerHour: 50000,
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-    location: 'Quận 7, TP.HCM',
-    available: true,
+    id: 'v3',
+    name: 'BMW i4',
+    licensePlate: '29C-54321',
+    batteryLevel: 45,
+    status: 'available',
+    lastMaintenance: '2024-12-12',
+    image: 'https://images.pexels.com/photos/12789670/pexels-photo-12789670.jpeg?auto=compress&cs=tinysrgb&w=400'
   },
   {
-    id: '4',
-    name: 'BMW i3',
-    type: 'car',
-    batteryLevel: 65,
-    pricePerHour: 180000,
-    image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-    location: 'Quận 2, TP.HCM',
-    available: false,
-  },
-  {
-    id: '5',
-    name: 'Yadea G5',
-    type: 'scooter',
-    batteryLevel: 90,
-    pricePerHour: 45000,
-    image: 'https://images.unsplash.com/photo-1571068316344-75bc76f77890?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-    location: 'Quận 5, TP.HCM',
-    available: true,
-  },
-  {
-    id: '6',
+    id: 'v4',
     name: 'Hyundai Kona Electric',
-    type: 'car',
-    batteryLevel: 88,
-    pricePerHour: 160000,
-    image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80',
-    location: 'Quận 10, TP.HCM',
-    available: true,
-  },
-];
+    licensePlate: '30D-98765',
+    batteryLevel: 15,
+    status: 'maintenance',
+    lastMaintenance: '2024-12-08',
+    image: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=400'
+  }
+]
 
-export const mockBookings: Booking[] = [
+export const mockCustomers: Customer[] = [
   {
-    id: 'booking-1',
-    carId: '1',
-    car: mockCars[0],
-    startDate: '2025-01-15T09:00:00Z',
-    endDate: '2025-01-15T17:00:00Z',
-    totalPrice: 1200000,
-    status: 'completed',
-    createdAt: '2025-01-10T10:00:00Z',
+    id: 'c1',
+    name: 'Nguyễn Văn An',
+    email: 'nva@example.com',
+    phone: '0901234567',
+    licenseNumber: 'B2-123456789',
+    isVerified: true,
+    avatar: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=100'
   },
   {
-    id: 'booking-2',
-    carId: '3',
-    car: mockCars[2],
-    startDate: '2025-01-20T14:00:00Z',
-    endDate: '2025-01-20T18:00:00Z',
-    totalPrice: 200000,
+    id: 'c2',
+    name: 'Trần Thị Bình',
+    email: 'ttb@example.com',
+    phone: '0912345678',
+    licenseNumber: 'B2-987654321',
+    isVerified: false,
+    avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100'
+  },
+  {
+    id: 'c3',
+    name: 'Lê Minh Cường',
+    email: 'lmc@example.com',
+    phone: '0923456789',
+    licenseNumber: 'B2-456789123',
+    isVerified: true,
+    avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=100'
+  }
+]
+
+export const mockRentals: Rental[] = [
+  {
+    id: 'r1',
+    customerId: 'c1',
+    vehicleId: 'v2',
+    startDate: '2024-12-20T08:00:00Z',
+    endDate: '2024-12-22T18:00:00Z',
+    totalAmount: 1500000,
     status: 'active',
-    createdAt: '2025-01-18T15:30:00Z',
+    depositAmount: 500000
   },
   {
-    id: 'booking-3',
-    carId: '2',
-    car: mockCars[1],
-    startDate: '2025-01-25T08:00:00Z',
-    endDate: '2025-01-25T20:00:00Z',
-    totalPrice: 2400000,
-    status: 'confirmed',
-    createdAt: '2025-01-22T09:15:00Z',
-  },
-];
+    id: 'r2',
+    customerId: 'c3',
+    vehicleId: 'v1',
+    startDate: '2024-12-21T10:00:00Z',
+    endDate: '2024-12-23T20:00:00Z',
+    totalAmount: 1800000,
+    status: 'pending',
+    depositAmount: 600000
+  }
+]
 
-export const mockUser: User = {
-  id: 'user-1',
-  name: 'Nguyễn Văn An',
-  email: 'nguyenvanan@gmail.com',
-  phone: '0901234567',
-  avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&q=80',
-  licenseVerified: true,
-  idVerified: true,
-  memberSince: '2023-06-15',
-};
+export const mockPayments: Payment[] = [
+  {
+    id: 'p1',
+    rentalId: 'r1',
+    amount: 500000,
+    type: 'deposit',
+    status: 'completed',
+    date: '2024-12-20T07:45:00Z'
+  },
+  {
+    id: 'p2',
+    rentalId: 'r2',
+    amount: 600000,
+    type: 'deposit',
+    status: 'pending',
+    date: '2024-12-21T09:30:00Z'
+  }
+]
 
-export const mockTestimonials: Testimonial[] = [
-  {
-    id: '1',
-    name: 'Lê Thị Mai',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b608?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&q=80',
-    rating: 5,
-    comment: 'Dịch vụ tuyệt vời! Xe sạch sẽ, pin đầy, thủ tục đơn giản. Tôi sẽ tiếp tục sử dụng.',
-  },
-  {
-    id: '2',
-    name: 'Trần Minh Khang',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&q=80',
-    rating: 5,
-    comment: 'Thuê xe điện rất tiện lợi, không khói bụi, yên tĩnh. Giá cả hợp lý, hỗ trợ 24/7.',
-  },
-  {
-    id: '3',
-    name: 'Phạm Thu Hà',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&q=80',
-    rating: 4,
-    comment: 'Ứng dụng dễ sử dụng, tìm xe nhanh. Chỉ có điều muốn có nhiều điểm trả xe hơn.',
-  },
-];
+export const mockStaff: Staff = {
+  id: 's1',
+  name: 'Phạm Thị Hoa',
+  email: 'pth@evrentals.com',
+  avatar: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=100',
+  role: 'Station Manager'
+}
 
-export const mockFAQs: FAQ[] = [
+export const mockKPIData = {
+  availableVehicles: 2,
+  todayHandovers: 5,
+  stationRevenue: 12500000,
+  activeRentals: 3
+}
+
+export const mockChartData = [
+  { hour: '06:00', rentals: 2 },
+  { hour: '08:00', rentals: 5 },
+  { hour: '10:00', rentals: 8 },
+  { hour: '12:00', rentals: 12 },
+  { hour: '14:00', rentals: 7 },
+  { hour: '16:00', rentals: 10 },
+  { hour: '18:00', rentals: 15 },
+  { hour: '20:00', rentals: 8 },
+  { hour: '22:00', rentals: 3 }
+]
+
+export const mockNotifications = [
   {
-    id: '1',
-    question: 'Làm thế nào để đặt xe điện?',
-    answer: 'Bạn có thể đặt xe thông qua ứng dụng hoặc website của chúng tôi. Chỉ cần chọn xe, thời gian thuê và thanh toán.',
+    id: 'n1',
+    title: 'Xe cần bảo trì',
+    message: 'Hyundai Kona Electric (30D-98765) cần kiểm tra định kỳ',
+    type: 'warning',
+    time: '10 phút trước'
   },
   {
-    id: '2',
-    question: 'Giấy tờ cần thiết khi thuê xe?',
-    answer: 'Bạn cần có GPLX còn hạn, CCCD/CMND và thẻ tín dụng/ghi nợ để thanh toán.',
+    id: 'n2',
+    title: 'Khách hàng mới đăng ký',
+    message: 'Trần Thị Bình vừa hoàn tất đăng ký thuê xe',
+    type: 'info',
+    time: '25 phút trước'
   },
   {
-    id: '3',
-    question: 'Nếu xe hết pin giữa đường thì sao?',
-    answer: 'Chúng tôi có dịch vụ hỗ trợ 24/7. Bạn có thể gọi hotline và chúng tôi sẽ hỗ trợ ngay lập tức.',
-  },
-  {
-    id: '4',
-    question: 'Có thể hủy đặt xe không?',
-    answer: 'Có, bạn có thể hủy đặt xe miễn phí trước 2 giờ. Sau đó sẽ có phí hủy theo quy định.',
-  },
-  {
-    id: '5',
-    question: 'Giá thuê xe được tính như thế nào?',
-    answer: 'Giá thuê được tính theo giờ, có thể có phí phụ trội tùy vào loại xe và thời gian thuê.',
-  },
-];
+    id: 'n3',
+    title: 'Thanh toán thành công',
+    message: 'Đã nhận thanh toán 1.500.000 VND từ Nguyễn Văn An',
+    type: 'success',
+    time: '1 giờ trước'
+  }
+]
