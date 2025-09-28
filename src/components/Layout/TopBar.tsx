@@ -38,6 +38,11 @@ export function TopBar({ onLogout }: TopBarProps) {
       title: "Đã đăng xuất thành công ✅",
       description: "Hẹn gặp lại bạn lần sau!"
     })
+    // Clear stored tokens
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+    sessionStorage.removeItem('accessToken')
+    sessionStorage.removeItem('refreshToken')
     setTimeout(onLogout, 1000)
   }
 

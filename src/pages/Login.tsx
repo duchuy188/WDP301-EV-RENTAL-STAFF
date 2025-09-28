@@ -22,14 +22,79 @@ export function Login({ onLogin }: LoginProps) {
     e.preventDefault()
     setLoading(true)
 
-    // Mock login delay
-    setTimeout(() => {
-      toast({
-        title: "Đăng nhập thành công! 🎉",
-        description: "Chào mừng bạn quay trở lại!"
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
       })
-      setTimeout(onLogin, 1000)
-    }, 2000)
+
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(message || 'Đăng nhập thất bại')
+      }
+
+      const data: { token?: string; refreshToken?: string } = await response.json()
+      const { token, refreshToken } = data
+
+      if (!token) {
+        throw new Error('Không nhận được token xác thực')
+      }
+
+      // Optional: enforce staff role if present in JWT claims
+      const decodeJwt = (jwt: string): Record<string, unknown> | null => {
+        try {
+          const payload = jwt.split('.')[1]
+          const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+          const json = atob(base64)
+          return JSON.parse(json)
+        } catch {
+          return null
+        }
+      }
+
+      const claims = decodeJwt(token)
+      if (claims) {
+        const cl = claims as Record<string, unknown>
+        const role = typeof cl.role === 'string' ? (cl.role as string) : undefined
+        const rolesRaw = cl.roles
+        const roles = Array.isArray(rolesRaw)
+          ? (rolesRaw.filter((v) => typeof v === 'string') as string[])
+          : undefined
+        const hasStaffRole =
+          (typeof role === 'string' && role.toLowerCase().includes('staff')) ||
+          (Array.isArray(roles) && roles.some((r) => r.toLowerCase().includes('staff')))
+        if (role !== undefined || roles !== undefined) {
+          if (!hasStaffRole) {
+            throw new Error('Tài khoản không có quyền Nhân viên Trạm')
+          }
+        }
+      }
+
+      if (rememberMe) {
+        localStorage.setItem('accessToken', token)
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+      } else {
+        sessionStorage.setItem('accessToken', token)
+        if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken)
+      }
+
+      toast({
+        title: 'Đăng nhập thành công! 🎉',
+        description: 'Chào mừng bạn quay trở lại!'
+      })
+      onLogin()
+    } catch (error) {
+      toast({
+        title: 'Đăng nhập thất bại',
+        description: error instanceof Error ? error.message : 'Vui lòng kiểm tra lại thông tin',
+        variant: 'destructive' as const
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -162,7 +227,7 @@ export function Login({ onLogin }: LoginProps) {
                 <Checkbox
                   id="remember"
                   checked={rememberMe}
-                  onCheckedChange={setRememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
                 />
                 <label
                   htmlFor="remember"

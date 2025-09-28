@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ThemeProvider } from './context/ThemeContext'
@@ -15,11 +15,21 @@ import { Fleet } from './pages/Fleet'
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
+    if (token) setIsAuthenticated(true)
+  }, [])
+
   const handleLogin = () => {
     setIsAuthenticated(true)
   }
 
   const handleLogout = () => {
+    // Clear any stored tokens
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+    sessionStorage.removeItem('accessToken')
+    sessionStorage.removeItem('refreshToken')
     setIsAuthenticated(false)
   }
 
