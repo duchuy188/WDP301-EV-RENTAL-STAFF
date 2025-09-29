@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
+import { login as loginApi } from '@/api/auth'
 
 interface LoginProps {
   onLogin: () => void
@@ -23,21 +24,7 @@ export function Login({ onLogin }: LoginProps) {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      })
-
-      if (!response.ok) {
-        const message = await response.text()
-        throw new Error(message || 'Đăng nhập thất bại')
-      }
-
-      const data: { token?: string; refreshToken?: string } = await response.json()
-      const { token, refreshToken } = data
+      const { token, refreshToken } = await loginApi({ email, password })
 
       if (!token) {
         throw new Error('Không nhận được token xác thực')
