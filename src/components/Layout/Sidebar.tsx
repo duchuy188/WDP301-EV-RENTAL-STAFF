@@ -8,13 +8,15 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap
+  Zap,
+  Calendar
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/context/SidebarContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Quản lý Booking', href: '/bookings', icon: Calendar },
   { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
   { name: 'Xác thực KH', href: '/customers', icon: UserCheck },
   { name: 'Thanh toán', href: '/payments', icon: CreditCard },

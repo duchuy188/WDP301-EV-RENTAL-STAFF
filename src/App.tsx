@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AnimatePresence, motion } from 'framer-motion'
 import { ThemeProvider } from './context/ThemeContext'
 import { SidebarProvider } from './context/SidebarContext'
-import { Layout } from './components/layout/Layout'
+import { Layout } from './components/Layout/Layout'
 import { Toaster } from './components/ui/toaster'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
@@ -11,6 +11,7 @@ import { Vehicles } from './pages/Vehicles'
 import { Customers } from './pages/Customers'
 import { Payments } from './pages/Payments'
 import { Fleet } from './pages/Fleet'
+import Booking from './pages/Booking'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -68,6 +69,7 @@ function App() {
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/payments" element={<Payments />} />
                   <Route path="/fleet" element={<Fleet />} />
+                  <Route path="/bookings" element={<Booking />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AnimatePresence>
