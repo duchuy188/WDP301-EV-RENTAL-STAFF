@@ -153,11 +153,96 @@ export async function updateBookingStatus(
   return res.json();
 }
 
-// API function to confirm booking
-export async function confirmBooking(bookingId: string): Promise<Booking> {
+// Types for confirm booking API
+export interface VehicleCondition {
+  battery_level?: number;
+  odometer?: number;
+  fuel_level?: number;
+  exterior_condition?: string;
+  interior_condition?: string;
+  issues?: string[];
+}
+
+export interface ConfirmBookingRequest {
+  vehicle_condition_before: VehicleCondition;
+  staff_notes: string;
+  files: File[]; // Max 5 images
+}
+
+export interface Payment {
+  _id: string;
+  code: string;
+  amount: number;
+  payment_method: string;
+  payment_type: string;
+  status: string;
+  reason?: string;
+  transaction_id?: string;
+  qr_code_data?: string;
+  qr_code_image?: string;
+  vnpay_url?: string;
+  vnpay_transaction_no?: string;
+  vnpay_bank_code?: string;
+  notes?: string;
+  refund_amount: number;
+  refund_reason?: string;
+  refunded_at?: string;
+  refunded_by?: string;
+  user_id: string;
+  booking_id: string;
+  rental_id?: string;
+  processed_by?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Rental {
+  _id: string;
+  code: string;
+  images_before: string[];
+  vehicle_condition_before: VehicleCondition;
+  staff_notes: string;
+}
+
+export interface ConfirmBookingResponse {
+  message: string;
+  booking: Booking;
+  payment: Payment;
+  rental: Rental;
+}
+
+// API function to confirm booking with multipart form data
+export async function confirmBooking(
+  bookingId: string, 
+  data: ConfirmBookingRequest
+): Promise<ConfirmBookingResponse> {
+  // Create FormData for multipart/form-data
+  const formData = new FormData();
+  
+  // Add vehicle condition as JSON string
+  formData.append('vehicle_condition_before', JSON.stringify(data.vehicle_condition_before));
+  
+  // Add staff notes
+  formData.append('staff_notes', data.staff_notes);
+  
+  // Add files (max 5)
+  data.files.slice(0, 5).forEach((file) => {
+    formData.append('files', file);
+  });
+
+  // Get auth headers but remove Content-Type to let browser set it with boundary
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const headers: HeadersInit = {};
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(apiUrl(`/api/bookings/${bookingId}/confirm`), {
-    method: 'POST',
-    headers: getAuthHeaders(),
+    method: 'PUT',
+    headers,
+    body: formData,
   });
 
   if (!res.ok) {

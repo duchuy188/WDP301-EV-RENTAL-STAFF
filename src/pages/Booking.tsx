@@ -19,6 +19,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { 
   getStationBookings, 
@@ -26,7 +29,10 @@ import {
   cancelBooking,
   type Booking, 
   type BookingListResponse, 
-  type BookingListParams 
+  type BookingListParams,
+  type ConfirmBookingRequest,
+  type VehicleCondition,
+  type ConfirmBookingResponse 
 } from '@/api/booking';
 
 const Booking: React.FC = () => {
@@ -36,6 +42,25 @@ const Booking: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<Booking['status'] | 'all'>('all');
   const [hasError, setHasError] = useState(false);
+  
+  // Confirm booking dialog state
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmingBookingId, setConfirmingBookingId] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmResult, setConfirmResult] = useState<ConfirmBookingResponse | null>(null);
+  const [showResult, setShowResult] = useState(false);
+  
+  // Form data for confirmation
+  const [vehicleCondition, setVehicleCondition] = useState<VehicleCondition>({
+    battery_level: 100,
+    odometer: 0,
+    exterior_condition: 'good',
+    interior_condition: 'good',
+    issues: []
+  });
+  const [staffNotes, setStaffNotes] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
   const { toast } = useToast();
 
   // Load bookings data
@@ -98,7 +123,7 @@ const Booking: React.FC = () => {
   }, [bookings, searchTerm, selectedStatus]);
 
   // Helper functions
-  const formatPrice = (price: number | undefined | null) => {
+  const formatPriceDisplay = (price: number | undefined | null) => {
     if (!price || isNaN(price)) return '0 ₫';
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -173,18 +198,94 @@ const Booking: React.FC = () => {
     }
   };
 
+  // Reset form data
+  const resetConfirmForm = () => {
+    setVehicleCondition({
+      battery_level: 100,
+      odometer: 0,
+      exterior_condition: 'good',
+      interior_condition: 'good',
+      issues: []
+    });
+    setStaffNotes('');
+    setSelectedFiles([]);
+  };
+
+  // Open confirm dialog
+  const openConfirmDialog = (bookingId: string) => {
+    setConfirmingBookingId(bookingId);
+    resetConfirmForm();
+    setIsConfirmDialogOpen(true);
+    setShowResult(false);
+    setConfirmResult(null);
+  };
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 5) {
+      toast({
+        title: "Cảnh báo",
+        description: "Chỉ được chọn tối đa 5 ảnh",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedFiles(files);
+  };
+
+  // Format price for display
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(price);
+  };
+
   // Booking actions
-  const handleConfirmBooking = async (bookingId: string) => {
+  const handleConfirmBooking = async () => {
+    if (!confirmingBookingId) return;
+    
+    if (selectedFiles.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng tải lên ít nhất 1 ảnh xe trước bàn giao",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!staffNotes.trim()) {
+      toast({
+        title: "Lỗi", 
+        description: "Vui lòng nhập ghi chú của nhân viên",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsConfirming(true);
     try {
-      const updatedBooking = await confirmBooking(bookingId);
+      const confirmData: ConfirmBookingRequest = {
+        vehicle_condition_before: vehicleCondition,
+        staff_notes: staffNotes.trim(),
+        files: selectedFiles
+      };
+
+      const response = await confirmBooking(confirmingBookingId, confirmData);
+      
       setBookings(prev => 
         prev.map(booking => 
-          booking._id === bookingId ? updatedBooking : booking
+          booking._id === confirmingBookingId ? response.booking : booking
         )
       );
+      
+      setConfirmResult(response);
+      setShowResult(true);
+      
       toast({
         title: "Thành công",
-        description: `Đã xác nhận booking ${updatedBooking.code || 'N/A'}`,
+        description: `Đã xác nhận booking ${response.booking.code || 'N/A'}`,
       });
     } catch (error: unknown) {
       toast({
@@ -192,6 +293,8 @@ const Booking: React.FC = () => {
         description: (error as Error).message,
         variant: "destructive",
       });
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -348,18 +451,7 @@ const Booking: React.FC = () => {
                       </Card>
           </motion.div>
           
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="text-center">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-blue-600">{stats.in_progress}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Đang thuê</p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {/* Đã bỏ UI trạng thái Đang thuê */}
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -396,16 +488,13 @@ const Booking: React.FC = () => {
         >
           <Tabs value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as Booking['status'] | 'all')}>
             <div className="p-6 pb-0">
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="all">Tất cả</TabsTrigger>
                 <TabsTrigger value="pending">Chờ xử lý</TabsTrigger>
                 <TabsTrigger value="confirmed">Đã xác nhận</TabsTrigger>
-                <TabsTrigger value="checked_in">Đã nhận xe</TabsTrigger>
-                <TabsTrigger value="in_progress">Đang thuê</TabsTrigger>
-                <TabsTrigger value="completed">Hoàn thành</TabsTrigger>
                 <TabsTrigger value="cancelled">Đã hủy</TabsTrigger>
               </TabsList>
-                    </div>
+            </div>
 
             <TabsContent value={selectedStatus} className="mt-0 p-6">
               {isLoading ? (
@@ -450,22 +539,22 @@ const Booking: React.FC = () => {
                                 {booking.status === 'pending' && (
                   <Button
                                     size="sm"
-                                    onClick={() => handleConfirmBooking(booking._id)}
+                                    onClick={() => openConfirmDialog(booking._id)}
                     className="bg-green-600 hover:bg-green-700"
                   >
                                     <CheckCircle className="h-4 w-4 mr-1" />
-                                    Xác nhận
+                                    Xác nhận bàn giao
                   </Button>
                                 )}
                                 
-                                {['pending', 'confirmed', 'checked_in'].includes(booking.status) && (
+                                {booking.status === 'pending' && (
                   <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleCancelBooking(booking._id)}
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleCancelBooking(booking._id)}
                   >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Hủy
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Hủy
                   </Button>
                 )}
               </div>
@@ -507,7 +596,7 @@ const Booking: React.FC = () => {
                                 <div className="text-sm">
                                   <p className="font-medium">Tổng tiền</p>
                                   <p className="text-green-600 font-semibold">
-                                    {formatPrice(booking.total_price)}
+                                    {formatPriceDisplay(booking.total_price)}
                                   </p>
                                 </div>
                           </div>
@@ -540,6 +629,258 @@ const Booking: React.FC = () => {
             </TabsContent>
           </Tabs>
           </motion.div>
+
+          {/* Confirm Booking Dialog */}
+          <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {showResult ? 'Kết quả xác nhận booking' : 'Xác nhận bàn giao xe'}
+                </DialogTitle>
+              </DialogHeader>
+              
+              {!showResult ? (
+                // Form for confirmation
+                <div className="space-y-6 py-4">
+                  {/* Vehicle Condition Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Tình trạng xe trước bàn giao</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="battery_level">Mức pin (%)</Label>
+                        <Input
+                          id="battery_level"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={vehicleCondition.battery_level || ''}
+                          onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
+                            ...prev,
+                            battery_level: parseInt(e.target.value) || 0
+                          }))}
+                          placeholder="Nhập mức pin"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="odometer">Số km đã đi</Label>
+                        <Input
+                          id="odometer"
+                          type="number"
+                          min="0"
+                          value={vehicleCondition.odometer || ''}
+                          onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
+                            ...prev,
+                            odometer: parseInt(e.target.value) || 0
+                          }))}
+                          placeholder="Nhập số km"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="exterior_condition">Tình trạng ngoại thất</Label>
+                      <Textarea
+                        id="exterior_condition"
+                        value={vehicleCondition.exterior_condition || ''}
+                        onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
+                          ...prev,
+                          exterior_condition: e.target.value
+                        }))}
+                        placeholder="Mô tả tình trạng ngoại thất xe"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="interior_condition">Tình trạng nội thất</Label>
+                      <Textarea
+                        id="interior_condition"
+                        value={vehicleCondition.interior_condition || ''}
+                        onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
+                          ...prev,
+                          interior_condition: e.target.value
+                        }))}
+                        placeholder="Mô tả tình trạng nội thất xe"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Staff Notes Section */}
+                  <div>
+                    <Label htmlFor="staff_notes">Ghi chú nhân viên *</Label>
+                    <Textarea
+                      id="staff_notes"
+                      value={staffNotes}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setStaffNotes(e.target.value)}
+                      placeholder="Nhập ghi chú về quá trình bàn giao xe"
+                      rows={4}
+                      required
+                    />
+                  </div>
+
+                  {/* File Upload Section */}
+                  <div>
+                    <Label htmlFor="vehicle_images">Ảnh xe trước bàn giao * (tối đa 5 ảnh)</Label>
+                    <Input
+                      id="vehicle_images"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="mt-2"
+                    />
+                    {selectedFiles.length > 0 && (
+                      <div className="mt-2 flex gap-2 flex-wrap">
+                        {selectedFiles.slice(0, 5).map((file, idx) => (
+                          <img
+                            key={idx}
+                            src={URL.createObjectURL(file)}
+                            alt={`Ảnh xe ${idx + 1}`}
+                            className="w-24 h-24 object-cover rounded border"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-4 pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsConfirmDialogOpen(false)}
+                      disabled={isConfirming}
+                    >
+                      Hủy
+                    </Button>
+                    <Button 
+                      onClick={handleConfirmBooking}
+                      disabled={isConfirming || !staffNotes.trim() || selectedFiles.length === 0}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isConfirming ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Xác nhận bàn giao
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Results display
+                confirmResult && (
+                  <div className="space-y-6 py-4">
+                    <div className="text-center">
+                      <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                      <h2 className="text-2xl font-bold text-green-600 mb-2">
+                        {confirmResult.message}
+                      </h2>
+                    </div>
+
+                    {/* Booking Info */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <Car className="h-5 w-5 mr-2" />
+                        Thông tin Booking
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Mã booking:</span> {confirmResult.booking.code}
+                        </div>
+                        <div>
+                          <span className="font-medium">Trạng thái:</span> {getStatusText(confirmResult.booking.status)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Tổng tiền:</span> {formatPrice(confirmResult.booking.total_price)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Đặt cọc:</span> {formatPrice(confirmResult.booking.deposit_amount)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Info */}
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Thông tin Thanh toán
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Mã thanh toán:</span> {confirmResult.payment.code}
+                        </div>
+                        <div>
+                          <span className="font-medium">Số tiền:</span> {formatPrice(confirmResult.payment.amount)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Phương thức:</span> {confirmResult.payment.payment_method}
+                        </div>
+                        <div>
+                          <span className="font-medium">Loại:</span> {confirmResult.payment.payment_type}
+                        </div>
+                        <div>
+                          <span className="font-medium">Trạng thái:</span> {confirmResult.payment.status}
+                        </div>
+                      </div>
+                      {confirmResult.payment.qr_code_image && (
+                        <div className="mt-4">
+                          <span className="font-medium">QR Code:</span>
+                          <img 
+                            src={confirmResult.payment.qr_code_image} 
+                            alt="QR Code Payment" 
+                            className="mt-2 max-w-48 mx-auto border rounded"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rental Info */}
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        Thông tin Thuê xe
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Mã thuê xe:</span> {confirmResult.rental.code}
+                        </div>
+                        <div>
+                          <span className="font-medium">Ghi chú nhân viên:</span> {confirmResult.rental.staff_notes}
+                        </div>
+                        <div>
+                          <span className="font-medium">Số ảnh trước bàn giao:</span> {confirmResult.rental.images_before.length} ảnh
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Close Button */}
+                    <div className="flex justify-end pt-4">
+                      <Button 
+                        onClick={() => {
+                          setIsConfirmDialogOpen(false);
+                          setShowResult(false);
+                          setConfirmResult(null);
+                          setConfirmingBookingId(null);
+                          resetConfirmForm();
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Đóng
+                      </Button>
+                    </div>
+                  </div>
+                )
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     );
