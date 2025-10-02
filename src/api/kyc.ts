@@ -90,6 +90,16 @@ export interface PendingKycResponse {
   users: PendingKycUser[];
 }
 
+export interface KycVerifyResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    fullname: string;
+    kycStatus: string;
+  };
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -129,12 +139,13 @@ export async function getPendingKyc(): Promise<PendingKycResponse> {
 }
 
 // API function to approve/reject KYC requests
-export async function updateKycStatus(userId: string, approved: boolean, rejectionReason?: string): Promise<{ message: string }> {
-  const res = await fetch(apiUrl(`/api/kyc/${userId}/status`), {
-    method: 'PUT',
+export async function updateKycStatus(userId: string, approved: boolean, rejectionReason?: string): Promise<KycVerifyResponse> {
+  const res = await fetch(apiUrl('/api/kyc/verify'), {
+    method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({
-      status: approved ? 'approved' : 'rejected',
+      userId: userId,
+      action: approved ? 'approve' : 'reject',
       rejectionReason: rejectionReason || '',
     }),
   });

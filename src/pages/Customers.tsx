@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { getPendingKyc, updateKycStatus, type PendingKycUser } from '@/api/kyc'
 
@@ -18,6 +19,9 @@ export function Customers() {
   const [totalCount, setTotalCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCriteria, setFilterCriteria] = useState('all')
+  const [showRejectDialog, setShowRejectDialog] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [customerToReject, setCustomerToReject] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Load pending KYC requests
@@ -113,9 +117,20 @@ export function Customers() {
     loadPendingKyc()
   }, [loadPendingKyc])
 
-  const handleVerifyCustomer = async (customerId: string, isApproved: boolean) => {
+  const handleVerifyCustomer = async (customerId: string, isApproved: boolean, reason?: string) => {
     try {
-      await updateKycStatus(customerId, isApproved)
+      // Find the customer to get userId
+      const customer = kycUsers.find(user => user._id === customerId);
+      if (!customer) {
+        toast({
+          title: "Lỗi",
+          description: "Không tìm thấy thông tin khách hàng",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await updateKycStatus(customer.userId, isApproved, reason);
       
       // Remove from pending list if approved/rejected
       setKycUsers(prev => prev.filter(user => user._id !== customerId))
@@ -124,9 +139,9 @@ export function Customers() {
       
       toast({
         title: isApproved ? "Xác thực thành công ✅" : "Đã từ chối xác thực ❌",
-        description: isApproved 
+        description: response.message || (isApproved 
           ? "Khách hàng đã được xác thực và có thể thuê xe"
-          : "Khách hàng cần cung cấp lại tài liệu"
+          : "Khách hàng cần cung cấp lại tài liệu")
       })
     } catch (error) {
       console.error('Update KYC status error:', error)
@@ -135,6 +150,20 @@ export function Customers() {
         description: "Không thể cập nhật trạng thái KYC. Vui lòng thử lại.",
         variant: "destructive",
       })
+    }
+  }
+
+  const handleRejectClick = (customerId: string) => {
+    setCustomerToReject(customerId)
+    setShowRejectDialog(true)
+  }
+
+  const handleRejectConfirm = async () => {
+    if (customerToReject) {
+      await handleVerifyCustomer(customerToReject, false, rejectionReason)
+      setShowRejectDialog(false)
+      setRejectionReason('')
+      setCustomerToReject(null)
     }
   }
 
@@ -616,7 +645,7 @@ export function Customers() {
                               Duyệt KYC
                             </Button>
                             <Button
-                              onClick={() => handleVerifyCustomer(selectedCustomer._id, false)}
+                              onClick={() => handleRejectClick(selectedCustomer._id)}
                               variant="destructive"
                               className="flex-1"
                             >
@@ -639,7 +668,7 @@ export function Customers() {
                       Duyệt
                     </Button>
                     <Button
-                      onClick={() => handleVerifyCustomer(customer._id, false)}
+                      onClick={() => handleRejectClick(customer._id)}
                       size="sm"
                       variant="destructive"
                     >
@@ -655,6 +684,49 @@ export function Customers() {
           })}
         </div>
       )}
+
+      {/* Rejection Dialog */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Từ chối xác thực KYC</DialogTitle>
+            <DialogDescription>
+              Vui lòng nhập lý do từ chối để khách hàng biết cách khắc phục
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Lý do từ chối:</label>
+              <Textarea
+                placeholder="Ví dụ: Hình ảnh CCCD không rõ nét, thông tin không khớp..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowRejectDialog(false)
+                setRejectionReason('')
+                setCustomerToReject(null)
+              }}
+            >
+              Hủy
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleRejectConfirm}
+              disabled={!rejectionReason.trim()}
+            >
+              Xác nhận từ chối
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }
