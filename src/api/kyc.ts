@@ -129,6 +129,40 @@ export interface StaffUploadResponse {
   };
 }
 
+export interface UserNotSubmittedKyc {
+  id: string;
+  fullname: string;
+  email: string;
+  phone: string;
+  kycStatus: string;
+  kycInfo: {
+    identityUploaded: boolean;
+    licenseUploaded: boolean;
+    staffUploaded: boolean;
+  };
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
+export interface UsersNotSubmittedResponse {
+  success: boolean;
+  message: string;
+  data: {
+    users: UserNotSubmittedKyc[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    stats: {
+      total: number;
+      notSubmitted: number;
+      rejected: number;
+    };
+  };
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -254,6 +288,37 @@ export async function staffUploadLicense(userId: string, imageFile: File): Promi
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi tải lên GPLX', res.status);
+  }
+
+  return res.json();
+}
+
+// API function to get users who haven't submitted KYC
+export async function getUsersNotSubmittedKyc(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  kycStatus?: 'all' | 'not_submitted' | 'rejected';
+  sortBy?: 'createdAt' | 'lastLoginAt' | 'fullname';
+  sortOrder?: 'asc' | 'desc';
+} = {}): Promise<UsersNotSubmittedResponse> {
+  const queryParams = new URLSearchParams();
+  
+  if (params.page) queryParams.append('page', params.page.toString());
+  if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.search) queryParams.append('search', params.search);
+  if (params.kycStatus) queryParams.append('kycStatus', params.kycStatus);
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+  const res = await fetch(apiUrl(`/api/kyc/users-not-submitted?${queryParams.toString()}`), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi lấy danh sách users chưa submit KYC', res.status);
   }
 
   return res.json();
