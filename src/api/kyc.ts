@@ -100,6 +100,35 @@ export interface KycVerifyResponse {
   };
 }
 
+export interface StaffUploadResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      id: string;
+      email: string;
+      fullname: string;
+    };
+    identityCard: {
+      id: string;
+      name: string;
+      dob: string;
+      address: string;
+      frontImage: string;
+    };
+    kycStatus: string;
+    needsBackImage: boolean;
+    validation: {
+      nameComparison: {
+        match: boolean;
+        score: number;
+        message: string;
+      };
+      validationNotes: string;
+    };
+  };
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -115,6 +144,18 @@ function getAuthHeaders(): HeadersInit {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
+// Helper function to get auth headers for file upload
+function getAuthHeadersForUpload(): HeadersInit {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const headers: HeadersInit = {};
   
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -153,6 +194,66 @@ export async function updateKycStatus(userId: string, approved: boolean, rejecti
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi cập nhật trạng thái KYC', res.status);
+  }
+
+  return res.json();
+}
+
+// API function for staff to upload identity card front image
+export async function staffUploadIdentityCardFront(userId: string, imageFile: File): Promise<StaffUploadResponse> {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('userId', userId);
+
+  const res = await fetch(apiUrl('/api/kyc/staff/identity-card/front'), {
+    method: 'POST',
+    headers: getAuthHeadersForUpload(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi tải lên mặt trước CCCD', res.status);
+  }
+
+  return res.json();
+}
+
+// API function for staff to upload identity card back image
+export async function staffUploadIdentityCardBack(userId: string, imageFile: File): Promise<StaffUploadResponse> {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('userId', userId);
+
+  const res = await fetch(apiUrl('/api/kyc/staff/identity-card/back'), {
+    method: 'POST',
+    headers: getAuthHeadersForUpload(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi tải lên mặt sau CCCD', res.status);
+  }
+
+  return res.json();
+}
+
+// API function for staff to upload license image
+export async function staffUploadLicense(userId: string, imageFile: File): Promise<StaffUploadResponse> {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('userId', userId);
+
+  const res = await fetch(apiUrl('/api/kyc/staff/license'), {
+    method: 'POST',
+    headers: getAuthHeadersForUpload(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi tải lên GPLX', res.status);
   }
 
   return res.json();

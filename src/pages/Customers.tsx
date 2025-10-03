@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { getPendingKyc, updateKycStatus, type PendingKycUser } from '@/api/kyc'
+import { getPendingKyc, updateKycStatus, staffUploadIdentityCardFront, staffUploadIdentityCardBack, staffUploadLicense, type PendingKycUser } from '@/api/kyc'
 
 export function Customers() {
   const [kycUsers, setKycUsers] = useState<PendingKycUser[]>([])
@@ -22,6 +22,8 @@ export function Customers() {
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [customerToReject, setCustomerToReject] = useState<string | null>(null)
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null)
+  const [uploadType, setUploadType] = useState<'front' | 'back' | 'license' | null>(null)
   const { toast } = useToast()
 
   // Load pending KYC requests
@@ -167,6 +169,46 @@ export function Customers() {
     }
   }
 
+  const handleFileUpload = async (file: File, userId: string, type: 'front' | 'back' | 'license') => {
+    if (!file) return;
+
+    setUploadingFor(userId)
+    setUploadType(type)
+
+    try {
+      let response;
+      switch (type) {
+        case 'front':
+          response = await staffUploadIdentityCardFront(userId, file)
+          break;
+        case 'back':
+          response = await staffUploadIdentityCardBack(userId, file)
+          break;
+        case 'license':
+          response = await staffUploadLicense(userId, file)
+          break;
+      }
+
+      toast({
+        title: "Upload thành công ✅",
+        description: response.message,
+      })
+
+      // Refresh the KYC list to get updated data
+      loadPendingKyc()
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast({
+        title: "Lỗi upload",
+        description: "Không thể tải lên tài liệu. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingFor(null)
+      setUploadType(null)
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -242,23 +284,73 @@ export function Customers() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Upload className="h-5 w-5 text-blue-600" />
-              <span>Tải lên tài liệu</span>
+              <span>Tải lên tài liệu cho khách hàng</span>
             </CardTitle>
             <CardDescription>
-              Khách hàng có thể tải lên GPLX và CCCD để xác thực
+              Staff có thể tải lên tài liệu thay cho khách hàng khi cần thiết
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                 <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400 mb-2">Giấy phép lái xe (GPLX)</p>
-                <Input type="file" accept="image/*" className="max-w-xs mx-auto" />
+                <p className="text-gray-600 dark:text-gray-400 mb-2">CCCD mặt trước</p>
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  className="max-w-xs mx-auto" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const userId = prompt("Nhập userId của khách hàng:");
+                    if (file && userId) {
+                      handleFileUpload(file, userId, 'front');
+                    }
+                  }}
+                  disabled={uploadingFor !== null}
+                />
+                {uploadingFor && uploadType === 'front' && (
+                  <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
+                )}
               </div>
               <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                 <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400 mb-2">Căn cước công dân (CCCD)</p>
-                <Input type="file" accept="image/*" className="max-w-xs mx-auto" />
+                <p className="text-gray-600 dark:text-gray-400 mb-2">CCCD mặt sau</p>
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  className="max-w-xs mx-auto"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const userId = prompt("Nhập userId của khách hàng:");
+                    if (file && userId) {
+                      handleFileUpload(file, userId, 'back');
+                    }
+                  }}
+                  disabled={uploadingFor !== null}
+                />
+                {uploadingFor && uploadType === 'back' && (
+                  <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
+                )}
+              </div>
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400 mb-2">Giấy phép lái xe (GPLX)</p>
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  className="max-w-xs mx-auto"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const userId = prompt("Nhập userId của khách hàng:");
+                    if (file && userId) {
+                      handleFileUpload(file, userId, 'license');
+                    }
+                  }}
+                  disabled={uploadingFor !== null}
+                />
+                {uploadingFor && uploadType === 'license' && (
+                  <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
+                )}
               </div>
             </div>
           </CardContent>
