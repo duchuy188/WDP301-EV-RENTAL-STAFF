@@ -13,7 +13,8 @@ import {
   Car,
   User,
   Filter,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,12 +30,15 @@ import {
   getStationBookings, 
   confirmBooking, 
   cancelBooking,
+  createWalkInBooking,
   type Booking, 
   type BookingListResponse, 
   type BookingListParams,
   type ConfirmBookingRequest,
   type VehicleCondition,
-  type ConfirmBookingResponse 
+  type ConfirmBookingResponse,
+  type WalkInBookingRequest,
+  type WalkInBookingResponse 
 } from '@/api/booking';
 
 const Booking: React.FC = () => {
@@ -57,6 +61,28 @@ const Booking: React.FC = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmResult, setConfirmResult] = useState<ConfirmBookingResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
+  
+  // Walk-in booking dialog state
+  const [isWalkInDialogOpen, setIsWalkInDialogOpen] = useState(false);
+  const [isCreatingWalkIn, setIsCreatingWalkIn] = useState(false);
+  const [walkInResult, setWalkInResult] = useState<WalkInBookingResponse | null>(null);
+  const [showWalkInResult, setShowWalkInResult] = useState(false);
+  
+  // Walk-in form data
+  const [walkInFormData, setWalkInFormData] = useState<WalkInBookingRequest>({
+    customer_name: '',
+    customer_phone: '',
+    customer_email: '',
+    customer_cmnd: '',
+    model: '',
+    color: '',
+    start_date: '',
+    end_date: '',
+    pickup_time: '08:00',
+    return_time: '18:00',
+    special_requests: '',
+    notes: ''
+  });
   
   // Form data for confirmation
   const [vehicleCondition, setVehicleCondition] = useState<VehicleCondition>({
@@ -327,6 +353,104 @@ const Booking: React.FC = () => {
     }
   };
 
+  // Reset walk-in form
+  const resetWalkInForm = () => {
+    setWalkInFormData({
+      customer_name: '',
+      customer_phone: '',
+      customer_email: '',
+      customer_cmnd: '',
+      model: '',
+      color: '',
+      start_date: '',
+      end_date: '',
+      pickup_time: '08:00',
+      return_time: '18:00',
+      special_requests: '',
+      notes: ''
+    });
+  };
+
+  // Open walk-in dialog
+  const openWalkInDialog = () => {
+    resetWalkInForm();
+    setIsWalkInDialogOpen(true);
+    setShowWalkInResult(false);
+    setWalkInResult(null);
+  };
+
+  // Handle walk-in form change
+  const handleWalkInFormChange = (field: keyof WalkInBookingRequest, value: string) => {
+    setWalkInFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Validate walk-in form
+  const validateWalkInForm = (): string | null => {
+    if (!walkInFormData.customer_name.trim()) return 'Vui lòng nhập tên khách hàng';
+    if (!walkInFormData.customer_phone.trim()) return 'Vui lòng nhập số điện thoại';
+    if (!walkInFormData.customer_email.trim()) return 'Vui lòng nhập email';
+    if (!walkInFormData.customer_cmnd.trim()) return 'Vui lòng nhập CMND/CCCD';
+    if (!walkInFormData.model.trim()) return 'Vui lòng nhập model xe';
+    if (!walkInFormData.color.trim()) return 'Vui lòng nhập màu xe';
+    if (!walkInFormData.start_date) return 'Vui lòng chọn ngày bắt đầu';
+    if (!walkInFormData.end_date) return 'Vui lòng chọn ngày kết thúc';
+    if (!walkInFormData.pickup_time) return 'Vui lòng chọn giờ nhận xe';
+    if (!walkInFormData.return_time) return 'Vui lòng chọn giờ trả xe';
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(walkInFormData.customer_email)) {
+      return 'Email không hợp lệ';
+    }
+    
+    // Validate phone format (basic)
+    if (walkInFormData.customer_phone.length < 10) {
+      return 'Số điện thoại không hợp lệ';
+    }
+    
+    return null;
+  };
+
+  // Handle create walk-in booking
+  const handleCreateWalkInBooking = async () => {
+    const validationError = validateWalkInForm();
+    if (validationError) {
+      toast({
+        title: "Lỗi",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingWalkIn(true);
+    try {
+      const response = await createWalkInBooking(walkInFormData);
+      
+      setWalkInResult(response);
+      setShowWalkInResult(true);
+      
+      // Reload bookings to show the new one
+      await loadBookings();
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Lỗi",
+        description: (error as Error).message || "Không thể tạo booking walk-in",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingWalkIn(false);
+    }
+  };
+
   // Apply advanced filters
   const handleApplyFilters = () => {
     loadBookings({
@@ -413,14 +537,23 @@ const Booking: React.FC = () => {
                 Quản lý tất cả đặt xe tại trạm của bạn
               </p>
             </div>
-            <Button 
-              onClick={() => loadBookings()}
-              disabled={isLoading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Làm mới
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={openWalkInDialog}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <UserPlus className="h-4 w-4" />
+                Tạo Walk-in
+              </Button>
+              <Button 
+                onClick={() => loadBookings()}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Làm mới
+              </Button>
+            </div>
           </div>
 
           {/* Search and Filter */}
@@ -939,6 +1072,305 @@ const Booking: React.FC = () => {
                           setConfirmResult(null);
                           setConfirmingBookingId(null);
                           resetConfirmForm();
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Đóng
+                      </Button>
+                    </div>
+                  </div>
+                )
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Walk-in Booking Dialog */}
+          <Dialog open={isWalkInDialogOpen} onOpenChange={setIsWalkInDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {showWalkInResult ? 'Tạo Walk-in Booking thành công' : 'Tạo Walk-in Booking'}
+                </DialogTitle>
+              </DialogHeader>
+              
+              {!showWalkInResult ? (
+                // Form for walk-in booking
+                <div className="space-y-6 py-4">
+                  {/* Customer Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Thông tin khách hàng
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="customer_name">Họ và tên *</Label>
+                        <Input
+                          id="customer_name"
+                          value={walkInFormData.customer_name}
+                          onChange={(e) => handleWalkInFormChange('customer_name', e.target.value)}
+                          placeholder="Nguyễn Văn A"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="customer_phone">Số điện thoại *</Label>
+                        <Input
+                          id="customer_phone"
+                          value={walkInFormData.customer_phone}
+                          onChange={(e) => handleWalkInFormChange('customer_phone', e.target.value)}
+                          placeholder="0123456789"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="customer_email">Email *</Label>
+                        <Input
+                          id="customer_email"
+                          type="email"
+                          value={walkInFormData.customer_email}
+                          onChange={(e) => handleWalkInFormChange('customer_email', e.target.value)}
+                          placeholder="nguyenvana@email.com"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="customer_cmnd">CMND/CCCD *</Label>
+                        <Input
+                          id="customer_cmnd"
+                          value={walkInFormData.customer_cmnd}
+                          onChange={(e) => handleWalkInFormChange('customer_cmnd', e.target.value)}
+                          placeholder="123456789"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Car className="h-5 w-5" />
+                      Thông tin xe
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="model">Model xe *</Label>
+                        <Input
+                          id="model"
+                          value={walkInFormData.model}
+                          onChange={(e) => handleWalkInFormChange('model', e.target.value)}
+                          placeholder="Honda Lead"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="color">Màu sắc *</Label>
+                        <Input
+                          id="color"
+                          value={walkInFormData.color}
+                          onChange={(e) => handleWalkInFormChange('color', e.target.value)}
+                          placeholder="Đen"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rental Period */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Thời gian thuê
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="start_date">Ngày bắt đầu *</Label>
+                        <Input
+                          id="start_date"
+                          type="date"
+                          value={walkInFormData.start_date}
+                          onChange={(e) => handleWalkInFormChange('start_date', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="end_date">Ngày kết thúc *</Label>
+                        <Input
+                          id="end_date"
+                          type="date"
+                          value={walkInFormData.end_date}
+                          onChange={(e) => handleWalkInFormChange('end_date', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="pickup_time">Giờ nhận xe *</Label>
+                        <Input
+                          id="pickup_time"
+                          type="time"
+                          value={walkInFormData.pickup_time}
+                          onChange={(e) => handleWalkInFormChange('pickup_time', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="return_time">Giờ trả xe *</Label>
+                        <Input
+                          id="return_time"
+                          type="time"
+                          value={walkInFormData.return_time}
+                          onChange={(e) => handleWalkInFormChange('return_time', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Thông tin bổ sung</h3>
+                    
+                    <div>
+                      <Label htmlFor="special_requests">Yêu cầu đặc biệt</Label>
+                      <Textarea
+                        id="special_requests"
+                        value={walkInFormData.special_requests}
+                        onChange={(e) => handleWalkInFormChange('special_requests', e.target.value)}
+                        placeholder="Cần mũ bảo hiểm size L..."
+                        rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="notes">Ghi chú</Label>
+                      <Textarea
+                        id="notes"
+                        value={walkInFormData.notes}
+                        onChange={(e) => handleWalkInFormChange('notes', e.target.value)}
+                        placeholder="Khách hàng lần đầu thuê xe điện..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-4 pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsWalkInDialogOpen(false)}
+                      disabled={isCreatingWalkIn}
+                    >
+                      Hủy
+                    </Button>
+                    <Button 
+                      onClick={handleCreateWalkInBooking}
+                      disabled={isCreatingWalkIn}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isCreatingWalkIn ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Đang tạo...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Tạo Walk-in Booking
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Results display
+                walkInResult && (
+                  <div className="space-y-6 py-4">
+                    <div className="text-center">
+                      <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                      <h2 className="text-2xl font-bold text-green-600 mb-2">
+                        {walkInResult.message}
+                      </h2>
+                    </div>
+
+                    {/* Booking Info */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <Car className="h-5 w-5 mr-2" />
+                        Thông tin Booking
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Mã booking:</span> {walkInResult.data.booking.code}
+                        </div>
+                        <div>
+                          <span className="font-medium">Khách hàng:</span> {walkInResult.data.booking.customer.name}
+                        </div>
+                        <div>
+                          <span className="font-medium">Số điện thoại:</span> {walkInResult.data.booking.customer.phone}
+                        </div>
+                        <div>
+                          <span className="font-medium">Email:</span> {walkInResult.data.booking.customer.email}
+                        </div>
+                        <div>
+                          <span className="font-medium">Xe:</span> {walkInResult.data.booking.vehicle.name}
+                        </div>
+                        <div>
+                          <span className="font-medium">Biển số:</span> {walkInResult.data.booking.vehicle.license_plate}
+                        </div>
+                        <div>
+                          <span className="font-medium">Trạm:</span> {walkInResult.data.booking.station}
+                        </div>
+                        <div>
+                          <span className="font-medium">Thời gian:</span> {formatDate(walkInResult.data.booking.start_date)} - {formatDate(walkInResult.data.booking.end_date)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Tổng tiền:</span> {formatPrice(walkInResult.data.booking.total_price)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Tiền cọc:</span> {formatPrice(walkInResult.data.booking.deposit_amount)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* QR Code */}
+                    {walkInResult.data.booking.qr_code && (
+                      <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg text-center">
+                        <h3 className="text-lg font-semibold mb-3">Mã QR</h3>
+                        <div className="bg-white p-4 inline-block rounded-lg">
+                          <p className="text-2xl font-mono font-bold">{walkInResult.data.booking.qr_code}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Hết hạn: {formatDate(walkInResult.data.booking.qr_expires_at)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Steps */}
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <AlertCircle className="h-5 w-5 mr-2" />
+                        Các bước tiếp theo
+                      </h3>
+                      <ol className="list-decimal list-inside space-y-2 text-sm">
+                        {walkInResult.data.next_steps.map((step, index) => (
+                          <li key={index}>{step}</li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    {/* Close Button */}
+                    <div className="flex justify-end pt-4">
+                      <Button 
+                        onClick={() => {
+                          setIsWalkInDialogOpen(false);
+                          setShowWalkInResult(false);
+                          setWalkInResult(null);
+                          resetWalkInForm();
                         }}
                         className="bg-blue-600 hover:bg-blue-700"
                       >

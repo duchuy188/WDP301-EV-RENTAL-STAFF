@@ -279,3 +279,67 @@ export async function cancelBooking(bookingId: string, reason: string): Promise<
 
   return res.json();
 }
+
+// Types for walk-in booking
+export interface WalkInBookingRequest {
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  customer_cmnd: string;
+  model: string;
+  color: string;
+  start_date: string; // YYYY-MM-DD format
+  end_date: string; // YYYY-MM-DD format
+  pickup_time: string; // HH:mm format
+  return_time: string; // HH:mm format
+  special_requests?: string;
+  notes?: string;
+}
+
+export interface WalkInBookingResponse {
+  success: boolean;
+  message: string;
+  data: {
+    booking: {
+      id: string;
+      code: string;
+      customer: {
+        name: string;
+        phone: string;
+        email: string;
+      };
+      vehicle: {
+        name: string;
+        model: string;
+        color: string;
+        license_plate: string;
+      };
+      station: string;
+      start_date: string;
+      end_date: string;
+      total_price: number;
+      deposit_amount: number;
+      qr_code: string;
+      qr_expires_at: string;
+    };
+    next_steps: string[];
+  };
+}
+
+// API function to create walk-in booking
+export async function createWalkInBooking(
+  data: WalkInBookingRequest
+): Promise<WalkInBookingResponse> {
+  const res = await fetch(apiUrl('/api/bookings/walk-in'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi tạo booking walk-in', res.status);
+  }
+
+  return res.json();
+}
