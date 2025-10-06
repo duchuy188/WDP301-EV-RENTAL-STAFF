@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { getPendingKyc, updateKycStatus, staffUploadIdentityCardFront, staffUploadIdentityCardBack, staffUploadLicense, getUsersNotSubmittedKyc, type PendingKycUser, type UserNotSubmittedKyc } from '@/api/kyc'
+import { getPendingKyc, updateKycStatus, staffUploadIdentityCardFront, staffUploadIdentityCardBack, staffUploadLicense, staffUploadLicenseFront, staffUploadLicenseBack, getUsersNotSubmittedKyc, type PendingKycUser, type UserNotSubmittedKyc } from '@/api/kyc'
 
 export function Customers() {
   // KYC Pending states
@@ -25,7 +25,7 @@ export function Customers() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [customerToReject, setCustomerToReject] = useState<string | null>(null)
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
-  const [uploadType, setUploadType] = useState<'front' | 'back' | 'license' | null>(null)
+  const [uploadType, setUploadType] = useState<'front' | 'back' | 'license' | 'license-front' | 'license-back' | null>(null)
 
   // Pagination for KYC Pending (client-side) - hiển thị 6 cards mỗi trang
   const [pendingPage, setPendingPage] = useState(1)
@@ -189,7 +189,8 @@ export function Customers() {
         filtered = filtered.filter(user => 
           !user.identityCardFrontUploaded || 
           !user.identityCardBackUploaded || 
-          !user.licenseFrontUploaded
+          !user.licenseFrontUploaded ||
+          !user.licenseBackUploaded
         )
         break
       case 'recent': {
@@ -305,7 +306,7 @@ export function Customers() {
     }
   }
 
-  const handleFileUpload = async (file: File, userId: string, type: 'front' | 'back' | 'license') => {
+  const handleFileUpload = async (file: File, userId: string, type: 'front' | 'back' | 'license' | 'license-front' | 'license-back') => {
     if (!file) return;
 
     setUploadingFor(userId)
@@ -322,6 +323,12 @@ export function Customers() {
           break;
         case 'license':
           response = await staffUploadLicense(userId, file)
+          break;
+        case 'license-front':
+          response = await staffUploadLicenseFront(userId, file)
+          break;
+        case 'license-back':
+          response = await staffUploadLicenseBack(userId, file)
           break;
       }
 
@@ -448,14 +455,16 @@ export function Customers() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* CCCD Front */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                     <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">CCCD mặt trước</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🪪 CCCD</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
                     <Input 
                       type="file" 
                       accept="image/*" 
-                      className="max-w-xs mx-auto" 
+                      className="max-w-xs mx-auto"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         const userId = prompt("Nhập userId của khách hàng:");
@@ -469,9 +478,12 @@ export function Customers() {
                       <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
                     )}
                   </div>
+
+                  {/* CCCD Back */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                     <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">CCCD mặt sau</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🪪 CCCD</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
                     <Input 
                       type="file" 
                       accept="image/*" 
@@ -489,9 +501,12 @@ export function Customers() {
                       <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
                     )}
                   </div>
-                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+
+                  {/* License Front */}
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
                     <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">Giấy phép lái xe (GPLX)</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🚗 GPLX</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
                     <Input 
                       type="file" 
                       accept="image/*" 
@@ -500,13 +515,36 @@ export function Customers() {
                         const file = e.target.files?.[0];
                         const userId = prompt("Nhập userId của khách hàng:");
                         if (file && userId) {
-                          handleFileUpload(file, userId, 'license');
+                          handleFileUpload(file, userId, 'license-front');
                         }
                       }}
                       disabled={uploadingFor !== null}
                     />
-                    {uploadingFor && uploadType === 'license' && (
-                      <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
+                    {uploadingFor && uploadType === 'license-front' && (
+                      <p className="text-sm text-purple-600 mt-2">Đang tải lên...</p>
+                    )}
+                  </div>
+
+                  {/* License Back */}
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
+                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🚗 GPLX</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
+                    <Input 
+                      type="file" 
+                      accept="image/*" 
+                      className="max-w-xs mx-auto"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        const userId = prompt("Nhập userId của khách hàng:");
+                        if (file && userId) {
+                          handleFileUpload(file, userId, 'license-back');
+                        }
+                      }}
+                      disabled={uploadingFor !== null}
+                    />
+                    {uploadingFor && uploadType === 'license-back' && (
+                      <p className="text-sm text-purple-600 mt-2">Đang tải lên...</p>
                     )}
                   </div>
                 </div>
@@ -548,7 +586,7 @@ export function Customers() {
                 const idAccuracy = customer.identityOcr?.front?.overall_score ? parseFloat(customer.identityOcr.front.overall_score) : 100
                 const licenseAccuracy = customer.licenseOcr?.front?.overall_score ? parseFloat(customer.licenseOcr.front.overall_score) : 100
                 const hasNameMismatch = customer.identityName && customer.licenseName && customer.identityName !== customer.licenseName
-                const hasIncompleteDoc = !customer.identityCardFrontUploaded || !customer.identityCardBackUploaded || !customer.licenseFrontUploaded
+                const hasIncompleteDoc = !customer.identityCardFrontUploaded || !customer.identityCardBackUploaded || !customer.licenseFrontUploaded || !customer.licenseBackUploaded
                 const isLowAccuracy = idAccuracy < 85 || licenseAccuracy < 85
 
                 return (
@@ -654,7 +692,7 @@ export function Customers() {
                       {/* Document Completeness */}
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Tài liệu:</span>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 flex-wrap">
                           <Badge variant={customer.identityCardFrontUploaded ? "default" : "secondary"} className="text-xs">
                             CCCD trước
                           </Badge>
@@ -662,7 +700,10 @@ export function Customers() {
                             CCCD sau
                           </Badge>
                           <Badge variant={customer.licenseFrontUploaded ? "default" : "secondary"} className="text-xs">
-                            GPLX
+                            GPLX trước
+                          </Badge>
+                          <Badge variant={customer.licenseBackUploaded ? "default" : "secondary"} className="text-xs">
+                            GPLX sau
                           </Badge>
                         </div>
                       </div>
@@ -843,7 +884,7 @@ export function Customers() {
                               {/* Document Images */}
                               <div>
                                 <h4 className="font-medium mb-3">Tài liệu đã tải lên</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                   <Card className="p-3">
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-sm font-medium">CCCD mặt trước</span>
@@ -882,7 +923,7 @@ export function Customers() {
                                   </Card>
                                   <Card className="p-3">
                                     <div className="flex items-center justify-between mb-2">
-                                      <span className="text-sm font-medium">Giấy phép lái xe</span>
+                                      <span className="text-sm font-medium">GPLX mặt trước</span>
                                       {selectedCustomer.licenseFrontUploaded ? (
                                         <CheckCircle className="h-4 w-4 text-green-600" />
                                       ) : (
@@ -892,9 +933,27 @@ export function Customers() {
                                     {selectedCustomer.licenseImage && (
                                       <img 
                                         src={selectedCustomer.licenseImage} 
-                                        alt="GPLX" 
+                                        alt="GPLX mặt trước" 
                                         className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
                                         onClick={() => window.open(selectedCustomer.licenseImage, '_blank')}
+                                      />
+                                    )}
+                                  </Card>
+                                  <Card className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">GPLX mặt sau</span>
+                                      {selectedCustomer.licenseBackUploaded ? (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      ) : (
+                                        <XCircle className="h-4 w-4 text-red-600" />
+                                      )}
+                                    </div>
+                                    {selectedCustomer.licenseBackImage && (
+                                      <img 
+                                        src={selectedCustomer.licenseBackImage} 
+                                        alt="GPLX mặt sau" 
+                                        className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => window.open(selectedCustomer.licenseBackImage, '_blank')}
                                       />
                                     )}
                                   </Card>
@@ -1018,7 +1077,7 @@ export function Customers() {
               <Button 
                 onClick={loadUsersNotSubmittedKyc}
                 disabled={notSubmittedLoading}
-                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${notSubmittedLoading ? 'animate-spin' : ''}`} />
                 Làm mới

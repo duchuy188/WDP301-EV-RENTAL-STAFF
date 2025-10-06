@@ -129,6 +129,61 @@ export interface StaffUploadResponse {
   };
 }
 
+export interface StaffUploadLicenseResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      id: string;
+      email: string;
+      fullname: string;
+    };
+    license: {
+      id: string;
+      name: string;
+      class: string;
+      image: string;
+    };
+    kycStatus: string;
+    needsBackImage: boolean;
+    validation: {
+      licenseClassValid: boolean;
+      licenseClassMessage: string;
+      nameComparison: {
+        match: boolean;
+        score: number;
+        message: string;
+      };
+      validationNotes: string;
+    };
+  };
+}
+
+export interface StaffUploadLicenseBackResponse {
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      id: string;
+      email: string;
+      fullname: string;
+    };
+    license: {
+      backImage: string;
+    };
+    kycStatus: string;
+    needsFrontImage: boolean;
+    validation: {
+      nameComparison: {
+        match: boolean;
+        score: number;
+        message: string;
+      };
+      validationNotes: string;
+    };
+  };
+}
+
 export interface UserNotSubmittedKyc {
   id: string;
   fullname: string;
@@ -288,6 +343,46 @@ export async function staffUploadLicense(userId: string, imageFile: File): Promi
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi tải lên GPLX', res.status);
+  }
+
+  return res.json();
+}
+
+// API function for staff to upload license front image
+export async function staffUploadLicenseFront(userId: string, imageFile: File): Promise<StaffUploadLicenseResponse> {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('userId', userId);
+
+  const res = await fetch(apiUrl('/api/kyc/staff/license/front'), {
+    method: 'POST',
+    headers: getAuthHeadersForUpload(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi tải lên mặt trước GPLX', res.status);
+  }
+
+  return res.json();
+}
+
+// API function for staff to upload license back image
+export async function staffUploadLicenseBack(userId: string, imageFile: File): Promise<StaffUploadLicenseBackResponse> {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('userId', userId);
+
+  const res = await fetch(apiUrl('/api/kyc/staff/license/back'), {
+    method: 'POST',
+    headers: getAuthHeadersForUpload(),
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi tải lên mặt sau GPLX', res.status);
   }
 
   return res.json();

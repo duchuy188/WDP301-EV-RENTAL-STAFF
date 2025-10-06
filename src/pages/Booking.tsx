@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Car,
   User,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { 
   getStationBookings, 
@@ -43,6 +45,12 @@ const Booking: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<Booking['status'] | 'all'>('all');
   const [hasError, setHasError] = useState(false);
   
+  // Advanced filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [dateType, setDateType] = useState<'booking' | 'pickup' | 'return'>('booking');
+  
   // Confirm booking dialog state
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmingBookingId, setConfirmingBookingId] = useState<string | null>(null);
@@ -52,11 +60,11 @@ const Booking: React.FC = () => {
   
   // Form data for confirmation
   const [vehicleCondition, setVehicleCondition] = useState<VehicleCondition>({
-    battery_level: 100,
-    odometer: 0,
+    battery_level: 85,
+    mileage: 15000,
     exterior_condition: 'good',
     interior_condition: 'good',
-    issues: []
+    notes: ''
   });
   const [staffNotes, setStaffNotes] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -201,11 +209,11 @@ const Booking: React.FC = () => {
   // Reset form data
   const resetConfirmForm = () => {
     setVehicleCondition({
-      battery_level: 100,
-      odometer: 0,
+      battery_level: 85,
+      mileage: 15000,
       exterior_condition: 'good',
       interior_condition: 'good',
-      issues: []
+      notes: ''
     });
     setStaffNotes('');
     setSelectedFiles([]);
@@ -319,6 +327,29 @@ const Booking: React.FC = () => {
     }
   };
 
+  // Apply advanced filters
+  const handleApplyFilters = () => {
+    loadBookings({
+      status: selectedStatus !== 'all' ? selectedStatus : undefined,
+      search: searchTerm || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      dateType: dateType,
+    });
+    setShowAdvancedFilters(false);
+  };
+
+  // Clear advanced filters
+  const handleClearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setDateType('booking');
+    setSearchTerm('');
+    setSelectedStatus('all');
+    loadBookings();
+    setShowAdvancedFilters(false);
+  };
+
 
   const getBookingStats = () => {
     const stats = {
@@ -403,10 +434,31 @@ const Booking: React.FC = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Bộ lọc
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => setShowAdvancedFilters(true)}
+              >
+                <Filter className="h-4 w-4" />
+                Bộ lọc nâng cao
+                {(startDate || endDate) && (
+                  <Badge variant="secondary" className="ml-2">
+                    {[startDate, endDate].filter(Boolean).length}
+                  </Badge>
+                )}
+              </Button>
+              {(startDate || endDate || searchTerm) && (
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleClearFilters}
+                  title="Xóa tất cả bộ lọc"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </motion.div>
 
@@ -488,10 +540,13 @@ const Booking: React.FC = () => {
         >
           <Tabs value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as Booking['status'] | 'all')}>
             <div className="p-6 pb-0">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 gap-2">
                 <TabsTrigger value="all">Tất cả</TabsTrigger>
                 <TabsTrigger value="pending">Chờ xử lý</TabsTrigger>
                 <TabsTrigger value="confirmed">Đã xác nhận</TabsTrigger>
+                <TabsTrigger value="checked_in" className="hidden lg:flex">Đã nhận xe</TabsTrigger>
+                <TabsTrigger value="in_progress" className="hidden lg:flex">Đang thuê</TabsTrigger>
+                <TabsTrigger value="completed" className="hidden lg:flex">Hoàn thành</TabsTrigger>
                 <TabsTrigger value="cancelled">Đã hủy</TabsTrigger>
               </TabsList>
             </div>
@@ -664,15 +719,15 @@ const Booking: React.FC = () => {
                       </div>
                       
                       <div>
-                        <Label htmlFor="odometer">Số km đã đi</Label>
+                        <Label htmlFor="mileage">Số km đã đi</Label>
                         <Input
-                          id="odometer"
+                          id="mileage"
                           type="number"
                           min="0"
-                          value={vehicleCondition.odometer || ''}
+                          value={vehicleCondition.mileage || ''}
                           onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
                             ...prev,
-                            odometer: parseInt(e.target.value) || 0
+                            mileage: parseInt(e.target.value) || 0
                           }))}
                           placeholder="Nhập số km"
                         />
@@ -704,6 +759,20 @@ const Booking: React.FC = () => {
                         }))}
                         placeholder="Mô tả tình trạng nội thất xe"
                         rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="vehicle_notes">Ghi chú về tình trạng xe</Label>
+                      <Textarea
+                        id="vehicle_notes"
+                        value={vehicleCondition.notes || ''}
+                        onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
+                          ...prev,
+                          notes: e.target.value
+                        }))}
+                        placeholder="Ví dụ: Xe sạch sẽ, không có vết xước"
+                        rows={2}
                       />
                     </div>
                   </div>
@@ -879,6 +948,118 @@ const Booking: React.FC = () => {
                   </div>
                 )
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Advanced Filters Dialog */}
+          <Dialog open={showAdvancedFilters} onOpenChange={setShowAdvancedFilters}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Filter className="h-5 w-5" />
+                  Bộ lọc nâng cao
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                {/* Date Type Filter */}
+                <div className="space-y-2">
+                  <Label>Lọc theo loại ngày</Label>
+                  <Select value={dateType} onValueChange={(value: 'booking' | 'pickup' | 'return') => setDateType(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn loại ngày" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="booking">Ngày đặt xe</SelectItem>
+                      <SelectItem value="pickup">Ngày lấy xe</SelectItem>
+                      <SelectItem value="return">Ngày trả xe</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Date Range */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Từ ngày</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">Đến ngày</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Status Filter Dropdown */}
+                <div className="space-y-2">
+                  <Label>Lọc theo trạng thái đặt xe</Label>
+                  <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as Booking['status'] | 'all')}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">-- Tất cả --</SelectItem>
+                      <SelectItem value="pending">Chờ xác nhận</SelectItem>
+                      <SelectItem value="confirmed">Đã xác nhận</SelectItem>
+                      <SelectItem value="checked_in">Đã nhận xe</SelectItem>
+                      <SelectItem value="in_progress">Đang thuê</SelectItem>
+                      <SelectItem value="completed">Hoàn thành</SelectItem>
+                      <SelectItem value="cancelled">Đã hủy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Active Filters Summary */}
+                {(startDate || endDate) && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      Bộ lọc đang áp dụng:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {startDate && (
+                        <Badge variant="secondary">
+                          Từ: {startDate}
+                        </Badge>
+                      )}
+                      {endDate && (
+                        <Badge variant="secondary">
+                          Đến: {endDate}
+                        </Badge>
+                      )}
+                      <Badge variant="secondary">
+                        {dateType === 'booking' ? '📅 Ngày đặt' : dateType === 'pickup' ? '🚗 Ngày lấy xe' : '🔙 Ngày trả xe'}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleClearFilters}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Xóa bộ lọc
+                </Button>
+                <Button
+                  onClick={handleApplyFilters}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Áp dụng
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

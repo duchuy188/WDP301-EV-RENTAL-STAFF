@@ -53,6 +53,9 @@ export interface BookingListParams {
   page?: number;
   limit?: number;
   search?: string;
+  startDate?: string; // YYYY-MM-DD format
+  endDate?: string; // YYYY-MM-DD format
+  dateType?: 'booking' | 'pickup' | 'return'; // Loại ngày để lọc
 }
 
 // API configuration
@@ -93,6 +96,15 @@ export async function getStationBookings(params?: BookingListParams): Promise<Bo
   }
   if (params?.search) {
     searchParams.append('search', params.search);
+  }
+  if (params?.startDate) {
+    searchParams.append('startDate', params.startDate);
+  }
+  if (params?.endDate) {
+    searchParams.append('endDate', params.endDate);
+  }
+  if (params?.dateType) {
+    searchParams.append('dateType', params.dateType);
   }
 
   const queryString = searchParams.toString();
@@ -155,12 +167,11 @@ export async function updateBookingStatus(
 
 // Types for confirm booking API
 export interface VehicleCondition {
-  battery_level?: number;
-  odometer?: number;
-  fuel_level?: number;
-  exterior_condition?: string;
-  interior_condition?: string;
-  issues?: string[];
+  mileage?: number; // Số km đã đi (theo API spec)
+  battery_level?: number; // Mức pin (%)
+  exterior_condition?: string; // Tình trạng ngoại thất
+  interior_condition?: string; // Tình trạng nội thất
+  notes?: string; // Ghi chú về tình trạng xe
 }
 
 export interface ConfirmBookingRequest {
