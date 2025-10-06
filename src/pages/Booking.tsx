@@ -25,6 +25,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis
+} from '@/components/ui/pagination';
 import { useToast } from '@/hooks/use-toast';
 import { 
   getStationBookings, 
@@ -48,6 +57,12 @@ const Booking: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<Booking['status'] | 'all'>('all');
   const [hasError, setHasError] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   
   // Advanced filters
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -98,21 +113,24 @@ const Booking: React.FC = () => {
   const { toast } = useToast();
 
   // Load bookings data
-  const loadBookings = useCallback(async (params?: BookingListParams) => {
+  const loadBookings = useCallback(async (params?: BookingListParams, page?: number) => {
     setIsLoading(true);
     try {
+      const pageToLoad = page || currentPage;
       const response: BookingListResponse = await getStationBookings({
-        page: 1,
-        limit: 50,
+        page: pageToLoad,
+        limit: itemsPerPage,
         ...params
       });
 
       setBookings(response.bookings);
       setFilteredBookings(response.bookings);
+      setTotalItems(response.pagination?.totalRecords || response.bookings.length);
+      setTotalPages(response.pagination?.total || Math.ceil((response.pagination?.totalRecords || response.bookings.length) / itemsPerPage));
       
       toast({
         title: "Thành công",
-        description: `Đã tải ${response.bookings.length} booking`,
+        description: `Đã tải ${response.bookings.length} booking (trang ${pageToLoad}/${response.pagination?.total || 1})`,
       });
     } catch (error: unknown) {
       console.error('Error loading bookings:', error);
@@ -125,7 +143,7 @@ const Booking: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, currentPage, itemsPerPage]);
 
   // Load data on component mount
   useEffect(() => {
@@ -392,7 +410,6 @@ const Booking: React.FC = () => {
     if (!walkInFormData.customer_name.trim()) return 'Vui lòng nhập tên khách hàng';
     if (!walkInFormData.customer_phone.trim()) return 'Vui lòng nhập số điện thoại';
     if (!walkInFormData.customer_email.trim()) return 'Vui lòng nhập email';
-    if (!walkInFormData.customer_cmnd.trim()) return 'Vui lòng nhập CMND/CCCD';
     if (!walkInFormData.model.trim()) return 'Vui lòng nhập model xe';
     if (!walkInFormData.color.trim()) return 'Vui lòng nhập màu xe';
     if (!walkInFormData.start_date) return 'Vui lòng chọn ngày bắt đầu';
@@ -451,15 +468,31 @@ const Booking: React.FC = () => {
     }
   };
 
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    loadBookings(undefined, page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (value: string) => {
+    const newItemsPerPage = parseInt(value);
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+    loadBookings(undefined, 1);
+  };
+
   // Apply advanced filters
   const handleApplyFilters = () => {
+    setCurrentPage(1);
     loadBookings({
       status: selectedStatus !== 'all' ? selectedStatus : undefined,
       search: searchTerm || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       dateType: dateType,
-    });
+    }, 1);
     setShowAdvancedFilters(false);
   };
 
@@ -470,7 +503,8 @@ const Booking: React.FC = () => {
     setDateType('booking');
     setSearchTerm('');
     setSelectedStatus('all');
-    loadBookings();
+    setCurrentPage(1);
+    loadBookings(undefined, 1);
     setShowAdvancedFilters(false);
   };
 
@@ -814,6 +848,114 @@ const Booking: React.FC = () => {
                   </AnimatePresence>
           </div>
               )}
+
+              {/* Pagination Controls */}
+              {!isLoading && filteredBookings.length > 0 && (
+                <div className="mt-6 space-y-4">
+                  {/* Pagination info and items per page selector */}
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-2">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      Hiển thị <span className="font-semibold">{((currentPage - 1) * itemsPerPage) + 1}</span> - <span className="font-semibold">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số <span className="font-semibold">{totalItems}</span> booking
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="items-per-page" className="text-sm whitespace-nowrap">
+                        Số mục/trang:
+                      </Label>
+                      <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                        <SelectTrigger id="items-per-page" className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Pagination buttons */}
+                  {totalPages > 1 && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                            className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        
+                        {/* First page */}
+                        {currentPage > 2 && (
+                          <>
+                            <PaginationItem>
+                              <PaginationLink onClick={() => handlePageChange(1)} className="cursor-pointer">
+                                1
+                              </PaginationLink>
+                            </PaginationItem>
+                            {currentPage > 3 && (
+                              <PaginationItem>
+                                <PaginationEllipsis />
+                              </PaginationItem>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Previous page */}
+                        {currentPage > 1 && (
+                          <PaginationItem>
+                            <PaginationLink onClick={() => handlePageChange(currentPage - 1)} className="cursor-pointer">
+                              {currentPage - 1}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )}
+                        
+                        {/* Current page */}
+                        <PaginationItem>
+                          <PaginationLink isActive className="cursor-default">
+                            {currentPage}
+                          </PaginationLink>
+                        </PaginationItem>
+                        
+                        {/* Next page */}
+                        {currentPage < totalPages && (
+                          <PaginationItem>
+                            <PaginationLink onClick={() => handlePageChange(currentPage + 1)} className="cursor-pointer">
+                              {currentPage + 1}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )}
+                        
+                        {/* Last page */}
+                        {currentPage < totalPages - 1 && (
+                          <>
+                            {currentPage < totalPages - 2 && (
+                              <PaginationItem>
+                                <PaginationEllipsis />
+                              </PaginationItem>
+                            )}
+                            <PaginationItem>
+                              <PaginationLink onClick={() => handlePageChange(totalPages)} className="cursor-pointer">
+                                {totalPages}
+                              </PaginationLink>
+                            </PaginationItem>
+                          </>
+                        )}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                            className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
           </motion.div>
@@ -1134,16 +1276,6 @@ const Booking: React.FC = () => {
                           value={walkInFormData.customer_email}
                           onChange={(e) => handleWalkInFormChange('customer_email', e.target.value)}
                           placeholder="nguyenvana@email.com"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="customer_cmnd">CMND/CCCD *</Label>
-                        <Input
-                          id="customer_cmnd"
-                          value={walkInFormData.customer_cmnd}
-                          onChange={(e) => handleWalkInFormChange('customer_cmnd', e.target.value)}
-                          placeholder="123456789"
                         />
                       </div>
                     </div>
