@@ -24,7 +24,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getStaffRentals, getRentalById, getCheckoutInfo, type Rental, type RentalDetail, type CheckoutInfo } from '@/api/rentals';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse } from '@/api/rentals';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -47,6 +50,20 @@ export function Rentals() {
   const [checkoutInfo, setCheckoutInfo] = useState<CheckoutInfo | null>(null);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<'form' | 'result'>('form');
+  const [checkoutResult, setCheckoutResult] = useState<CheckoutNormalResponse | null>(null);
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
+  
+  // Checkout form states
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [mileage, setMileage] = useState('');
+  const [batteryLevel, setBatteryLevel] = useState('');
+  const [exteriorCondition, setExteriorCondition] = useState('good');
+  const [interiorCondition, setInteriorCondition] = useState('good');
+  const [inspectionNotes, setInspectionNotes] = useState('');
+  const [damageDescription, setDamageDescription] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [customerNotes, setCustomerNotes] = useState('');
 
   // Stats
   const [stats, setStats] = useState({
@@ -130,6 +147,19 @@ export function Rentals() {
   };
 
   const handleStartCheckout = async (rentalId: string) => {
+    // Reset form
+    setCheckoutStep('form');
+    setCheckoutResult(null);
+    setPhotos([]);
+    setMileage('');
+    setBatteryLevel('');
+    setExteriorCondition('good');
+    setInteriorCondition('good');
+    setInspectionNotes('');
+    setDamageDescription('');
+    setPaymentMethod('cash');
+    setCustomerNotes('');
+    
     setShowCheckoutDialog(true);
     setCheckoutLoading(true);
     try {
@@ -146,6 +176,73 @@ export function Rentals() {
       setShowCheckoutDialog(false);
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + photos.length > 10) {
+      toast({
+        title: "Cảnh báo",
+        description: "Chỉ được upload tối đa 10 ảnh",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPhotos([...photos, ...files]);
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitCheckout = async () => {
+    if (!checkoutInfo) return;
+
+    // Validation
+    if (!mileage || !batteryLevel) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập đầy đủ thông tin bắt buộc",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCheckoutSubmitting(true);
+    try {
+      const response = await checkoutNormal(checkoutInfo.rental.id, {
+        photos,
+        mileage: parseInt(mileage),
+        battery_level: parseInt(batteryLevel),
+        exterior_condition: exteriorCondition,
+        interior_condition: interiorCondition,
+        inspection_notes: inspectionNotes,
+        damage_description: damageDescription,
+        payment_method: paymentMethod,
+        customer_notes: customerNotes,
+      });
+
+      setCheckoutResult(response);
+      setCheckoutStep('result');
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+      
+      // Reload rentals list
+      loadRentals();
+    } catch (error: unknown) {
+      console.error('Checkout API Error:', error);
+      const errorMessage = (error as Error)?.message || 'Lỗi khi thực hiện checkout';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setCheckoutSubmitting(false);
     }
   };
 
@@ -1033,29 +1130,297 @@ export function Rentals() {
                 </Card>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex justify-center gap-4 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCheckoutDialog(false)}
-                  className="px-8"
-                >
-                  Đóng
-                </Button>
-                <Button
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 shadow-lg"
-                  onClick={() => {
-                    // TODO: Implement actual checkout process
-                    toast({
-                      title: "Coming Soon",
-                      description: "Tính năng trả xe đang được phát triển",
-                    });
-                  }}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Tiếp tục trả xe
-                </Button>
-              </div>
+              {/* Checkout Form or Result */}
+              {checkoutStep === 'form' ? (
+                <div className="space-y-6 pt-6 border-t">
+                  <h3 className="font-semibold text-lg">📝 Thông tin trả xe</h3>
+                  
+                  {/* Photo Upload */}
+                  <div className="space-y-2">
+                    <Label htmlFor="photos" className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      Ảnh xe khi trả <span className="text-xs text-gray-500">(Tối đa 10 ảnh)</span>
+                    </Label>
+                    <Input
+                      id="photos"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePhotoChange}
+                      className="cursor-pointer"
+                    />
+                    {photos.length > 0 && (
+                      <div className="grid grid-cols-5 gap-2 mt-2">
+                        {photos.map((photo, idx) => (
+                          <div key={idx} className="relative group">
+                            <img
+                              src={URL.createObjectURL(photo)}
+                              alt={`Photo ${idx + 1}`}
+                              className="w-full h-20 object-cover rounded border"
+                            />
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleRemovePhoto(idx)}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mileage & Battery */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="mileage" className="flex items-center gap-2">
+                        <Gauge className="h-4 w-4" />
+                        Số km * <span className="text-xs text-gray-500">(sau khi trả)</span>
+                      </Label>
+                      <Input
+                        id="mileage"
+                        type="number"
+                        placeholder="VD: 1050"
+                        value={mileage}
+                        onChange={(e) => setMileage(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="battery" className="flex items-center gap-2">
+                        <Battery className="h-4 w-4" />
+                        Mức pin (%) *
+                      </Label>
+                      <Input
+                        id="battery"
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="VD: 75"
+                        value={batteryLevel}
+                        onChange={(e) => setBatteryLevel(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Conditions */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Tình trạng ngoại thất *</Label>
+                      <Select value={exteriorCondition} onValueChange={setExteriorCondition}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Xuất sắc</SelectItem>
+                          <SelectItem value="good">Tốt</SelectItem>
+                          <SelectItem value="fair">Khá</SelectItem>
+                          <SelectItem value="poor">Kém</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tình trạng nội thất *</Label>
+                      <Select value={interiorCondition} onValueChange={setInteriorCondition}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent">Xuất sắc</SelectItem>
+                          <SelectItem value="good">Tốt</SelectItem>
+                          <SelectItem value="fair">Khá</SelectItem>
+                          <SelectItem value="poor">Kém</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <Label htmlFor="inspection">Ghi chú kiểm tra xe</Label>
+                    <Textarea
+                      id="inspection"
+                      placeholder="VD: Xe sạch sẽ, không có hư hỏng..."
+                      value={inspectionNotes}
+                      onChange={(e) => setInspectionNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="damage">Mô tả hư hỏng (nếu có)</Label>
+                    <Textarea
+                      id="damage"
+                      placeholder="VD: Không có hư hỏng..."
+                      value={damageDescription}
+                      onChange={(e) => setDamageDescription(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Payment Method */}
+                  <div className="space-y-2">
+                    <Label>Phương thức thanh toán</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">💵 Tiền mặt</SelectItem>
+                        <SelectItem value="bank_transfer">🏦 Chuyển khoản</SelectItem>
+                        <SelectItem value="credit_card">💳 Thẻ tín dụng</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="customer-notes">Ghi chú từ khách hàng</Label>
+                    <Textarea
+                      id="customer-notes"
+                      placeholder="VD: Xe chạy tốt, không có vấn đề gì..."
+                      value={customerNotes}
+                      onChange={(e) => setCustomerNotes(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Submit Buttons */}
+                  <div className="flex justify-center gap-4 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCheckoutDialog(false)}
+                      disabled={checkoutSubmitting}
+                      className="px-8"
+                    >
+                      Hủy
+                    </Button>
+                    <Button
+                      onClick={handleSubmitCheckout}
+                      disabled={checkoutSubmitting || !mileage || !batteryLevel}
+                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 shadow-lg"
+                    >
+                      {checkoutSubmitting ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Hoàn tất trả xe
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : checkoutResult && (
+                <div className="space-y-6 pt-6 border-t">
+                  <div className="text-center">
+                    <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
+                    <h3 className="text-2xl font-bold text-green-600 mb-2">
+                      {checkoutResult.message}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Mã rental: <span className="font-bold">{checkoutResult.data.rental.code}</span>
+                    </p>
+                  </div>
+
+                  {/* Rental Status */}
+                  <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Trạng thái</p>
+                        <Badge className={checkoutResult.data.rental.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                          {checkoutResult.data.rental.status === 'completed' ? '✅ Hoàn thành' : '⏳ Chờ thanh toán'}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Số ngày thuê</p>
+                        <p className="font-bold text-lg">{checkoutResult.data.checkout_info.rental_days}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Phí phát sinh</p>
+                        <p className="font-bold text-lg">{formatPrice(checkoutResult.data.fee_breakdown.total_fees)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Trạng thái xe</p>
+                        <Badge variant="outline">{checkoutResult.data.vehicle_status}</Badge>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Status Reason */}
+                  <Card className="p-4">
+                    <p className="text-sm">
+                      <strong>Lý do:</strong> {checkoutResult.data.checkout_info.status_reason}
+                    </p>
+                  </Card>
+
+                  {/* Payments */}
+                  {checkoutResult.data.payments.length > 0 && (
+                    <Card className="p-4">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Thông tin thanh toán
+                      </h4>
+                      <div className="space-y-2">
+                        {checkoutResult.data.payments.map((payment, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div>
+                              <p className="font-medium">
+                                {payment.type === 'deposit' ? '💰 Thanh toán cọc' : '💳 Thanh toán'}
+                              </p>
+                              <p className="text-xs text-gray-500">{payment.description}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-lg text-green-600">
+                                {formatPrice(payment.amount)}
+                              </p>
+                              <Badge variant="outline" className="text-xs">
+                                {payment.status === 'pending' ? '⏳ Chờ' : '✅ Đã thanh toán'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Uploaded Images */}
+                  {checkoutResult.data.images?.uploaded && checkoutResult.data.images.uploaded.length > 0 && (
+                    <Card className="p-4">
+                      <h4 className="font-medium mb-3">Ảnh đã upload</h4>
+                      <div className="grid grid-cols-5 gap-2">
+                        {checkoutResult.data.images.uploaded.map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={img}
+                            alt={`Uploaded ${idx + 1}`}
+                            className="w-full h-20 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => handleImageClick(img)}
+                          />
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Close Button */}
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      onClick={() => {
+                        setShowCheckoutDialog(false);
+                        setShowDetailDialog(false);
+                      }}
+                      className="px-8"
+                    >
+                      Đóng
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
