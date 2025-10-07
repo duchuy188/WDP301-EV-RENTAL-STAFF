@@ -1,12 +1,47 @@
 import { ApiError } from './auth';
 
 // Types for booking data
+export interface User {
+  _id: string;
+  fullname: string;
+  email: string;
+  phone: string;
+  kycStatus: string;
+}
+
+export interface Vehicle {
+  _id: string;
+  license_plate: string;
+  name: string;
+  brand: string;
+  model: string;
+  year: number;
+  color: string;
+  price_per_day: number;
+  images: string[];
+}
+
+export interface Station {
+  _id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  opening_time: string;
+  closing_time: string;
+}
+
+export interface StaffUser {
+  _id: string;
+  fullname: string;
+}
+
 export interface Booking {
   _id: string;
   code: string;
-  user_id: string;
-  vehicle_id: string;
-  station_id: string;
+  user_id: string | User;
+  vehicle_id: string | Vehicle;
+  station_id: string | Station;
   start_date: string;
   end_date: string;
   pickup_time: string;
@@ -25,9 +60,9 @@ export interface Booking {
   notes?: string;
   cancellation_reason?: string;
   cancelled_at?: string;
-  cancelled_by?: string;
+  cancelled_by?: string | StaffUser;
   confirmed_at?: string;
-  confirmed_by?: string;
+  confirmed_by?: string | StaffUser;
   qr_code?: string;
   qr_expires_at?: string;
   qr_used_at?: string;
@@ -35,6 +70,9 @@ export interface Booking {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 }
 
 export interface BookingListResponse {
@@ -56,6 +94,12 @@ export interface BookingListParams {
   startDate?: string; // YYYY-MM-DD format
   endDate?: string; // YYYY-MM-DD format
   dateType?: 'booking' | 'pickup' | 'return'; // Loại ngày để lọc
+}
+
+export interface BookingDetailResponse {
+  message: string;
+  booking: Booking;
+  canCancel?: boolean;
 }
 
 // API configuration
@@ -126,7 +170,7 @@ export async function getStationBookings(params?: BookingListParams): Promise<Bo
 }
 
 // API function to get booking details
-export async function getBookingDetails(bookingId: string): Promise<Booking> {
+export async function getBookingDetails(bookingId: string): Promise<BookingDetailResponse> {
   const res = await fetch(apiUrl(`/api/bookings/${bookingId}`), {
     method: 'GET',
     headers: getAuthHeaders(),

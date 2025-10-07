@@ -14,7 +14,9 @@ import {
   User,
   Filter,
   X,
-  UserPlus
+  UserPlus,
+  Eye,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,6 +39,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { 
   getStationBookings, 
+  getBookingDetails,
   confirmBooking, 
   cancelBooking,
   createWalkInBooking,
@@ -82,6 +85,11 @@ const Booking: React.FC = () => {
   const [isCreatingWalkIn, setIsCreatingWalkIn] = useState(false);
   const [walkInResult, setWalkInResult] = useState<WalkInBookingResponse | null>(null);
   const [showWalkInResult, setShowWalkInResult] = useState(false);
+  
+  // Booking detail dialog state
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedBookingDetail, setSelectedBookingDetail] = useState<Booking | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   
   // Walk-in form data
   const [walkInFormData, setWalkInFormData] = useState<WalkInBookingRequest>({
@@ -468,6 +476,34 @@ const Booking: React.FC = () => {
     }
   };
 
+  // Load booking detail
+  const loadBookingDetail = async (bookingId: string) => {
+    setIsLoadingDetail(true);
+    try {
+      const response = await getBookingDetails(bookingId);
+      setSelectedBookingDetail(response.booking);
+      setIsDetailDialogOpen(true);
+      
+      toast({
+        title: "Thành công",
+        description: response.message || "Đã tải chi tiết booking",
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Lỗi",
+        description: (error as Error).message || "Không thể tải chi tiết booking",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  // Open booking detail dialog
+  const openDetailDialog = (bookingId: string) => {
+    loadBookingDetail(bookingId);
+  };
+
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -758,6 +794,15 @@ const Booking: React.FC = () => {
                                 </p>
                               </div>
                               <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openDetailDialog(booking._id)}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Chi tiết
+                                </Button>
+                                
                                 {booking.status === 'pending' && (
                   <Button
                                     size="sm"
@@ -1511,6 +1556,472 @@ const Booking: React.FC = () => {
                     </div>
                   </div>
                 )
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Booking Detail Dialog */}
+          <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Car className="h-5 w-5" />
+                  Chi tiết Booking
+                </DialogTitle>
+              </DialogHeader>
+              
+              {isLoadingDetail ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p>Đang tải chi tiết booking...</p>
+                </div>
+              ) : selectedBookingDetail ? (
+                <div className="space-y-6 py-4">
+                  {/* Header Info */}
+                  <div className="flex justify-between items-start p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                        {selectedBookingDetail.code || 'N/A'}
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(selectedBookingDetail.status)}
+                        <Badge variant={getStatusVariant(selectedBookingDetail.status)} className="text-sm">
+                          {getStatusText(selectedBookingDetail.status)}
+                        </Badge>
+                        <Badge variant="outline" className="text-sm">
+                          {selectedBookingDetail.booking_type === 'online' ? '🌐 Đặt online' : '🏢 Đặt tại chỗ'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Tổng tiền</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {formatPrice(selectedBookingDetail.total_price)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Basic Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column */}
+                    <div className="space-y-4">
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <User className="h-5 w-5 text-blue-600" />
+                          Thông tin khách hàng
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          {typeof selectedBookingDetail.user_id === 'object' ? (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Họ tên:</span>
+                                <span className="font-medium">{selectedBookingDetail.user_id.fullname || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                                <span className="font-medium">{selectedBookingDetail.user_id.email || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Số điện thoại:</span>
+                                <span className="font-medium">{selectedBookingDetail.user_id.phone || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Trạng thái KYC:</span>
+                                <Badge 
+                                  variant={
+                                    selectedBookingDetail.user_id.kycStatus === 'approved' ? 'default' : 
+                                    selectedBookingDetail.user_id.kycStatus === 'pending' ? 'secondary' : 
+                                    'destructive'
+                                  }
+                                  className={
+                                    selectedBookingDetail.user_id.kycStatus === 'approved' ? 'bg-green-600' : ''
+                                  }
+                                >
+                                  {selectedBookingDetail.user_id.kycStatus === 'approved' ? 'Đã duyệt' :
+                                   selectedBookingDetail.user_id.kycStatus === 'pending' ? 'Chờ duyệt' :
+                                   'Từ chối'}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="text-gray-500 dark:text-gray-400">ID:</span>
+                                <span className="font-mono text-xs">{selectedBookingDetail.user_id._id}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">ID:</span>
+                              <span className="font-medium">{String(selectedBookingDetail.user_id).slice(-12) || 'N/A'}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Car className="h-5 w-5 text-green-600" />
+                          Thông tin xe
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          {typeof selectedBookingDetail.vehicle_id === 'object' ? (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-500 dark:text-gray-400">Biển số xe:</span>
+                                <span className="font-bold text-lg text-green-600">{selectedBookingDetail.vehicle_id.license_plate || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Tên xe:</span>
+                                <span className="font-medium">{selectedBookingDetail.vehicle_id.name || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Hãng:</span>
+                                <span className="font-medium">{selectedBookingDetail.vehicle_id.brand || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Model:</span>
+                                <span className="font-medium">{selectedBookingDetail.vehicle_id.model || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Năm sản xuất:</span>
+                                <span className="font-medium">{selectedBookingDetail.vehicle_id.year || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Màu sắc:</span>
+                                <span className="font-medium">{selectedBookingDetail.vehicle_id.color || 'N/A'}</span>
+                              </div>
+                              {selectedBookingDetail.vehicle_id.images && selectedBookingDetail.vehicle_id.images.length > 0 && (
+                                <div className="pt-2 border-t">
+                                  <span className="text-gray-500 dark:text-gray-400 block mb-2">Hình ảnh xe:</span>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {selectedBookingDetail.vehicle_id.images.slice(0, 4).map((img, idx) => (
+                                      <img 
+                                        key={idx}
+                                        src={img} 
+                                        alt={`Vehicle ${idx + 1}`}
+                                        className="w-full h-20 object-cover rounded border"
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="text-gray-500 dark:text-gray-400">ID xe:</span>
+                                <span className="font-mono text-xs">{selectedBookingDetail.vehicle_id._id}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">ID xe:</span>
+                              <span className="font-medium">{String(selectedBookingDetail.vehicle_id).slice(-12) || 'N/A'}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <MapPin className="h-5 w-5 text-orange-600" />
+                          Trạm
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          {typeof selectedBookingDetail.station_id === 'object' ? (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Tên trạm:</span>
+                                <span className="font-semibold">{selectedBookingDetail.station_id.name || 'N/A'}</span>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-gray-500 dark:text-gray-400">Địa chỉ:</span>
+                                <span className="font-medium text-right">{selectedBookingDetail.station_id.address || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Số điện thoại:</span>
+                                <span className="font-medium">{selectedBookingDetail.station_id.phone || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                                <span className="font-medium">{selectedBookingDetail.station_id.email || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="text-gray-500 dark:text-gray-400">Giờ mở cửa:</span>
+                                <span className="font-medium text-green-600">{selectedBookingDetail.station_id.opening_time || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-gray-400">Giờ đóng cửa:</span>
+                                <span className="font-medium text-red-600">{selectedBookingDetail.station_id.closing_time || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="text-gray-500 dark:text-gray-400">ID trạm:</span>
+                                <span className="font-mono text-xs">{selectedBookingDetail.station_id._id}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">ID trạm:</span>
+                              <span className="font-medium">{String(selectedBookingDetail.station_id).slice(-12) || 'N/A'}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-4">
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-purple-600" />
+                          Thời gian thuê
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Ngày bắt đầu:</span>
+                            <span className="font-medium">{formatDate(selectedBookingDetail.start_date)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Ngày kết thúc:</span>
+                            <span className="font-medium">{formatDate(selectedBookingDetail.end_date)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Giờ nhận xe:</span>
+                            <span className="font-medium">{selectedBookingDetail.pickup_time || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Giờ trả xe:</span>
+                            <span className="font-medium">{selectedBookingDetail.return_time || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between pt-2 border-t">
+                            <span className="text-gray-500 dark:text-gray-400">Tổng số ngày:</span>
+                            <span className="font-bold text-blue-600">{selectedBookingDetail.total_days} ngày</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <CreditCard className="h-5 w-5 text-green-600" />
+                          Chi phí
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Giá/ngày:</span>
+                            <span className="font-medium">{formatPrice(selectedBookingDetail.price_per_day)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Tổng tiền:</span>
+                            <span className="font-medium">{formatPrice(selectedBookingDetail.total_price)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Tiền cọc:</span>
+                            <span className="font-medium">{formatPrice(selectedBookingDetail.deposit_amount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Phí trễ hạn:</span>
+                            <span className="font-medium text-orange-600">{formatPrice(selectedBookingDetail.late_fee)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Phí hư hỏng:</span>
+                            <span className="font-medium text-red-600">{formatPrice(selectedBookingDetail.damage_fee)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Phí khác:</span>
+                            <span className="font-medium">{formatPrice(selectedBookingDetail.other_fees)}</span>
+                          </div>
+                          <div className="flex justify-between pt-2 border-t">
+                            <span className="text-gray-500 dark:text-gray-400">Tổng thanh toán:</span>
+                            <span className="font-bold text-green-600">{formatPrice(selectedBookingDetail.final_amount)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* QR Code Section */}
+                  {selectedBookingDetail.qr_code && (
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-3">Mã QR</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Mã QR:</span>
+                          <span className="font-mono font-medium">{selectedBookingDetail.qr_code}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Hết hạn:</span>
+                          <span className="font-medium">{formatDate(selectedBookingDetail.qr_expires_at)}</span>
+                        </div>
+                        {selectedBookingDetail.qr_used_at && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Đã sử dụng:</span>
+                            <span className="font-medium">{formatDate(selectedBookingDetail.qr_used_at)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Special Requests */}
+                  {selectedBookingDetail.special_requests && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                      <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-yellow-600" />
+                        Yêu cầu đặc biệt
+                      </h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {selectedBookingDetail.special_requests}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {selectedBookingDetail.notes && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+                      <h3 className="text-lg font-semibold mb-2">Ghi chú</h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {selectedBookingDetail.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Cancellation Info */}
+                  {selectedBookingDetail.status === 'cancelled' && (
+                    <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-700">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-red-600">
+                        <XCircle className="h-5 w-5" />
+                        Thông tin hủy
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        {selectedBookingDetail.cancellation_reason && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Lý do:</span>
+                            <span className="font-medium">{selectedBookingDetail.cancellation_reason}</span>
+                          </div>
+                        )}
+                        {selectedBookingDetail.cancelled_at && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Thời gian hủy:</span>
+                            <span className="font-medium">{formatDate(selectedBookingDetail.cancelled_at)}</span>
+                          </div>
+                        )}
+                        {selectedBookingDetail.cancelled_by && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Người hủy:</span>
+                            <span className="font-medium">
+                              {typeof selectedBookingDetail.cancelled_by === 'object' 
+                                ? selectedBookingDetail.cancelled_by.fullname 
+                                : String(selectedBookingDetail.cancelled_by).slice(-12)}
+                            </span>
+                          </div>
+                        )}
+                        {typeof selectedBookingDetail.cancelled_by === 'object' && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">ID Staff:</span>
+                            <span className="font-mono text-xs">{selectedBookingDetail.cancelled_by._id}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confirmation Info */}
+                  {selectedBookingDetail.status === 'confirmed' && selectedBookingDetail.confirmed_at && (
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-5 w-5" />
+                        Thông tin xác nhận
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Thời gian xác nhận:</span>
+                          <span className="font-medium">{formatDate(selectedBookingDetail.confirmed_at)}</span>
+                        </div>
+                        {selectedBookingDetail.confirmed_by && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Người xác nhận:</span>
+                            <span className="font-medium">
+                              {typeof selectedBookingDetail.confirmed_by === 'object' 
+                                ? selectedBookingDetail.confirmed_by.fullname 
+                                : String(selectedBookingDetail.confirmed_by).slice(-12)}
+                            </span>
+                          </div>
+                        )}
+                        {typeof selectedBookingDetail.confirmed_by === 'object' && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">ID Staff:</span>
+                            <span className="font-mono text-xs">{selectedBookingDetail.confirmed_by._id}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timestamps */}
+                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-gray-600" />
+                      Thời gian tạo & cập nhật
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Tạo lúc:</span>
+                        <span className="font-medium">{formatDate(selectedBookingDetail.created_at || selectedBookingDetail.createdAt)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Cập nhật:</span>
+                        <span className="font-medium">{formatDate(selectedBookingDetail.updated_at || selectedBookingDetail.updatedAt)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Trạng thái:</span>
+                        <span className="font-medium">
+                          {selectedBookingDetail.is_active ? (
+                            <Badge variant="default" className="bg-green-600">Hoạt động</Badge>
+                          ) : (
+                            <Badge variant="destructive">Không hoạt động</Badge>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    {selectedBookingDetail.status === 'pending' && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            setIsDetailDialogOpen(false);
+                            openConfirmDialog(selectedBookingDetail._id);
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Xác nhận bàn giao
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            setIsDetailDialogOpen(false);
+                            handleCancelBooking(selectedBookingDetail._id);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Hủy booking
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsDetailDialogOpen(false);
+                        setSelectedBookingDetail(null);
+                      }}
+                    >
+                      Đóng
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <XCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 dark:text-gray-300">Không có dữ liệu</p>
+                </div>
               )}
             </DialogContent>
           </Dialog>
