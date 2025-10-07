@@ -199,12 +199,54 @@ export interface CheckoutNormalResponse {
     vehicle_status: string;
     images: {
       uploaded: string[];
-    };
+    } | null;
     checkout_info: {
       rental_days: number;
       payment_required: boolean;
       status_reason: string;
     };
+  };
+}
+
+// Type for checkout fees response
+export interface CheckoutFeesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    rental: {
+      id: string;
+      code: string;
+      actual_end_time: string;
+      total_fees: number;
+      status: string;
+    };
+    fee_breakdown: {
+      late_fee: number;
+      damage_fee: number;
+      other_fees: number;
+      total_fees: number;
+    };
+    payments: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      status: string;
+      payment_method?: string;
+      description?: string;
+    }>;
+    total_paid: number;
+    vehicle_status: string;
+    payment_urls?: {
+      [key: string]: {
+        paymentUrl: string;
+        orderId: string;
+        amount: number;
+        paymentType: string;
+      };
+    };
+    images: {
+      uploaded: string[];
+    } | null;
   };
 }
 
@@ -334,6 +376,67 @@ export async function checkoutNormal(
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi thực hiện checkout', res.status);
+  }
+
+  return res.json();
+}
+
+// API function for checkout with fees
+export async function checkoutFees(
+  id: string,
+  data: {
+    photos: File[];
+    mileage: number;
+    battery_level: number;
+    exterior_condition: string;
+    interior_condition: string;
+    inspection_notes?: string;
+    damage_description?: string;
+    payment_method?: string;
+    customer_notes?: string;
+    late_fee?: number;
+    damage_fee?: number;
+    other_fees?: number;
+  }
+): Promise<CheckoutFeesResponse> {
+  const formData = new FormData();
+  
+  // Add files
+  data.photos.forEach((photo) => {
+    formData.append('photos', photo);
+  });
+  
+  // Add other fields
+  formData.append('mileage', data.mileage.toString());
+  formData.append('battery_level', data.battery_level.toString());
+  formData.append('exterior_condition', data.exterior_condition);
+  formData.append('interior_condition', data.interior_condition);
+  
+  if (data.inspection_notes) formData.append('inspection_notes', data.inspection_notes);
+  if (data.damage_description) formData.append('damage_description', data.damage_description);
+  if (data.payment_method) formData.append('payment_method', data.payment_method);
+  if (data.customer_notes) formData.append('customer_notes', data.customer_notes);
+  
+  // Add fee fields
+  if (data.late_fee !== undefined) formData.append('late_fee', data.late_fee.toString());
+  if (data.damage_fee !== undefined) formData.append('damage_fee', data.damage_fee.toString());
+  if (data.other_fees !== undefined) formData.append('other_fees', data.other_fees.toString());
+
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  const headers: HeadersInit = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(apiUrl(`/api/rentals/${id}/checkout-fees`), {
+    method: 'PUT',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi thực hiện checkout có phí', res.status);
   }
 
   return res.json();

@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse } from '@/api/rentals';
+import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, checkoutFees, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse, type CheckoutFeesResponse } from '@/api/rentals';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -51,7 +51,7 @@ export function Rentals() {
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'form' | 'result'>('form');
-  const [checkoutResult, setCheckoutResult] = useState<CheckoutNormalResponse | null>(null);
+  const [checkoutResult, setCheckoutResult] = useState<CheckoutNormalResponse | CheckoutFeesResponse | null>(null);
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
   
   // Checkout form states
@@ -62,8 +62,14 @@ export function Rentals() {
   const [interiorCondition, setInteriorCondition] = useState('good');
   const [inspectionNotes, setInspectionNotes] = useState('');
   const [damageDescription, setDamageDescription] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState('vnpay');
   const [customerNotes, setCustomerNotes] = useState('');
+  
+  // Fee states
+  const [hasAdditionalFees, setHasAdditionalFees] = useState(false);
+  const [lateFee, setLateFee] = useState('');
+  const [damageFee, setDamageFee] = useState('');
+  const [otherFees, setOtherFees] = useState('');
 
   // Stats
   const [stats, setStats] = useState({
@@ -157,8 +163,12 @@ export function Rentals() {
     setInteriorCondition('good');
     setInspectionNotes('');
     setDamageDescription('');
-    setPaymentMethod('cash');
+    setPaymentMethod('vnpay');
     setCustomerNotes('');
+    setHasAdditionalFees(false);
+    setLateFee('');
+    setDamageFee('');
+    setOtherFees('');
     
     setShowCheckoutDialog(true);
     setCheckoutLoading(true);
@@ -209,19 +219,43 @@ export function Rentals() {
       return;
     }
 
+    // Check if any fees are entered
+    const hasFeesEntered = hasAdditionalFees && (lateFee || damageFee || otherFees);
+
     setCheckoutSubmitting(true);
     try {
-      const response = await checkoutNormal(checkoutInfo.rental.id, {
-        photos,
-        mileage: parseInt(mileage),
-        battery_level: parseInt(batteryLevel),
-        exterior_condition: exteriorCondition,
-        interior_condition: interiorCondition,
-        inspection_notes: inspectionNotes,
-        damage_description: damageDescription,
-        payment_method: paymentMethod,
-        customer_notes: customerNotes,
-      });
+      let response;
+      
+      if (hasFeesEntered) {
+        // Use checkout-fees endpoint
+        response = await checkoutFees(checkoutInfo.rental.id, {
+          photos,
+          mileage: parseInt(mileage),
+          battery_level: parseInt(batteryLevel),
+          exterior_condition: exteriorCondition,
+          interior_condition: interiorCondition,
+          inspection_notes: inspectionNotes,
+          damage_description: damageDescription,
+          payment_method: paymentMethod,
+          customer_notes: customerNotes,
+          late_fee: lateFee ? parseInt(lateFee) : 0,
+          damage_fee: damageFee ? parseInt(damageFee) : 0,
+          other_fees: otherFees ? parseInt(otherFees) : 0,
+        });
+      } else {
+        // Use checkout-normal endpoint
+        response = await checkoutNormal(checkoutInfo.rental.id, {
+          photos,
+          mileage: parseInt(mileage),
+          battery_level: parseInt(batteryLevel),
+          exterior_condition: exteriorCondition,
+          interior_condition: interiorCondition,
+          inspection_notes: inspectionNotes,
+          damage_description: damageDescription,
+          payment_method: paymentMethod,
+          customer_notes: customerNotes,
+        });
+      }
 
       setCheckoutResult(response);
       setCheckoutStep('result');
@@ -1272,6 +1306,7 @@ export function Rentals() {
                         <SelectItem value="cash">💵 Tiền mặt</SelectItem>
                         <SelectItem value="bank_transfer">🏦 Chuyển khoản</SelectItem>
                         <SelectItem value="credit_card">💳 Thẻ tín dụng</SelectItem>
+                        <SelectItem value="vnpay">💳 VNPay</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1286,6 +1321,89 @@ export function Rentals() {
                       rows={2}
                     />
                   </div>
+
+                  {/* Additional Fees Section */}
+                  <Card className="p-4 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        <Label htmlFor="has-fees" className="text-base font-semibold text-orange-900 dark:text-orange-300 cursor-pointer">
+                          Có phí phát sinh
+                        </Label>
+                      </div>
+                      <input
+                        id="has-fees"
+                        type="checkbox"
+                        checked={hasAdditionalFees}
+                        onChange={(e) => setHasAdditionalFees(e.target.checked)}
+                        className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                      />
+                    </div>
+                    
+                    {hasAdditionalFees && (
+                      <div className="space-y-4 pt-4 border-t border-orange-200 dark:border-orange-700">
+                        <div className="space-y-2">
+                          <Label htmlFor="late-fee" className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            Phí trễ giờ (VNĐ)
+                          </Label>
+                          <Input
+                            id="late-fee"
+                            type="number"
+                            min="0"
+                            placeholder="VD: 50000"
+                            value={lateFee}
+                            onChange={(e) => setLateFee(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="damage-fee" className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            Phí hư hỏng xe (VNĐ)
+                          </Label>
+                          <Input
+                            id="damage-fee"
+                            type="number"
+                            min="0"
+                            placeholder="VD: 75000"
+                            value={damageFee}
+                            onChange={(e) => setDamageFee(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="other-fees" className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Phí phụ trội khác (VNĐ)
+                          </Label>
+                          <Input
+                            id="other-fees"
+                            type="number"
+                            min="0"
+                            placeholder="VD: 25000"
+                            value={otherFees}
+                            onChange={(e) => setOtherFees(e.target.value)}
+                          />
+                        </div>
+                        
+                        {(lateFee || damageFee || otherFees) && (
+                          <div className="pt-4 border-t border-orange-200 dark:border-orange-700">
+                            <div className="flex items-center justify-between text-lg font-bold">
+                              <span className="text-orange-900 dark:text-orange-300">Tổng phí phát sinh:</span>
+                              <span className="text-red-600 dark:text-red-400">
+                                {formatPrice(
+                                  (lateFee ? parseInt(lateFee) : 0) +
+                                  (damageFee ? parseInt(damageFee) : 0) +
+                                  (otherFees ? parseInt(otherFees) : 0)
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
 
                   {/* Submit Buttons */}
                   <div className="flex justify-center gap-4 pt-4">
@@ -1337,10 +1455,12 @@ export function Rentals() {
                           {checkoutResult.data.rental.status === 'completed' ? '✅ Hoàn thành' : '⏳ Chờ thanh toán'}
                         </Badge>
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Số ngày thuê</p>
-                        <p className="font-bold text-lg">{checkoutResult.data.checkout_info.rental_days}</p>
-                      </div>
+                      {'checkout_info' in checkoutResult.data && (
+                        <div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Số ngày thuê</p>
+                          <p className="font-bold text-lg">{checkoutResult.data.checkout_info.rental_days}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Phí phát sinh</p>
                         <p className="font-bold text-lg">{formatPrice(checkoutResult.data.fee_breakdown.total_fees)}</p>
@@ -1349,15 +1469,21 @@ export function Rentals() {
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Trạng thái xe</p>
                         <Badge variant="outline">{checkoutResult.data.vehicle_status}</Badge>
                       </div>
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Tổng thanh toán</p>
+                        <p className="font-bold text-lg text-green-600">{formatPrice(checkoutResult.data.total_paid)}</p>
+                      </div>
                     </div>
                   </Card>
 
                   {/* Status Reason */}
-                  <Card className="p-4">
-                    <p className="text-sm">
-                      <strong>Lý do:</strong> {checkoutResult.data.checkout_info.status_reason}
-                    </p>
-                  </Card>
+                  {'checkout_info' in checkoutResult.data && checkoutResult.data.checkout_info && (
+                    <Card className="p-4">
+                      <p className="text-sm">
+                        <strong>Lý do:</strong> {checkoutResult.data.checkout_info.status_reason}
+                      </p>
+                    </Card>
+                  )}
 
                   {/* Payments */}
                   {checkoutResult.data.payments.length > 0 && (
@@ -1367,25 +1493,59 @@ export function Rentals() {
                         Thông tin thanh toán
                       </h4>
                       <div className="space-y-2">
-                        {checkoutResult.data.payments.map((payment, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                            <div>
-                              <p className="font-medium">
-                                {payment.type === 'deposit' ? '💰 Thanh toán cọc' : '💳 Thanh toán'}
-                              </p>
-                              <p className="text-xs text-gray-500">{payment.description}</p>
+                        {checkoutResult.data.payments.map((payment, idx) => {
+                          const paymentUrls = 'payment_urls' in checkoutResult.data ? checkoutResult.data.payment_urls : undefined;
+                          const paymentUrl = paymentUrls?.[payment.id];
+                          
+                          return (
+                            <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium">
+                                    {payment.type === 'deposit' ? '💰 Thanh toán cọc' : 
+                                     payment.type === 'additional_fee' ? '💳 Thanh toán phí phát sinh' : '💳 Thanh toán'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{payment.description}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatPrice(payment.amount)}
+                                  </p>
+                                  <Badge variant="outline" className="text-xs">
+                                    {payment.status === 'pending' ? '⏳ Chờ' : '✅ Đã thanh toán'}
+                                  </Badge>
+                                </div>
+                              </div>
+                              
+                              {paymentUrl && payment.status === 'pending' && (
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                  <a
+                                    href={paymentUrl.paymentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg transition-all shadow-md hover:shadow-lg"
+                                  >
+                                    <DollarSign className="h-4 w-4 mr-2" />
+                                    Thanh toán ngay {formatPrice(paymentUrl.amount)}
+                                  </a>
+                                  <p className="text-xs text-gray-500 mt-1 text-center">
+                                    Mã đơn: {paymentUrl.orderId}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-lg text-green-600">
-                                {formatPrice(payment.amount)}
-                              </p>
-                              <Badge variant="outline" className="text-xs">
-                                {payment.status === 'pending' ? '⏳ Chờ' : '✅ Đã thanh toán'}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
+                      
+                      {'payment_urls' in checkoutResult.data && checkoutResult.data.payment_urls && (
+                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <p className="text-sm text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            Vui lòng hoàn tất thanh toán để kết thúc giao dịch
+                          </p>
+                        </div>
+                      )}
                     </Card>
                   )}
 
