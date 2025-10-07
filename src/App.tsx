@@ -12,6 +12,7 @@ import { Customers } from './pages/Customers'
 import { Payments } from './pages/Payments'
 import { Fleet } from './pages/Fleet'
 import Booking from './pages/Booking'
+import { Rentals } from './pages/Rentals'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -70,6 +71,7 @@ function App() {
                   <Route path="/payments" element={<Payments />} />
                   <Route path="/fleet" element={<Fleet />} />
                   <Route path="/bookings" element={<Booking />} />
+                  <Route path="/rentals" element={<Rentals />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AnimatePresence>

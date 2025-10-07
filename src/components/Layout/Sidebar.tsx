@@ -9,7 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/context/SidebarContext'
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Quản lý Booking', href: '/bookings', icon: Calendar },
   { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
+  { name: 'Quản lý Rentals', href: '/rentals', icon: FileText },
   { name: 'Xác thực KH', href: '/customers', icon: UserCheck },
   { name: 'Thanh toán', href: '/payments', icon: CreditCard },
   { name: 'Quản lý Xe', href: '/fleet', icon: Settings },
