@@ -91,6 +91,12 @@ const Booking: React.FC = () => {
   const [selectedBookingDetail, setSelectedBookingDetail] = useState<Booking | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   
+  // Cancel booking dialog state
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancelingBookingId, setCancelingBookingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isCanceling, setIsCanceling] = useState(false);
+  
   // Walk-in form data
   const [walkInFormData, setWalkInFormData] = useState<WalkInBookingRequest>({
     customer_name: '',
@@ -358,14 +364,40 @@ const Booking: React.FC = () => {
     }
   };
 
-  const handleCancelBooking = async (bookingId: string, reason: string = "Hủy bởi staff") => {
+  const openCancelDialog = (bookingId: string) => {
+    setCancelingBookingId(bookingId);
+    setCancelReason('');
+    setIsCancelDialogOpen(true);
+  };
+
+  const handleCancelBooking = async () => {
+    if (!cancelingBookingId || !cancelReason.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập lý do hủy",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCanceling(true);
     try {
-      const updatedBooking = await cancelBooking(bookingId, reason);
+      const updatedBooking = await cancelBooking(cancelingBookingId, cancelReason.trim());
       setBookings(prev => 
         prev.map(booking => 
-          booking._id === bookingId ? updatedBooking : booking
+          booking._id === cancelingBookingId ? updatedBooking : booking
         )
       );
+      
+      // Update booking detail if it's the same booking
+      if (selectedBookingDetail?._id === cancelingBookingId) {
+        setSelectedBookingDetail(updatedBooking);
+      }
+      
+      setIsCancelDialogOpen(false);
+      setCancelingBookingId(null);
+      setCancelReason('');
+      
       toast({
         title: "Thành công",
         description: `Đã hủy booking ${updatedBooking.code || 'N/A'}`,
@@ -376,6 +408,8 @@ const Booking: React.FC = () => {
         description: (error as Error).message,
         variant: "destructive",
       });
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -818,7 +852,7 @@ const Booking: React.FC = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleCancelBooking(booking._id)}
+                    onClick={() => openCancelDialog(booking._id)}
                   >
                     <XCircle className="h-4 w-4 mr-1" />
                     Hủy
@@ -1995,11 +2029,11 @@ const Booking: React.FC = () => {
                           Xác nhận bàn giao
                         </Button>
                         <Button
-                          variant="destructive"
                           onClick={() => {
                             setIsDetailDialogOpen(false);
-                            handleCancelBooking(selectedBookingDetail._id);
+                            openCancelDialog(selectedBookingDetail._id);
                           }}
+                          variant="destructive"
                         >
                           <XCircle className="h-4 w-4 mr-2" />
                           Hủy booking
@@ -2134,6 +2168,69 @@ const Booking: React.FC = () => {
                   <Filter className="h-4 w-4 mr-2" />
                   Áp dụng
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Cancel Booking Dialog */}
+          <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-600">
+                  <XCircle className="h-5 w-5" />
+                  Hủy đặt xe
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ⚠️ Bạn có chắc chắn muốn hủy booking này? Hành động này không thể hoàn tác.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="cancel-reason">Lý do hủy *</Label>
+                  <Textarea
+                    id="cancel-reason"
+                    placeholder="Nhập lý do hủy booking..."
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    rows={3}
+                    required
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCancelDialogOpen(false);
+                      setCancelingBookingId(null);
+                      setCancelReason('');
+                    }}
+                    disabled={isCanceling}
+                  >
+                    Hủy bỏ
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleCancelBooking}
+                    disabled={isCanceling || !cancelReason.trim()}
+                  >
+                    {isCanceling ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Đang hủy...
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Xác nhận hủy
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>

@@ -310,8 +310,8 @@ export async function confirmBooking(
 
 // API function to cancel booking
 export async function cancelBooking(bookingId: string, reason: string): Promise<Booking> {
-  const res = await fetch(apiUrl(`/api/bookings/${bookingId}/cancel`), {
-    method: 'POST',
+  const res = await fetch(apiUrl(`/api/bookings/${bookingId}`), {
+    method: 'DELETE',
     headers: getAuthHeaders(),
     body: JSON.stringify({ reason }),
   });
