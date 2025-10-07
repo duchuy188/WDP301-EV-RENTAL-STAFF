@@ -219,6 +219,72 @@ export interface UsersNotSubmittedResponse {
   };
 }
 
+export interface CompletedKycUser {
+  _id: string;
+  userId?: {
+    _id: string;
+    email: string;
+    fullname: string;
+    phone: string;
+  };
+  identityCard: string;
+  identityName: string;
+  identityDob: string;
+  identityAddress: string;
+  identitySex: string;
+  identityNationality: string;
+  identityIssueDate: string;
+  identityIssueLoc: string;
+  identityFeatures: string;
+  identityReligion: string;
+  identityEthnicity: string;
+  identityCardFrontImage: string;
+  identityCardBackImage: string;
+  licenseNumber: string;
+  licenseName: string;
+  licenseDob: string;
+  licenseClass: string;
+  licenseExpiry: string;
+  licenseExpiryText: string;
+  licenseImage: string;
+  licenseBackImage: string;
+  status: string;
+  validationScore: number;
+  nameComparison: {
+    match: boolean;
+    score: number;
+    message: string;
+  };
+  validationNotes: string;
+  approvedAt: string;
+  approvedBy?: {
+    _id: string;
+    fullname: string;
+    email: string;
+  };
+  lastUpdatedAt: string;
+}
+
+export interface CompletedKycResponse {
+  success: boolean;
+  message: string;
+  data: {
+    kycs: CompletedKycUser[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+    stats: {
+      approved: number;
+      rejected: number;
+      pending: number;
+      total: number;
+    };
+  };
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -415,6 +481,35 @@ export async function getUsersNotSubmittedKyc(params: {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi lấy danh sách users chưa submit KYC', res.status);
+  }
+
+  return res.json();
+}
+
+// API function to get completed KYC requests
+export async function getCompletedKyc(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: 'approvedAt' | 'lastUpdatedAt' | 'identityName' | 'identityCard' | 'licenseNumber';
+  sortOrder?: 'asc' | 'desc';
+} = {}): Promise<CompletedKycResponse> {
+  const queryParams = new URLSearchParams();
+  
+  if (params.page) queryParams.append('page', params.page.toString());
+  if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.search) queryParams.append('search', params.search);
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+  const res = await fetch(apiUrl(`/api/kyc/completed?${queryParams.toString()}`), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi lấy danh sách KYC đã completed', res.status);
   }
 
   return res.json();
