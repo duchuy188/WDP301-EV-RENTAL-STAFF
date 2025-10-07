@@ -52,6 +52,8 @@ export function Customers() {
   const [selectedUserForUpload, setSelectedUserForUpload] = useState<UserNotSubmittedKyc | null>(null)
   const [showUserInfoDialog, setShowUserInfoDialog] = useState(false)
   const [copiedUserId, setCopiedUserId] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [showImageModal, setShowImageModal] = useState(false)
   
   // Pagination for Not Submitted tab (client-side) - hiển thị 6 cards mỗi trang
   const [notSubmittedPageClient, setNotSubmittedPageClient] = useState(1)
@@ -77,6 +79,11 @@ export function Customers() {
         variant: "destructive",
       })
     }
+  }
+
+  const handleImageClick = (imageUrl: string) => {
+    setSelectedImage(imageUrl)
+    setShowImageModal(true)
   }
 
   // Load users who haven't submitted KYC
@@ -195,9 +202,12 @@ export function Customers() {
         break
       case 'recent': {
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        filtered = filtered.filter(user => 
-          new Date(user.lastKycAt) > oneDayAgo
-        )
+        filtered = filtered.filter(user => {
+          const userDate = new Date(user.lastUpdatedAt || user.lastKycAt || user.updatedAt)
+          // Convert to UTC for comparison
+          const userDateUTC = new Date(userDate.getTime() + userDate.getTimezoneOffset() * 60000)
+          return userDateUTC > oneDayAgo
+        })
         break
       }
       default:
@@ -668,7 +678,7 @@ export function Customers() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Ngày gửi:</span>
-                        <span className="font-medium">{customer.lastKycAt ? new Date(customer.lastKycAt).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                        <span className="font-medium">{(customer.lastUpdatedAt || customer.lastKycAt || customer.updatedAt) ? new Date(customer.lastUpdatedAt || customer.lastKycAt || customer.updatedAt).toLocaleDateString('vi-VN', { timeZone: 'UTC' }) : 'N/A'}</span>
                       </div>
                       
                       {/* OCR Accuracy Indicators */}
@@ -731,55 +741,6 @@ export function Customers() {
                           
                           {selectedCustomer && (
                             <div className="space-y-4 py-4">
-                              {/* Data Verification Status */}
-                              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                                <h4 className="font-medium mb-3 flex items-center gap-2">
-                                  <CheckCircle className="h-4 w-4" />
-                                  Trạng thái xác thực dữ liệu
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <span className="text-gray-600 dark:text-gray-400">Độ chính xác CCCD:</span>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className={`font-medium ${
-                                        selectedCustomer.identityOcr?.front?.overall_score &&
-                                        parseFloat(selectedCustomer.identityOcr.front.overall_score) >= 95 ? 'text-green-600' :
-                                        selectedCustomer.identityOcr?.front?.overall_score &&
-                                        parseFloat(selectedCustomer.identityOcr.front.overall_score) >= 85 ? 'text-yellow-600' : 'text-red-600'
-                                      }`}>
-                                        {selectedCustomer.identityOcr?.front?.overall_score || 'N/A'}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-600 dark:text-gray-400">Độ chính xác GPLX:</span>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className={`font-medium ${
-                                        selectedCustomer.licenseOcr?.front?.overall_score &&
-                                        parseFloat(selectedCustomer.licenseOcr.front.overall_score) >= 95 ? 'text-green-600' :
-                                        selectedCustomer.licenseOcr?.front?.overall_score &&
-                                        parseFloat(selectedCustomer.licenseOcr.front.overall_score) >= 85 ? 'text-yellow-600' : 'text-red-600'
-                                      }`}>
-                                        {selectedCustomer.licenseOcr?.front?.overall_score || 'N/A'}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                {/* Data Inconsistencies Warning */}
-                                {(selectedCustomer.identityName !== selectedCustomer.licenseName && 
-                                  selectedCustomer.identityName && selectedCustomer.licenseName) && (
-                                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                                    <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
-                                      <AlertTriangle className="h-4 w-4" />
-                                      <span className="font-medium">Cảnh báo: Tên trên CCCD và GPLX không khớp</span>
-                                    </div>
-                                    <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
-                                      CCCD: {selectedCustomer.identityName} | GPLX: {selectedCustomer.licenseName}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
 
                               {/* Information Cards */}
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -899,7 +860,7 @@ export function Customers() {
                                         src={selectedCustomer.identityCardFrontImage} 
                                         alt="CCCD mặt trước" 
                                         className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(selectedCustomer.identityCardFrontImage, '_blank')}
+                                        onClick={() => handleImageClick(selectedCustomer.identityCardFrontImage)}
                                       />
                                     )}
                                   </Card>
@@ -917,7 +878,7 @@ export function Customers() {
                                         src={selectedCustomer.identityCardBackImage} 
                                         alt="CCCD mặt sau" 
                                         className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(selectedCustomer.identityCardBackImage, '_blank')}
+                                        onClick={() => handleImageClick(selectedCustomer.identityCardBackImage)}
                                       />
                                     )}
                                   </Card>
@@ -935,7 +896,7 @@ export function Customers() {
                                         src={selectedCustomer.licenseImage} 
                                         alt="GPLX mặt trước" 
                                         className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(selectedCustomer.licenseImage, '_blank')}
+                                        onClick={() => handleImageClick(selectedCustomer.licenseImage)}
                                       />
                                     )}
                                   </Card>
@@ -953,7 +914,7 @@ export function Customers() {
                                         src={selectedCustomer.licenseBackImage} 
                                         alt="GPLX mặt sau" 
                                         className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(selectedCustomer.licenseBackImage, '_blank')}
+                                        onClick={() => handleImageClick(selectedCustomer.licenseBackImage)}
                                       />
                                     )}
                                   </Card>
@@ -1686,6 +1647,29 @@ export function Customers() {
             >
               Xác nhận từ chối
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Modal */}
+      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white"
+              onClick={() => setShowImageModal(false)}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+            {selectedImage && (
+              <img 
+                src={selectedImage} 
+                alt="Document Image" 
+                className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -80,9 +80,10 @@ export interface PendingKycUser {
   };
   
   // Timestamps
-  lastKycAt: string;
+  lastUpdatedAt: string;
   createdAt: string;
   updatedAt: string;
+  lastKycAt?: string; // Keep for backward compatibility
 }
 
 export interface PendingKycResponse {
