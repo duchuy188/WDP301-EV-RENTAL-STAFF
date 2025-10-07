@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getStaffRentals, getRentalById, type Rental, type RentalDetail } from '@/api/rentals';
+import { getStaffRentals, getRentalById, getCheckoutInfo, type Rental, type RentalDetail, type CheckoutInfo } from '@/api/rentals';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -42,6 +42,11 @@ export function Rentals() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  
+  // Checkout states
+  const [checkoutInfo, setCheckoutInfo] = useState<CheckoutInfo | null>(null);
+  const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -121,6 +126,26 @@ export function Rentals() {
       setShowDetailDialog(false);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleStartCheckout = async (rentalId: string) => {
+    setShowCheckoutDialog(true);
+    setCheckoutLoading(true);
+    try {
+      const response = await getCheckoutInfo(rentalId);
+      setCheckoutInfo(response.data);
+    } catch (error: unknown) {
+      console.error('Checkout Info API Error:', error);
+      const errorMessage = (error as Error)?.message || 'Lỗi khi lấy thông tin checkout';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      setShowCheckoutDialog(false);
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -800,6 +825,20 @@ export function Rentals() {
                   </div>
                 </Card>
               )}
+
+              {/* Action Buttons */}
+              {selectedRental.status === 'active' && (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    onClick={() => handleStartCheckout(selectedRental._id)}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                  >
+                    <Car className="h-5 w-5 mr-2" />
+                    Trả xe / Checkout
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -825,6 +864,200 @@ export function Rentals() {
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Checkout Dialog */}
+      <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">🚗 Thông tin trả xe / Checkout</DialogTitle>
+            <DialogDescription>
+              Xem lại thông tin trước khi tiến hành trả xe
+            </DialogDescription>
+          </DialogHeader>
+          
+          {checkoutLoading ? (
+            <div className="text-center py-16">
+              <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-green-500" />
+              <p className="text-lg text-gray-600 dark:text-gray-300">Đang tải thông tin checkout...</p>
+            </div>
+          ) : checkoutInfo && (
+            <div className="space-y-6 py-4">
+              {/* Rental Info */}
+              <Card className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+                <h4 className="font-semibold mb-3 text-green-700 dark:text-green-400 flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Thông tin Rental
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Rental:</p>
+                    <p className="font-bold text-green-700 dark:text-green-300">{checkoutInfo.rental.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời gian bắt đầu:</p>
+                    <p className="font-semibold">{formatDateTime(checkoutInfo.rental.actual_start_time)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời lượng:</p>
+                    <p className="font-bold text-lg text-blue-600">
+                      {checkoutInfo.rental.rental_duration_hours} giờ
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Customer & Vehicle Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Khách hàng
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Họ tên:</p>
+                      <p className="font-semibold">{checkoutInfo.customer.fullname}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Email:</p>
+                      <p className="font-medium text-xs break-all">{checkoutInfo.customer.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Điện thoại:</p>
+                      <p className="font-semibold">{checkoutInfo.customer.phone}</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 text-green-600 dark:text-green-400 flex items-center gap-2">
+                    <Car className="h-4 w-4" />
+                    Xe
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Biển số:</p>
+                      <p className="font-bold text-lg">{checkoutInfo.vehicle.license_plate}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Tên xe:</p>
+                      <p className="font-semibold">{checkoutInfo.vehicle.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">Dung lượng pin:</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <Battery className="h-3 w-3" />
+                        {checkoutInfo.vehicle.battery_capacity} kWh
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Station & Staff Info */}
+              <Card className="p-4">
+                <h4 className="font-medium mb-3 text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Trạm & Staff
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Trạm:</p>
+                    <p className="font-semibold">{checkoutInfo.station.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{checkoutInfo.station.address}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Staff nhận xe:</p>
+                    <p className="font-semibold">{checkoutInfo.pickup_staff.fullname}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Vehicle Condition Before */}
+              <Card className="p-4">
+                <h4 className="font-medium mb-3 text-orange-600 dark:text-orange-400">
+                  Tình trạng xe khi nhận
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Gauge className="h-6 w-6 text-gray-600 mb-2" />
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Km</p>
+                    <p className="font-bold text-lg">{checkoutInfo.rental.vehicle_condition_before.mileage || 'N/A'}</p>
+                  </div>
+                  <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Battery className="h-6 w-6 text-green-600 mb-2" />
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Pin</p>
+                    <p className="font-bold text-lg text-green-600">
+                      {checkoutInfo.rental.vehicle_condition_before.battery_level ? `${checkoutInfo.rental.vehicle_condition_before.battery_level}%` : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Car className="h-6 w-6 text-blue-600 mb-2" />
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Ngoại thất</p>
+                    {getConditionBadge(checkoutInfo.rental.vehicle_condition_before.exterior_condition)}
+                  </div>
+                  <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Car className="h-6 w-6 text-purple-600 mb-2" />
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Nội thất</p>
+                    {getConditionBadge(checkoutInfo.rental.vehicle_condition_before.interior_condition)}
+                  </div>
+                </div>
+                {checkoutInfo.rental.vehicle_condition_before.notes && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Ghi chú khi nhận xe:</p>
+                    <p className="text-sm">{checkoutInfo.rental.vehicle_condition_before.notes}</p>
+                  </div>
+                )}
+              </Card>
+
+              {/* Images Before */}
+              {checkoutInfo.rental.images_before.length > 0 && (
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Hình ảnh khi nhận xe
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {checkoutInfo.rental.images_before.map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img}
+                        alt={`Before ${idx + 1}`}
+                        className="w-full h-24 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => handleImageClick(img)}
+                      />
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-4 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCheckoutDialog(false)}
+                  className="px-8"
+                >
+                  Đóng
+                </Button>
+                <Button
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 shadow-lg"
+                  onClick={() => {
+                    // TODO: Implement actual checkout process
+                    toast({
+                      title: "Coming Soon",
+                      description: "Tính năng trả xe đang được phát triển",
+                    });
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Tiếp tục trả xe
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </motion.div>

@@ -130,6 +130,45 @@ export interface RentalDetailResponse {
   data: RentalDetail;
 }
 
+// Type for checkout info (from GET /api/rentals/{id}/checkout-info)
+export interface CheckoutInfo {
+  rental: {
+    id: string;
+    code: string;
+    actual_start_time: string;
+    vehicle_condition_before: VehicleCondition;
+    images_before: string[];
+    rental_duration_hours: number;
+  };
+  customer: {
+    id: string;
+    fullname: string;
+    email: string;
+    phone: string;
+  };
+  vehicle: {
+    id: string;
+    name: string;
+    license_plate: string;
+    model: string;
+    battery_capacity: number;
+  };
+  station: {
+    id: string;
+    name: string;
+    address: string;
+  };
+  pickup_staff: {
+    id: string;
+    fullname: string;
+  };
+}
+
+export interface CheckoutInfoResponse {
+  success: boolean;
+  data: CheckoutInfo;
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -188,6 +227,21 @@ export async function getRentalById(id: string): Promise<RentalDetailResponse> {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi lấy chi tiết rental', res.status);
+  }
+
+  return res.json();
+}
+
+// API function to get checkout info
+export async function getCheckoutInfo(id: string): Promise<CheckoutInfoResponse> {
+  const res = await fetch(apiUrl(`/api/rentals/${id}/checkout-info`), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi lấy thông tin checkout', res.status);
   }
 
   return res.json();
