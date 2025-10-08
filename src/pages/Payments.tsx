@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData } from '@/api/payments'
+import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails } from '@/api/payments'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
@@ -107,9 +107,26 @@ export function Payments() {
   }
 
   // View payment details
-  const viewPaymentDetails = (payment: Payment) => {
-    setSelectedPayment(payment)
-    setDetailsOpen(true)
+  const viewPaymentDetails = async (payment: Payment) => {
+    try {
+      setLoading(true)
+      // Call API to get full payment details
+      const response = await getPaymentDetails(payment._id)
+      setSelectedPayment(response.payment)
+      setDetailsOpen(true)
+    } catch (error) {
+      console.error('Error fetching payment details:', error)
+      // Fallback to use payment from list
+      setSelectedPayment(payment)
+      setDetailsOpen(true)
+      toast({
+        title: "Cảnh báo",
+        description: "Không thể tải chi tiết đầy đủ, hiển thị thông tin cơ bản",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Reset form
@@ -602,8 +619,20 @@ export function Payments() {
                       <label className="text-sm text-gray-500">Thời gian thuê</label>
                       <p>{new Date(selectedPayment.booking_id.start_date).toLocaleDateString('vi-VN')} - {new Date(selectedPayment.booking_id.end_date).toLocaleDateString('vi-VN')}</p>
                     </div>
-                  </div>
-                </div>
+                    {selectedPayment.booking_id.total_price !== undefined && (
+                  <div>
+                        <label className="text-sm text-gray-500">Tổng giá thuê</label>
+                        <p className="font-semibold text-blue-600">{formatCurrency(selectedPayment.booking_id.total_price)}</p>
+                      </div>
+                    )}
+                    {selectedPayment.booking_id.deposit_amount !== undefined && (
+                      <div>
+                        <label className="text-sm text-gray-500">Số tiền cọc</label>
+                        <p className="font-semibold text-orange-600">{formatCurrency(selectedPayment.booking_id.deposit_amount)}</p>
+                      </div>
+                    )}
+                      </div>
+                        </div>
               )}
 
               {/* Rental Info */}
@@ -611,13 +640,42 @@ export function Payments() {
                 <div className="border-t pt-4">
                   <h3 className="font-semibold mb-2">Thông tin thuê xe</h3>
                   <div className="grid grid-cols-2 gap-4">
-                  <div>
+                    <div>
                       <label className="text-sm text-gray-500">Mã rental</label>
                       <p className="font-mono">{selectedPayment.rental_id.code}</p>
-                      </div>
+                    </div>
                     <div>
                       <label className="text-sm text-gray-500">Trạng thái</label>
                       <Badge>{selectedPayment.rental_id.status}</Badge>
+                    </div>
+                    {selectedPayment.rental_id.actual_start_time && (
+                      <div>
+                        <label className="text-sm text-gray-500">Thời gian bắt đầu thực tế</label>
+                        <p className="text-sm">{formatDate(selectedPayment.rental_id.actual_start_time)}</p>
+                      </div>
+                    )}
+                    {selectedPayment.rental_id.actual_end_time && (
+                      <div>
+                        <label className="text-sm text-gray-500">Thời gian kết thúc thực tế</label>
+                        <p className="text-sm">{formatDate(selectedPayment.rental_id.actual_end_time)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Processed By */}
+              {typeof selectedPayment.processed_by === 'object' && selectedPayment.processed_by && (
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-2">Người xử lý</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-gray-500">Tên nhân viên</label>
+                      <p>{selectedPayment.processed_by.fullname}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500">Email</label>
+                      <p className="text-sm">{selectedPayment.processed_by.email}</p>
                     </div>
                   </div>
                 </div>

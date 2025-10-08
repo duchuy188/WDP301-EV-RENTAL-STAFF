@@ -13,12 +13,16 @@ export interface Booking {
   code: string;
   start_date: string;
   end_date: string;
+  total_price?: number;
+  deposit_amount?: number;
 }
 
 export interface Rental {
   _id: string;
   code: string;
   status: string;
+  actual_start_time?: string;
+  actual_end_time?: string;
 }
 
 export interface ProcessedBy {
