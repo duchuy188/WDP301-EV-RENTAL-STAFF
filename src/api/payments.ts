@@ -227,3 +227,63 @@ export async function createPayment(data: CreatePaymentRequest): Promise<CreateP
 
   return res.json();
 }
+
+// Types for confirm payment
+export interface ConfirmPaymentRequest {
+  transaction_id?: string;
+  notes?: string;
+}
+
+export interface ConfirmPaymentResponse {
+  message: string;
+  payment: Payment;
+  qrData?: QRData;
+}
+
+// API function to confirm payment
+export async function confirmPayment(
+  paymentId: string,
+  data: ConfirmPaymentRequest
+): Promise<ConfirmPaymentResponse> {
+  const res = await fetch(apiUrl(`/api/payments/${paymentId}/confirm`), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi xác nhận payment', res.status);
+  }
+
+  return res.json();
+}
+
+// Types for cancel payment
+export interface CancelPaymentRequest {
+  reason: string;
+}
+
+export interface CancelPaymentResponse {
+  message: string;
+  payment: Payment;
+}
+
+// API function to cancel payment
+export async function cancelPayment(
+  paymentId: string,
+  data: CancelPaymentRequest
+): Promise<CancelPaymentResponse> {
+  const res = await fetch(apiUrl(`/api/payments/${paymentId}/cancel`), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new ApiError(text || 'Lỗi khi hủy payment', res.status);
+  }
+
+  return res.json();
+}

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails } from '@/api/payments'
+import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails, confirmPayment, ConfirmPaymentRequest, cancelPayment, CancelPaymentRequest } from '@/api/payments'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
@@ -24,7 +24,22 @@ export function Payments() {
   const [creating, setCreating] = useState(false)
   const [qrData, setQrData] = useState<QRData | null>(null)
   const [showQrDialog, setShowQrDialog] = useState(false)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const { toast } = useToast()
+
+  // Confirm payment form state
+  const [confirmFormData, setConfirmFormData] = useState<ConfirmPaymentRequest>({
+    transaction_id: '',
+    notes: '',
+  })
+  
+  // Cancel payment form state
+  const [cancelFormData, setCancelFormData] = useState<CancelPaymentRequest>({
+    reason: '',
+  })
 
   // Form state for creating payment
   const [formData, setFormData] = useState<CreatePaymentRequest>({
@@ -199,7 +214,7 @@ export function Payments() {
     } catch (error) {
       console.error('Error creating payment:', error)
       const errorMessage = error instanceof Error ? error.message : "Không thể tạo payment"
-      toast({
+    toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive"
@@ -215,6 +230,121 @@ export function Payments() {
       ...prev,
       [field]: value,
     }))
+  }
+
+  // Reset confirm form
+  const resetConfirmForm = () => {
+    setConfirmFormData({
+      transaction_id: '',
+      notes: '',
+    })
+  }
+
+  // Handle confirm payment
+  const handleConfirmPayment = async () => {
+    if (!selectedPayment) return
+
+    try {
+      setConfirming(true)
+
+      const response = await confirmPayment(selectedPayment._id, confirmFormData)
+
+      toast({
+        title: "Thành công",
+        description: response.message || "Xác nhận thanh toán thành công",
+      })
+
+      // If there's QR data, show it
+      if (response.qrData) {
+        setQrData(response.qrData)
+        setShowQrDialog(true)
+      }
+
+      // Close confirm dialog and update payment details
+      setConfirmDialogOpen(false)
+      resetConfirmForm()
+      
+      // Update selected payment with new data
+      setSelectedPayment(response.payment)
+      
+      // Refresh list
+      fetchPayments()
+
+    } catch (error) {
+      console.error('Error confirming payment:', error)
+      const errorMessage = error instanceof Error ? error.message : "Không thể xác nhận payment"
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  // Open confirm dialog
+  const openConfirmDialog = () => {
+    setConfirmDialogOpen(true)
+  }
+
+  // Reset cancel form
+  const resetCancelForm = () => {
+    setCancelFormData({
+      reason: '',
+    })
+  }
+
+  // Handle cancel payment
+  const handleCancelPayment = async () => {
+    if (!selectedPayment) return
+
+    // Validation
+    if (!cancelFormData.reason.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập lý do hủy",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setCancelling(true)
+
+      const response = await cancelPayment(selectedPayment._id, cancelFormData)
+
+      toast({
+        title: "Thành công",
+        description: response.message || "Hủy payment thành công",
+      })
+
+      // Close cancel dialog and update payment details
+      setCancelDialogOpen(false)
+      resetCancelForm()
+      
+      // Update selected payment with new data
+      setSelectedPayment(response.payment)
+      
+      // Refresh list
+      fetchPayments()
+
+    } catch (error) {
+      console.error('Error cancelling payment:', error)
+      const errorMessage = error instanceof Error ? error.message : "Không thể hủy payment"
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  // Open cancel dialog
+  const openCancelDialog = () => {
+    setCancelDialogOpen(true)
   }
 
   // Helper functions for display
@@ -715,12 +845,31 @@ export function Payments() {
                 <div>
                   <label className="text-gray-500">Ngày tạo</label>
                   <p>{formatDate(selectedPayment.createdAt)}</p>
-                          </div>
+                </div>
                 <div>
                   <label className="text-gray-500">Cập nhật</label>
                   <p>{formatDate(selectedPayment.updatedAt)}</p>
+                    </div>
+                  </div>
+
+              {/* Action Buttons - Only show for pending payments */}
+              {selectedPayment.status === 'pending' && (
+                <div className="border-t pt-4 space-y-3">
+                  <Button
+                    onClick={openConfirmDialog}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600"
+                  >
+                    Xác nhận thanh toán
+                  </Button>
+                  <Button
+                    onClick={openCancelDialog}
+                    variant="destructive"
+                    className="w-full"
+                  >
+                    Hủy payment
+                  </Button>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -910,6 +1059,111 @@ export function Payments() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Payment Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Xác nhận thanh toán</DialogTitle>
+            <DialogDescription>
+              Xác nhận payment đã được thanh toán thành công
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Transaction ID */}
+            <div className="space-y-2">
+              <Label htmlFor="transaction_id">Mã giao dịch (không bắt buộc)</Label>
+              <Input
+                id="transaction_id"
+                placeholder="VD: TXN123456789"
+                value={confirmFormData.transaction_id}
+                onChange={(e) => setConfirmFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="confirm_notes">Ghi chú (không bắt buộc)</Label>
+              <Textarea
+                id="confirm_notes"
+                placeholder="Nhập ghi chú..."
+                value={confirmFormData.notes}
+                onChange={(e) => setConfirmFormData(prev => ({ ...prev, notes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex space-x-3 pt-4">
+              <Button
+                onClick={handleConfirmPayment}
+                disabled={confirming}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600"
+              >
+                {confirming ? 'Đang xác nhận...' : 'Xác nhận'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setConfirmDialogOpen(false)
+                  resetConfirmForm()
+                }}
+                variant="outline"
+                disabled={confirming}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Payment Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hủy payment</DialogTitle>
+            <DialogDescription>
+              Hủy payment đang pending. Vui lòng nhập lý do.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Reason */}
+            <div className="space-y-2">
+              <Label htmlFor="cancel_reason">Lý do hủy <span className="text-red-500">*</span></Label>
+              <Textarea
+                id="cancel_reason"
+                placeholder="VD: Khách hàng không thanh toán"
+                value={cancelFormData.reason}
+                onChange={(e) => setCancelFormData(prev => ({ ...prev, reason: e.target.value }))}
+                rows={4}
+              />
+              <p className="text-sm text-gray-500">Lý do này sẽ được lưu vào ghi chú của payment</p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex space-x-3 pt-4">
+              <Button
+                onClick={handleCancelPayment}
+                disabled={cancelling}
+                variant="destructive"
+                className="flex-1"
+              >
+                {cancelling ? 'Đang hủy...' : 'Xác nhận hủy'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setCancelDialogOpen(false)
+                  resetCancelForm()
+                }}
+                variant="outline"
+                disabled={cancelling}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </motion.div>
