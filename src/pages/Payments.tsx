@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails, confirmPayment, ConfirmPaymentRequest, cancelPayment, CancelPaymentRequest } from '@/api/payments'
+import { getStationBookings, Booking } from '@/api/booking'
+import { getStaffRentals, Rental } from '@/api/rentals'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
@@ -28,6 +30,10 @@ export function Payments() {
   const [confirming, setConfirming] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [loadingBookings, setLoadingBookings] = useState(false)
+  const [rentals, setRentals] = useState<Rental[]>([])
+  const [loadingRentals, setLoadingRentals] = useState(false)
   const { toast } = useToast()
 
   // Confirm payment form state
@@ -100,6 +106,62 @@ export function Payments() {
   useEffect(() => {
     fetchPayments()
   }, [fetchPayments])
+
+  // Fetch bookings for dropdown
+  const fetchBookings = useCallback(async () => {
+    try {
+      setLoadingBookings(true)
+      const response = await getStationBookings({ 
+        limit: 100, 
+        status: 'confirmed' // Only show confirmed bookings for payment creation
+      })
+      setBookings(response.bookings)
+    } catch (error) {
+      console.error('Error fetching bookings:', error)
+      toast({
+        title: "Cảnh báo",
+        description: "Không thể tải danh sách booking",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingBookings(false)
+    }
+  }, [toast])
+
+  // Load bookings when create dialog opens
+  useEffect(() => {
+    if (createDialogOpen) {
+      fetchBookings()
+    }
+  }, [createDialogOpen, fetchBookings])
+
+  // Fetch rentals for dropdown
+  const fetchRentals = useCallback(async () => {
+    try {
+      setLoadingRentals(true)
+      const response = await getStaffRentals({ 
+        limit: 100, 
+        status: 'active' // Only show active rentals
+      })
+      setRentals(response.data.rentals)
+    } catch (error) {
+      console.error('Error fetching rentals:', error)
+      toast({
+        title: "Cảnh báo",
+        description: "Không thể tải danh sách rental",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingRentals(false)
+    }
+  }, [toast])
+
+  // Load rentals when create dialog opens and payment type is additional_fee
+  useEffect(() => {
+    if (createDialogOpen && formData.payment_type === 'additional_fee') {
+      fetchRentals()
+    }
+  }, [createDialogOpen, formData.payment_type, fetchRentals])
 
   // Handle search
   const handleSearch = () => {
@@ -174,6 +236,15 @@ export function Payments() {
         toast({
           title: "Lỗi",
           description: "Vui lòng nhập số tiền cho phí phát sinh",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (formData.payment_type === 'additional_fee' && !formData.rental_id) {
+        toast({
+          title: "Lỗi",
+          description: "Vui lòng nhập Rental ID cho phí phát sinh",
           variant: "destructive"
         })
         return
@@ -489,7 +560,7 @@ export function Payments() {
                 <SelectItem value="deposit">Đặt cọc</SelectItem>
                 <SelectItem value="rental_fee">Phí thuê</SelectItem>
                 <SelectItem value="additional_fee">Phí phát sinh</SelectItem>
-                <SelectItem value="refund">Hoàn tiền</SelectItem>
+                {/* <SelectItem value="refund">Hoàn tiền</SelectItem> */}
               </SelectContent>
             </Select>
 
@@ -504,8 +575,6 @@ export function Payments() {
               <SelectContent>
                 <SelectItem value="--">Tất cả phương thức</SelectItem>
                 <SelectItem value="cash">Tiền mặt</SelectItem>
-                <SelectItem value="qr_code">QR Code</SelectItem>
-                <SelectItem value="bank_transfer">Chuyển khoản</SelectItem>
                 <SelectItem value="vnpay">VNPay</SelectItem>
               </SelectContent>
             </Select>
@@ -855,12 +924,15 @@ export function Payments() {
               {/* Action Buttons - Only show for pending payments */}
               {selectedPayment.status === 'pending' && (
                 <div className="border-t pt-4 space-y-3">
-                  <Button
-                    onClick={openConfirmDialog}
-                    className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600"
-                  >
-                    Xác nhận thanh toán
-                  </Button>
+                  {/* Chỉ hiển thị nút xác nhận cho phương thức tiền mặt */}
+                  {selectedPayment.payment_method === 'cash' && (
+                    <Button
+                      onClick={openConfirmDialog}
+                      className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600"
+                    >
+                      Xác nhận thanh toán
+                    </Button>
+                  )}
                   <Button
                     onClick={openCancelDialog}
                     variant="destructive"
@@ -885,15 +957,43 @@ export function Payments() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
-            {/* Booking ID */}
+            {/* Booking Selection */}
             <div className="space-y-2">
-              <Label htmlFor="booking_id">Booking ID <span className="text-red-500">*</span></Label>
-              <Input
-                id="booking_id"
-                placeholder="Nhập booking ID (VD: 68de84c07e24c557e83abcc0)"
-                value={formData.booking_id}
-                onChange={(e) => handleFormChange('booking_id', e.target.value)}
-              />
+              <Label htmlFor="booking_id">Chọn Booking <span className="text-red-500">*</span></Label>
+              {loadingBookings ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select
+                  value={formData.booking_id}
+                  onValueChange={(value) => handleFormChange('booking_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn booking..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bookings.length === 0 ? (
+                      <div className="px-2 py-4 text-center text-sm text-gray-500">
+                        Không có booking khả dụng
+                      </div>
+                    ) : (
+                      bookings.map((booking) => (
+                        <SelectItem key={booking._id} value={booking._id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{booking.code}</span>
+                            <span className="text-xs text-gray-500">
+                              {typeof booking.user_id === 'object' ? booking.user_id.fullname : ''} - 
+                              {typeof booking.vehicle_id === 'object' ? ` ${booking.vehicle_id.name}` : ''}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-gray-500">
+                Chỉ hiển thị các booking đã được xác nhận
+              </p>
             </div>
 
             {/* Payment Type */}
@@ -910,7 +1010,7 @@ export function Payments() {
                   <SelectItem value="deposit">Đặt cọc</SelectItem>
                   <SelectItem value="rental_fee">Phí thuê</SelectItem>
                   <SelectItem value="additional_fee">Phí phát sinh</SelectItem>
-                  <SelectItem value="refund">Hoàn tiền</SelectItem>
+                  {/* <SelectItem value="refund">Hoàn tiền</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>
@@ -927,36 +1027,61 @@ export function Payments() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">Tiền mặt</SelectItem>
-                  <SelectItem value="qr_code">QR Code</SelectItem>
-                  <SelectItem value="bank_transfer">Chuyển khoản</SelectItem>
                   <SelectItem value="vnpay">VNPay</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Rental ID (Optional) */}
-            <div className="space-y-2">
-              <Label htmlFor="rental_id">Rental ID (không bắt buộc)</Label>
-              <Input
-                id="rental_id"
-                placeholder="Nhập rental ID nếu có"
-                value={formData.rental_id}
-                onChange={(e) => handleFormChange('rental_id', e.target.value)}
-              />
-            </div>
-
-            {/* Amount (for additional_fee) */}
+            {/* Amount and Rental ID (for additional_fee) */}
             {formData.payment_type === 'additional_fee' && (
-              <div className="space-y-2">
-                <Label htmlFor="amount">Số tiền <span className="text-red-500">*</span></Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  placeholder="Nhập số tiền"
-                  value={formData.amount || ''}
-                  onChange={(e) => handleFormChange('amount', Number(e.target.value))}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Số tiền <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="Nhập số tiền"
+                    value={formData.amount || ''}
+                    onChange={(e) => handleFormChange('amount', Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rental_id">Chọn Rental <span className="text-red-500">*</span></Label>
+                  {loadingRentals ? (
+                    <Skeleton className="h-10 w-full" />
+                  ) : (
+                    <Select
+                      value={formData.rental_id}
+                      onValueChange={(value) => handleFormChange('rental_id', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn rental..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rentals.length === 0 ? (
+                          <div className="px-2 py-4 text-center text-sm text-gray-500">
+                            Không có rental khả dụng
+                          </div>
+                        ) : (
+                          rentals.map((rental) => (
+                            <SelectItem key={rental._id} value={rental._id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{rental.code}</span>
+                                <span className="text-xs text-gray-500">
+                                  {rental.user_id.fullname} - {rental.vehicle_id.name} ({rental.vehicle_id.license_plate})
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Chỉ hiển thị các rental đang hoạt động
+                  </p>
+                </div>
+              </>
             )}
 
             {/* Reason (Optional) */}
@@ -1038,12 +1163,17 @@ export function Payments() {
 
               {/* VNPay Link Button */}
               {qrData.vnpayData && (
-                <Button
-                  onClick={() => window.open(qrData.vnpayData?.paymentUrl, '_blank')}
-                  className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600"
-                >
-                  Mở trang thanh toán VNPay
-                </Button>
+                <>
+                  <Button
+                    onClick={() => window.open(qrData.vnpayData?.paymentUrl, '_blank')}
+                    className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600"
+                  >
+                    Mở trang thanh toán VNPay
+                  </Button>
+                  <p className="text-xs text-center text-gray-500">
+                    Sau khi thanh toán, cửa sổ sẽ tự động chuyển về trang kết quả
+                  </p>
+                </>
               )}
 
               {/* Close Button */}

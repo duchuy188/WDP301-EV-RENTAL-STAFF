@@ -10,6 +10,7 @@ import { Dashboard } from './pages/Dashboard'
 import { Vehicles } from './pages/Vehicles'
 import { Customers } from './pages/Customers'
 import { Payments } from './pages/Payments'
+import { PaymentSuccess } from './pages/PaymentSuccess'
 import { Fleet } from './pages/Fleet'
 import Booking from './pages/Booking'
 import { Rentals } from './pages/Rentals'
@@ -62,20 +63,20 @@ function App() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Layout onLogout={handleLogout}>
-              <AnimatePresence mode="wait">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/vehicles" element={<Vehicles />} />
-                  <Route path="/customers" element={<Customers />} />
-                  <Route path="/payments" element={<Payments />} />
-                  <Route path="/fleet" element={<Fleet />} />
-                  <Route path="/bookings" element={<Booking />} />
-                  <Route path="/rentals" element={<Rentals />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </AnimatePresence>
-            </Layout>
+            <Routes>
+              {/* Route without Layout for payment success page */}
+              <Route path="/payments/success" element={<PaymentSuccess />} />
+              
+              {/* Routes with Layout */}
+              <Route path="/" element={<Layout onLogout={handleLogout}><Dashboard /></Layout>} />
+              <Route path="/vehicles" element={<Layout onLogout={handleLogout}><Vehicles /></Layout>} />
+              <Route path="/customers" element={<Layout onLogout={handleLogout}><Customers /></Layout>} />
+              <Route path="/payments" element={<Layout onLogout={handleLogout}><Payments /></Layout>} />
+              <Route path="/fleet" element={<Layout onLogout={handleLogout}><Fleet /></Layout>} />
+              <Route path="/bookings" element={<Layout onLogout={handleLogout}><Booking /></Layout>} />
+              <Route path="/rentals" element={<Layout onLogout={handleLogout}><Rentals /></Layout>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </motion.div>
           <Toaster />
         </Router>
