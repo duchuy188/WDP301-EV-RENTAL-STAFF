@@ -31,6 +31,7 @@ export interface Contract {
     name: string;
     license_plate: string;
     model: string;
+    color: string;
   };
   station: {
     _id: string;
@@ -65,6 +66,14 @@ export interface ContractsResponse {
       limit: number;
       pages: number;
     };
+  };
+}
+
+export interface ContractDetailResponse {
+  success: boolean;
+  message: string;
+  data: {
+    contract: Contract;
   };
 }
 
@@ -125,7 +134,7 @@ export async function getContracts(params: {
 }
 
 // API function to get contract detail by ID
-export async function getContractById(id: string): Promise<{ success: boolean; data: Contract }> {
+export async function getContractById(id: string): Promise<ContractDetailResponse> {
   const res = await fetch(apiUrl(`/api/contracts/${id}`), {
     method: 'GET',
     headers: getAuthHeaders(),

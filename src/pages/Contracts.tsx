@@ -110,7 +110,7 @@ export function Contracts() {
     setDetailLoading(true);
     try {
       const response = await getContractById(contract._id);
-      setSelectedContract(response.data);
+      setSelectedContract(response.data.contract);
     } catch (error: unknown) {
       console.error('Contract Detail API Error:', error);
       const errorMessage = (error as Error)?.message || 'Lỗi khi lấy chi tiết contract';
@@ -641,6 +641,10 @@ export function Contracts() {
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Model:</span>
                       <span className="col-span-2 font-medium">{selectedContract.vehicle.model}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Màu xe:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle.color}</span>
                     </div>
                   </div>
                 </Card>
