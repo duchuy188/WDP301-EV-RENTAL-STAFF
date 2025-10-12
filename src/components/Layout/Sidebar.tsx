@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Zap,
   Calendar,
-  FileText
+  FileText,
+  FileSignature
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/context/SidebarContext'
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Quản lý Booking', href: '/bookings', icon: Calendar },
   { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
   { name: 'Quản lý Rentals', href: '/rentals', icon: FileText },
+  { name: 'Quản lý Contracts', href: '/contracts', icon: FileSignature },
   { name: 'Xác thực KH', href: '/customers', icon: UserCheck },
   { name: 'Thanh toán', href: '/payments', icon: CreditCard },
   { name: 'Quản lý Xe', href: '/fleet', icon: Settings },

@@ -14,6 +14,7 @@ import { PaymentSuccess } from './pages/PaymentSuccess'
 import { Fleet } from './pages/Fleet'
 import Booking from './pages/Booking'
 import { Rentals } from './pages/Rentals'
+import { Contracts } from './pages/Contracts'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -75,6 +76,7 @@ function App() {
               <Route path="/fleet" element={<Layout onLogout={handleLogout}><Fleet /></Layout>} />
               <Route path="/bookings" element={<Layout onLogout={handleLogout}><Booking /></Layout>} />
               <Route path="/rentals" element={<Layout onLogout={handleLogout}><Rentals /></Layout>} />
+              <Route path="/contracts" element={<Layout onLogout={handleLogout}><Contracts /></Layout>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </motion.div>
