@@ -77,6 +77,21 @@ export interface ContractDetailResponse {
   };
 }
 
+export interface CreateContractRequest {
+  rental_id: string;
+  notes?: string;
+  template_id?: string;
+  special_conditions?: string;
+}
+
+export interface CreateContractResponse {
+  success: boolean;
+  message: string;
+  data: {
+    contract: Contract;
+  };
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -143,6 +158,23 @@ export async function getContractById(id: string): Promise<ContractDetailRespons
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi lấy chi tiết contract', res.status);
+  }
+
+  return res.json();
+}
+
+// API function to create new contract from rental
+export async function createContract(data: CreateContractRequest): Promise<CreateContractResponse> {
+  const res = await fetch(apiUrl('/api/contracts'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    const errorMessage = errorData?.message || 'Lỗi khi tạo contract';
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

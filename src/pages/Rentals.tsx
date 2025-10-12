@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, checkoutFees, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse, type CheckoutFeesResponse } from '@/api/rentals';
+import { createContract } from '@/api/contracts';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -45,6 +46,12 @@ export function Rentals() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  
+  // Create Contract states
+  const [showCreateContractDialog, setShowCreateContractDialog] = useState(false);
+  const [contractNotes, setContractNotes] = useState('');
+  const [contractSpecialConditions, setContractSpecialConditions] = useState('');
+  const [creatingContract, setCreatingContract] = useState(false);
   
   // Checkout states
   const [checkoutInfo, setCheckoutInfo] = useState<CheckoutInfo | null>(null);
@@ -130,6 +137,45 @@ export function Rentals() {
   const handleImageClick = (imageUrl: string) => {
     setSelectedImage(imageUrl);
     setShowImageModal(true);
+  };
+
+  const handleCreateContract = async () => {
+    if (!selectedRental) return;
+    
+    setCreatingContract(true);
+    try {
+      const response = await createContract({
+        rental_id: selectedRental._id,
+        notes: contractNotes || 'Contract cho thuê xe điện',
+        special_conditions: contractSpecialConditions || undefined,
+      });
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+      
+      setShowCreateContractDialog(false);
+      setContractNotes('');
+      setContractSpecialConditions('');
+      
+      // Reload rental detail to see updated info
+      const updatedRental = await getRentalById(selectedRental._id);
+      setSelectedRental(updatedRental.data);
+      
+      // Reload rentals list
+      loadRentals();
+    } catch (error: unknown) {
+      console.error('Create Contract Error:', error);
+      const errorMessage = (error as Error)?.message || 'Lỗi khi tạo contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingContract(false);
+    }
   };
 
   const handleViewDetail = async (rental: Rental) => {
@@ -959,7 +1005,19 @@ export function Rentals() {
 
               {/* Action Buttons */}
               {selectedRental.status === 'active' && (
-                <div className="flex justify-center pt-4">
+                <div className="flex justify-center gap-4 pt-4">
+                  <Button
+                    onClick={() => {
+                      setShowCreateContractDialog(true);
+                      setContractNotes('');
+                      setContractSpecialConditions('');
+                    }}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                  >
+                    <FileText className="h-5 w-5 mr-2" />
+                    Tạo Contract
+                  </Button>
                   <Button
                     onClick={() => handleStartCheckout(selectedRental._id)}
                     className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
@@ -995,6 +1053,126 @@ export function Rentals() {
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Contract Dialog */}
+      <Dialog open={showCreateContractDialog} onOpenChange={setShowCreateContractDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">📝 Tạo Contract từ Rental</DialogTitle>
+            <DialogDescription>
+              Tạo hợp đồng thuê xe điện cho rental này
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRental && (
+            <div className="space-y-6 py-4">
+              {/* Rental Info */}
+              <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
+                <h4 className="font-semibold mb-3 text-blue-700 dark:text-blue-400">
+                  Thông tin Rental
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Rental:</p>
+                    <p className="font-bold text-blue-700 dark:text-blue-300">{selectedRental.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
+                    <p className="font-semibold">{selectedRental.user_id.fullname}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
+                    <p className="font-semibold">{selectedRental.vehicle_id.license_plate}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Trạm:</p>
+                    <p className="font-semibold text-xs">{selectedRental.station_id.name}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Form */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contract-notes">
+                    Ghi chú <span className="text-xs text-gray-500">(Optional)</span>
+                  </Label>
+                  <Textarea
+                    id="contract-notes"
+                    placeholder="Contract cho thuê xe điện"
+                    value={contractNotes}
+                    onChange={(e) => setContractNotes(e.target.value)}
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Mặc định: "Contract cho thuê xe điện"
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contract-conditions">
+                    Điều khoản đặc biệt <span className="text-xs text-gray-500">(Optional - cho khách VIP)</span>
+                  </Label>
+                  <Textarea
+                    id="contract-conditions"
+                    placeholder="Khách hàng VIP - Ưu tiên hỗ trợ 24/7"
+                    value={contractSpecialConditions}
+                    onChange={(e) => setContractSpecialConditions(e.target.value)}
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Chỉ dành cho khách hàng VIP hoặc yêu cầu đặc biệt
+                  </p>
+                </div>
+              </div>
+
+              {/* Important Note */}
+              <Card className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-semibold text-yellow-900 dark:text-yellow-300 mb-1">
+                      Điều kiện tiên quyết:
+                    </p>
+                    <p className="text-yellow-800 dark:text-yellow-400">
+                      Phải đã hoàn tất thanh toán (có ít nhất một payment loại deposit hoặc rental_fee ở trạng thái completed)
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Actions */}
+              <div className="flex justify-center gap-4 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateContractDialog(false)}
+                  disabled={creatingContract}
+                  className="px-8"
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleCreateContract}
+                  disabled={creatingContract}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 shadow-lg"
+                >
+                  {creatingContract ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Tạo Contract
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
