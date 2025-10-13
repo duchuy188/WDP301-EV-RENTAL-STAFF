@@ -15,7 +15,9 @@ import {
   Clock,
   Download,
   Search,
-  Filter
+  Filter,
+  Loader2,
+  Ban
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { getContracts, getContractById, signContract, type Contract } from '@/api/contracts';
+import { Textarea } from '@/components/ui/textarea';
+import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, type Contract } from '@/api/contracts';
 import { SignaturePad } from '@/components/SignaturePad';
 
 export function Contracts() {
@@ -48,6 +51,10 @@ export function Contracts() {
   const [signingContract, setSigningContract] = useState(false);
   const [showSignCustomerDialog, setShowSignCustomerDialog] = useState(false);
   const [signingCustomerContract, setSigningCustomerContract] = useState(false);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancellingContract, setCancellingContract] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Stats
   const [stats, setStats] = useState({
@@ -213,6 +220,72 @@ export function Contracts() {
     }
   };
 
+  const handleDownloadPdf = async (contractId: string, contractCode: string) => {
+    setDownloadingPdfId(contractId);
+    try {
+      await downloadContractPdf(contractId);
+      toast({
+        title: "Thành công",
+        description: `Đã tải xuống PDF contract ${contractCode}`,
+      });
+    } catch (error) {
+      console.error('Download PDF error:', error);
+      toast({
+        title: "Lỗi",
+        description: (error as Error)?.message || "Không thể tải xuống PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
+  const handleOpenCancelDialog = (contract: Contract) => {
+    setSelectedContract(contract);
+    setCancelReason('');
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelContract = async () => {
+    if (!selectedContract) return;
+    
+    if (!cancelReason.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập lý do hủy contract",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCancellingContract(true);
+    try {
+      await cancelContract(selectedContract._id, { reason: cancelReason });
+      
+      toast({
+        title: "Thành công",
+        description: `Đã hủy contract ${selectedContract.code}`,
+      });
+
+      // Reload contracts list
+      loadContracts();
+      
+      setShowCancelDialog(false);
+      setShowDetailDialog(false);
+      setCancelReason('');
+    } catch (error: unknown) {
+      console.error('Cancel Contract Error:', error);
+      const errorMessage = (error as Error)?.message || 'Lỗi khi hủy contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setCancellingContract(false);
+    }
+  };
+
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('vi-VN', {
@@ -279,7 +352,7 @@ export function Contracts() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            📄 Quản lý Contracts
+            📄 Quản lý hợp đồng
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Danh sách hợp đồng thuê xe điện
@@ -595,9 +668,14 @@ export function Contracts() {
                           variant="outline"
                           size="sm"
                           className="border-2"
-                          onClick={() => window.open(contract.contract_file_url, '_blank')}
+                          onClick={() => handleDownloadPdf(contract._id, contract.code)}
+                          disabled={downloadingPdfId === contract._id}
                         >
-                          <Download className="h-4 w-4" />
+                          {downloadingPdfId === contract._id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
                         </Button>
                       )}
                     </div>
@@ -933,12 +1011,35 @@ export function Contracts() {
                 {/* Download Button */}
                 {selectedContract.contract_file_url && (
                   <Button
-                    onClick={() => window.open(selectedContract.contract_file_url, '_blank')}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    onClick={() => handleDownloadPdf(selectedContract._id, selectedContract.code)}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
+                    disabled={downloadingPdfId === selectedContract._id}
                   >
-                    <Download className="h-5 w-5 mr-2" />
-                    Tải xuống PDF
+                    {downloadingPdfId === selectedContract._id ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Đang tải...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-5 w-5 mr-2" />
+                        Tải xuống PDF
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {/* Cancel Button */}
+                {selectedContract.status !== 'cancelled' && (
+                  <Button
+                    onClick={() => handleOpenCancelDialog(selectedContract)}
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                    variant="destructive"
+                  >
+                    <Ban className="h-5 w-5 mr-2" />
+                    Hủy Contract
                   </Button>
                 )}
               </div>
@@ -1077,6 +1178,111 @@ export function Contracts() {
               </Card>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Contract Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Ban className="h-6 w-6 text-red-500" />
+              Hủy Contract
+            </DialogTitle>
+            <DialogDescription>
+              Nhập lý do hủy contract {selectedContract?.code}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Contract Info */}
+            {selectedContract && (
+              <Card className="p-4 bg-gray-50 dark:bg-gray-800">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Mã Contract:</span>
+                    <p className="font-semibold">{selectedContract.code}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Khách hàng:</span>
+                    <p className="font-semibold">{selectedContract.customer.fullname}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Xe:</span>
+                    <p className="font-semibold">{selectedContract.vehicle.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                    <div>{getStatusBadge(selectedContract.status, selectedContract.statusText)}</div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Cancel Reason */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Lý do hủy <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                placeholder="Nhập lý do hủy contract..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Vui lòng nhập rõ lý do để lưu vào hệ thống
+              </p>
+            </div>
+
+            {/* Warning */}
+            <Card className="p-3 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-semibold text-red-900 dark:text-red-300 mb-1">
+                    ⚠️ Cảnh báo:
+                  </p>
+                  <p className="text-red-800 dark:text-red-400">
+                    Hành động này không thể hoàn tác. Contract sẽ được đánh dấu là đã hủy và không thể sử dụng lại.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCancelDialog(false);
+                  setCancelReason('');
+                }}
+                disabled={cancellingContract}
+              >
+                Đóng
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancelContract}
+                disabled={cancellingContract || !cancelReason.trim()}
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+              >
+                {cancellingContract ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Đang hủy...
+                  </>
+                ) : (
+                  <>
+                    <Ban className="h-4 w-4 mr-2" />
+                    Xác nhận hủy
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </motion.div>

@@ -107,6 +107,18 @@ export interface SignContractResponse {
   };
 }
 
+export interface CancelContractRequest {
+  reason: string;
+}
+
+export interface CancelContractResponse {
+  success: boolean;
+  message: string;
+  data: {
+    contract: Contract;
+  };
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -206,6 +218,75 @@ export async function signContract(id: string, data: SignContractRequest): Promi
   if (!res.ok) {
     const errorData = await res.json().catch(() => null);
     const errorMessage = errorData?.message || 'Lỗi khi ký contract';
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}
+
+// API function to download contract PDF
+export async function downloadContractPdf(id: string): Promise<void> {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+  
+  const headers: HeadersInit = {
+    'Accept': 'application/pdf',
+  };
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(apiUrl(`/api/contracts/${id}/pdf`), {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    const errorMessage = errorData?.message || 'Lỗi khi tải PDF contract';
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  // Get the blob from response
+  const blob = await res.blob();
+  
+  // Get filename from Content-Disposition header
+  const contentDisposition = res.headers.get('Content-Disposition');
+  let filename = 'contract.pdf';
+  
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+    if (filenameMatch) {
+      filename = filenameMatch[1];
+    }
+  }
+  
+  // Create a temporary URL for the blob
+  const url = window.URL.createObjectURL(blob);
+  
+  // Create a temporary anchor element and trigger download
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  
+  // Cleanup
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+// API function to cancel contract
+export async function cancelContract(id: string, data: CancelContractRequest): Promise<CancelContractResponse> {
+  const res = await fetch(apiUrl(`/api/contracts/${id}/cancel`), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    const errorMessage = errorData?.message || 'Lỗi khi hủy contract';
     throw new ApiError(errorMessage, res.status);
   }
 
