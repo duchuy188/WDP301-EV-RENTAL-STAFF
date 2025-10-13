@@ -24,7 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { getContracts, getContractById, type Contract } from '@/api/contracts';
+import { getContracts, getContractById, signContract, type Contract } from '@/api/contracts';
+import { SignaturePad } from '@/components/SignaturePad';
 
 export function Contracts() {
   const { toast } = useToast();
@@ -43,6 +44,10 @@ export function Contracts() {
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [showSignDialog, setShowSignDialog] = useState(false);
+  const [signingContract, setSigningContract] = useState(false);
+  const [showSignCustomerDialog, setShowSignCustomerDialog] = useState(false);
+  const [signingCustomerContract, setSigningCustomerContract] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -128,6 +133,84 @@ export function Contracts() {
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
     loadContracts();
+  };
+
+  const handleSignContract = async (signature: string) => {
+    if (!selectedContract) return;
+    
+    setSigningContract(true);
+    try {
+      // Clean base64 (remove data URL prefix if exists)
+      const cleanSignature = signature.replace(/^data:image\/\w+;base64,/, '');
+      
+      const response = await signContract(selectedContract._id, {
+        signature: cleanSignature,
+        signature_type: 'staff', // Staff always signs as staff
+      });
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+      
+      // Reload contract detail
+      const updatedContract = await getContractById(selectedContract._id);
+      setSelectedContract(updatedContract.data.contract);
+      
+      // Reload contracts list
+      loadContracts();
+      
+      setShowSignDialog(false);
+    } catch (error: unknown) {
+      console.error('Sign Contract Error:', error);
+      const errorMessage = (error as Error)?.message || 'Lỗi khi ký contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setSigningContract(false);
+    }
+  };
+
+  const handleSignCustomerContract = async (signature: string) => {
+    if (!selectedContract) return;
+    
+    setSigningCustomerContract(true);
+    try {
+      // Clean base64 (remove data URL prefix if exists)
+      const cleanSignature = signature.replace(/^data:image\/\w+;base64,/, '');
+      
+      const response = await signContract(selectedContract._id, {
+        signature: cleanSignature,
+        signature_type: 'customer', // Sign as customer
+      });
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+      });
+      
+      // Reload contract detail
+      const updatedContract = await getContractById(selectedContract._id);
+      setSelectedContract(updatedContract.data.contract);
+      
+      // Reload contracts list
+      loadContracts();
+      
+      setShowSignCustomerDialog(false);
+    } catch (error: unknown) {
+      console.error('Sign Contract (Customer) Error:', error);
+      const errorMessage = (error as Error)?.message || 'Lỗi khi ký contract cho khách hàng';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setSigningCustomerContract(false);
+    }
   };
 
   const formatDateTime = (dateString: string | null) => {
@@ -679,19 +762,44 @@ export function Contracts() {
               {/* Signatures */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-4">
-                  <h4 className="font-medium mb-3 text-orange-600 dark:text-orange-400">
-                    Chữ ký Staff
+                  <h4 className="font-medium mb-3 text-orange-600 dark:text-orange-400 flex items-center justify-between">
+                    <span>Chữ ký Staff</span>
+                    {selectedContract.staff_signed_at && (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Đã ký
+                      </Badge>
+                    )}
                   </h4>
-                  <div className="space-y-2 text-sm">
-                    {selectedContract.staff_signed_by ? (
+                  <div className="space-y-3 text-sm">
+                    {selectedContract.staff_signed_at ? (
                       <>
+                        {/* Signature Image - Display actual signature from base64 */}
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+                          <p className="text-xs text-gray-500 mb-2 text-center">✍️ Chữ ký điện tử</p>
+                          <div className="flex justify-center items-center min-h-24 bg-white dark:bg-gray-900 rounded">
+                            {selectedContract.staff_signature ? (
+                              <img 
+                                src={`data:image/png;base64,${selectedContract.staff_signature}`}
+                                alt="Staff Signature"
+                                className="max-h-20 max-w-full object-contain"
+                                style={{ imageRendering: 'crisp-edges' }}
+                              />
+                            ) : (
+                              <p className="text-2xl font-signature text-orange-600 dark:text-orange-400">
+                                {selectedContract.staff_signed_by?.fullname || 'N/A'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Người ký:</span>
-                          <span className="font-medium">{selectedContract.staff_signed_by.fullname}</span>
+                          <span className="font-medium">{selectedContract.staff_signed_by?.fullname || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                          <span className="font-medium text-xs">{selectedContract.staff_signed_by.email}</span>
+                          <span className="font-medium text-xs">{selectedContract.staff_signed_by?.email || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>
@@ -699,7 +807,7 @@ export function Contracts() {
                         </div>
                       </>
                     ) : (
-                      <div className="text-center py-4 text-gray-500">
+                      <div className="text-center py-8 text-gray-500">
                         <Clock className="h-8 w-8 mx-auto mb-2" />
                         <p className="text-sm">Chưa ký</p>
                       </div>
@@ -708,19 +816,44 @@ export function Contracts() {
                 </Card>
 
                 <Card className="p-4">
-                  <h4 className="font-medium mb-3 text-purple-600 dark:text-purple-400">
-                    Chữ ký Khách hàng
+                  <h4 className="font-medium mb-3 text-purple-600 dark:text-purple-400 flex items-center justify-between">
+                    <span>Chữ ký Khách hàng</span>
+                    {selectedContract.customer_signed_at && (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Đã ký
+                      </Badge>
+                    )}
                   </h4>
-                  <div className="space-y-2 text-sm">
-                    {selectedContract.customer_signed_by ? (
+                  <div className="space-y-3 text-sm">
+                    {selectedContract.customer_signed_at ? (
                       <>
+                        {/* Signature Image - Display actual signature from base64 */}
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+                          <p className="text-xs text-gray-500 mb-2 text-center">✍️ Chữ ký điện tử</p>
+                          <div className="flex justify-center items-center min-h-24 bg-white dark:bg-gray-900 rounded">
+                            {selectedContract.customer_signature ? (
+                              <img 
+                                src={`data:image/png;base64,${selectedContract.customer_signature}`}
+                                alt="Customer Signature"
+                                className="max-h-20 max-w-full object-contain"
+                                style={{ imageRendering: 'crisp-edges' }}
+                              />
+                            ) : (
+                              <p className="text-2xl font-signature text-purple-600 dark:text-purple-400">
+                                {selectedContract.customer_signed_by?.fullname || 'N/A'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Người ký:</span>
-                          <span className="font-medium">{selectedContract.customer_signed_by.fullname}</span>
+                          <span className="font-medium">{selectedContract.customer_signed_by?.fullname || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                          <span className="font-medium text-xs">{selectedContract.customer_signed_by.email}</span>
+                          <span className="font-medium text-xs">{selectedContract.customer_signed_by?.email || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>
@@ -728,7 +861,7 @@ export function Contracts() {
                         </div>
                       </>
                     ) : (
-                      <div className="text-center py-4 text-gray-500">
+                      <div className="text-center py-8 text-gray-500">
                         <Clock className="h-8 w-8 mx-auto mb-2" />
                         <p className="text-sm">Chưa ký</p>
                       </div>
@@ -773,19 +906,175 @@ export function Contracts() {
                 </Card>
               )}
 
-              {/* Download Button */}
-              {selectedContract.contract_file_url && (
-                <div className="flex justify-center pt-4">
+              {/* Action Buttons */}
+              <div className="flex flex-wrap justify-center gap-4 pt-4">
+                {/* Sign Button for Staff - only show if staff hasn't signed yet and status is pending */}
+                {selectedContract.status === 'pending' && !selectedContract.staff_signed_at && (
+                  <Button
+                    onClick={() => setShowSignDialog(true)}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                  >
+                    ✍️ Ký Contract (Staff)
+                  </Button>
+                )}
+                
+                {/* Sign Button for Customer - Customer signs themselves at station */}
+                {selectedContract.status === 'pending' && !selectedContract.customer_signed_at && (
+                  <Button
+                    onClick={() => setShowSignCustomerDialog(true)}
+                    className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                  >
+                    ✍️ Khách hàng ký
+                  </Button>
+                )}
+                
+                {/* Download Button */}
+                {selectedContract.contract_file_url && (
                   <Button
                     onClick={() => window.open(selectedContract.contract_file_url, '_blank')}
                     className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                     size="lg"
                   >
                     <Download className="h-5 w-5 mr-2" />
-                    Tải xuống Contract (PDF)
+                    Tải xuống PDF
                   </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign Contract Dialog - Staff */}
+      <Dialog open={showSignDialog} onOpenChange={setShowSignDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">✍️ Ký Contract - Staff</DialogTitle>
+            <DialogDescription>
+              Vẽ chữ ký của bạn để xác nhận contract
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedContract && (
+            <div className="space-y-4 py-4">
+              {/* Contract Info */}
+              <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Contract:</p>
+                    <p className="font-bold text-blue-700 dark:text-blue-300">{selectedContract.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
+                    <p className="font-semibold">{selectedContract.customer.fullname}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
+                    <p className="font-semibold">{selectedContract.vehicle.license_plate}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời hạn:</p>
+                    <p className="font-semibold text-xs">{formatDate(selectedContract.valid_from)} - {formatDate(selectedContract.valid_until)}</p>
+                  </div>
                 </div>
+              </Card>
+
+              {/* Signature Pad */}
+              {signingContract ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+                  <p className="text-lg text-gray-600 dark:text-gray-300">Đang xử lý chữ ký...</p>
+                </div>
+              ) : (
+                <SignaturePad
+                  onSave={handleSignContract}
+                  onCancel={() => setShowSignDialog(false)}
+                />
               )}
+
+              {/* Important Note */}
+              <Card className="p-3 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-green-900 dark:text-green-300 mb-1">
+                      Lưu ý:
+                    </p>
+                    <p className="text-green-800 dark:text-green-400">
+                      Sau khi ký, chữ ký sẽ được lưu vào hệ thống. Khách hàng cũng cần ký để hoàn tất contract.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign Contract Dialog - Customer */}
+      <Dialog open={showSignCustomerDialog} onOpenChange={setShowSignCustomerDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">✍️ Chữ ký Khách hàng</DialogTitle>
+            <DialogDescription>
+              Khách hàng ký contract trực tiếp tại trạm
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedContract && (
+            <div className="space-y-4 py-4">
+              {/* Contract Info */}
+              <Card className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Contract:</p>
+                    <p className="font-bold text-purple-700 dark:text-purple-300">{selectedContract.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
+                    <p className="font-semibold">{selectedContract.customer.fullname}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
+                    <p className="font-semibold">{selectedContract.vehicle.license_plate}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời hạn:</p>
+                    <p className="font-semibold text-xs">{formatDate(selectedContract.valid_from)} - {formatDate(selectedContract.valid_until)}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Signature Pad */}
+              {signingCustomerContract ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-purple-500" />
+                  <p className="text-lg text-gray-600 dark:text-gray-300">Đang xử lý chữ ký...</p>
+                </div>
+              ) : (
+                <SignaturePad
+                  onSave={handleSignCustomerContract}
+                  onCancel={() => setShowSignCustomerDialog(false)}
+                />
+              )}
+
+              {/* Important Note */}
+              <Card className="p-3 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-orange-900 dark:text-orange-300 mb-1">
+                      ⚠️ Lưu ý quan trọng:
+                    </p>
+                    <p className="text-orange-800 dark:text-orange-400">
+                      Khách hàng phải có mặt tại trạm và tự vẽ chữ ký của mình. 
+                      Chữ ký này đại diện cho sự xác nhận của khách hàng với các điều khoản trong contract.
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
           )}
         </DialogContent>

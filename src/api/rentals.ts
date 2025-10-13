@@ -123,6 +123,15 @@ export interface RentalDetail {
   is_active: boolean;
   createdAt: string;
   updatedAt: string;
+  contract?: {
+    status: 'pending' | 'signed' | 'cancelled' | 'expired';
+    code: string;
+    staff_signed_at: string | null;
+    customer_signed_at: string | null;
+    staff_signed_by: string | null;
+    customer_signed_by: string | null;
+    is_signed: boolean;
+  } | null;
 }
 
 export interface RentalDetailResponse {

@@ -388,6 +388,41 @@ export function Rentals() {
     }
   };
 
+  const getContractStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+            <Clock className="h-3 w-3 mr-1" />
+            Chờ ký
+          </Badge>
+        );
+      case 'signed':
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Đã ký
+          </Badge>
+        );
+      case 'cancelled':
+        return (
+          <Badge variant="outline" className="text-gray-600">
+            <XCircle className="h-3 w-3 mr-1" />
+            Đã hủy
+          </Badge>
+        );
+      case 'expired':
+        return (
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Hết hạn
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1005,27 +1040,85 @@ export function Rentals() {
 
               {/* Action Buttons */}
               {selectedRental.status === 'active' && (
-                <div className="flex justify-center gap-4 pt-4">
-                  <Button
-                    onClick={() => {
-                      setShowCreateContractDialog(true);
-                      setContractNotes('');
-                      setContractSpecialConditions('');
-                    }}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-                    size="lg"
-                  >
-                    <FileText className="h-5 w-5 mr-2" />
-                    Tạo Contract
-                  </Button>
-                  <Button
-                    onClick={() => handleStartCheckout(selectedRental._id)}
-                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-                    size="lg"
-                  >
-                    <Car className="h-5 w-5 mr-2" />
-                    Trả xe / Checkout
-                  </Button>
+                <div className="flex flex-col gap-6 pt-4">
+                  {/* Hiển thị Contract Status nếu có */}
+                  {selectedRental.contract ? (
+                    <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                      <h4 className="font-medium mb-3 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Thông tin Contract
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Contract:</p>
+                          <p className="font-bold text-blue-700 dark:text-blue-300">{selectedRental.contract.code}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Trạng thái:</p>
+                          {getContractStatusBadge(selectedRental.contract.status)}
+                        </div>
+                        {selectedRental.contract.staff_signed_at && (
+                          <div>
+                            <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Staff đã ký:</p>
+                            <p className="text-xs text-green-600 dark:text-green-400">✅ {formatDateTime(selectedRental.contract.staff_signed_at)}</p>
+                          </div>
+                        )}
+                        {selectedRental.contract.customer_signed_at && (
+                          <div>
+                            <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng đã ký:</p>
+                            <p className="text-xs text-green-600 dark:text-green-400">✅ {formatDateTime(selectedRental.contract.customer_signed_at)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ) : (
+                    // Chỉ hiện nút "Tạo Contract" nếu CHƯA CÓ contract
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={() => {
+                          setShowCreateContractDialog(true);
+                          setContractNotes('');
+                          setContractSpecialConditions('');
+                        }}
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                        size="lg"
+                      >
+                        <FileText className="h-5 w-5 mr-2" />
+                        Tạo Contract
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Button Checkout - chỉ hiện nếu có contract signed */}
+                  {selectedRental.contract?.is_signed && (
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={() => handleStartCheckout(selectedRental._id)}
+                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                        size="lg"
+                      >
+                        <Car className="h-5 w-5 mr-2" />
+                        Trả xe / Checkout
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Warning nếu contract chưa ký */}
+                  {selectedRental.contract && !selectedRental.contract.is_signed && (
+                    <Card className="p-3 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs">
+                          <p className="font-semibold text-orange-900 dark:text-orange-300 mb-1">
+                            ⚠️ Chờ ký hợp đồng
+                          </p>
+                          <p className="text-orange-800 dark:text-orange-400">
+                            Contract cần được ký bởi cả staff và khách hàng trước khi checkout.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
@@ -1058,7 +1151,7 @@ export function Rentals() {
 
       {/* Create Contract Dialog */}
       <Dialog open={showCreateContractDialog} onOpenChange={setShowCreateContractDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl">📝 Tạo Contract từ Rental</DialogTitle>
             <DialogDescription>
@@ -1067,7 +1160,7 @@ export function Rentals() {
           </DialogHeader>
           
           {selectedRental && (
-            <div className="space-y-6 py-4">
+            <div className="space-y-4 py-4">
               {/* Rental Info */}
               <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
                 <h4 className="font-semibold mb-3 text-blue-700 dark:text-blue-400">
@@ -1129,10 +1222,10 @@ export function Rentals() {
               </div>
 
               {/* Important Note */}
-              <Card className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+              <Card className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
                     <p className="font-semibold text-yellow-900 dark:text-yellow-300 mb-1">
                       Điều kiện tiên quyết:
                     </p>
@@ -1144,7 +1237,7 @@ export function Rentals() {
               </Card>
 
               {/* Actions */}
-              <div className="flex justify-center gap-4 pt-4">
+              <div className="flex justify-center gap-4 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setShowCreateContractDialog(false)}

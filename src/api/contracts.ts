@@ -12,6 +12,8 @@ export interface Contract {
   special_conditions: string;
   notes: string;
   contract_file_url: string;
+  staff_signature: string;      // base64 string
+  customer_signature: string;   // base64 string
   customer_signed_at: string | null;
   staff_signed_at: string | null;
   created_at: string;
@@ -85,6 +87,19 @@ export interface CreateContractRequest {
 }
 
 export interface CreateContractResponse {
+  success: boolean;
+  message: string;
+  data: {
+    contract: Contract;
+  };
+}
+
+export interface SignContractRequest {
+  signature: string; // base64 string
+  signature_type: 'staff' | 'customer';
+}
+
+export interface SignContractResponse {
   success: boolean;
   message: string;
   data: {
@@ -174,6 +189,23 @@ export async function createContract(data: CreateContractRequest): Promise<Creat
   if (!res.ok) {
     const errorData = await res.json().catch(() => null);
     const errorMessage = errorData?.message || 'Lỗi khi tạo contract';
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}
+
+// API function to sign contract (staff or customer)
+export async function signContract(id: string, data: SignContractRequest): Promise<SignContractResponse> {
+  const res = await fetch(apiUrl(`/api/contracts/${id}/sign`), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    const errorMessage = errorData?.message || 'Lỗi khi ký contract';
     throw new ApiError(errorMessage, res.status);
   }
 
