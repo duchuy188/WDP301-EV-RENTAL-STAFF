@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails, confirmPayment, ConfirmPaymentRequest, cancelPayment, CancelPaymentRequest, updatePaymentMethod } from '@/api/payments'
+import { formatDate } from '@/lib/utils'
 import { getStationBookings, Booking } from '@/api/booking'
 import { getStaffRentals, Rental } from '@/api/rentals'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -543,9 +544,6 @@ export function Payments() {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN')
-  }
 
   return (
     <motion.div
@@ -568,10 +566,10 @@ export function Payments() {
           </Button>
           <Button 
             onClick={fetchPayments}
-            variant="outline"
             disabled={loading}
+            className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Làm mới
           </Button>
         </div>
@@ -756,7 +754,7 @@ export function Payments() {
                           )}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {formatDate(payment.createdAt)}
+                          {formatDate(payment.createdAt || payment.created_at)}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -984,11 +982,11 @@ export function Payments() {
               <div className="border-t pt-4 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <label className="text-gray-500">Ngày tạo</label>
-                  <p>{formatDate(selectedPayment.createdAt)}</p>
+                  <p>{formatDate(selectedPayment.createdAt || selectedPayment.created_at)}</p>
                 </div>
                 <div>
                   <label className="text-gray-500">Cập nhật</label>
-                  <p>{formatDate(selectedPayment.updatedAt)}</p>
+                  <p>{formatDate(selectedPayment.updatedAt || selectedPayment.updated_at)}</p>
                     </div>
                   </div>
 

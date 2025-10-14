@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, type Contract } from '@/api/contracts';
 import { SignaturePad } from '@/components/SignaturePad';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
 export function Contracts() {
   const { toast } = useToast();
@@ -286,24 +287,6 @@ export function Contracts() {
     }
   };
 
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
 
   const getStatusBadge = (status: string, statusText?: string) => {
     const text = statusText || status;
@@ -332,7 +315,7 @@ export function Contracts() {
         );
       case 'cancelled':
         return (
-          <Badge variant="outline" className="text-gray-600">
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
             <XCircle className="h-3 w-3 mr-1" />
             {text}
           </Badge>
@@ -352,7 +335,7 @@ export function Contracts() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            📄 Quản lý hợp đồng
+             Quản lý hợp đồng
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Danh sách hợp đồng thuê xe điện
@@ -592,7 +575,7 @@ export function Contracts() {
                     contract.status === 'signed' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
                     contract.status === 'pending' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
                     contract.status === 'expired' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-                    contract.status === 'cancelled' ? 'bg-gradient-to-r from-gray-500 to-gray-600' :
+                    contract.status === 'cancelled' ? 'bg-gradient-to-r from-red-500 to-red-600' :
                     'bg-gradient-to-r from-gray-400 to-gray-500'
                   }`} />
                   

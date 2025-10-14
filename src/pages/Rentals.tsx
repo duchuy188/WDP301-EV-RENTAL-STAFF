@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, checkoutFees, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse, type CheckoutFeesResponse } from '@/api/rentals';
 import { createContract } from '@/api/contracts';
+import { formatDateTime } from '@/lib/utils';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -333,15 +334,6 @@ export function Rentals() {
     }).format(price);
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -433,7 +425,7 @@ export function Rentals() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            🚗 Quản lý thuê xe
+             Quản lý thuê xe
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Danh sách các rental tại station của bạn
