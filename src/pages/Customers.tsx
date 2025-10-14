@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, CheckCircle, XCircle, Eye, UserCheck, RefreshCw, Search, Filter, AlertTriangle, Users, UserX, Clock, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Check } from 'lucide-react'
+import { Upload, CheckCircle, XCircle, Eye, UserCheck, RefreshCw, Search, Filter, AlertTriangle, Users, UserX, Clock, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,10 +51,13 @@ export function Customers() {
   })
   const [selectedUserForUpload, setSelectedUserForUpload] = useState<UserNotSubmittedKyc | null>(null)
   const [showUserInfoDialog, setShowUserInfoDialog] = useState(false)
-  const [copiedUserId, setCopiedUserId] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [showImageModal, setShowImageModal] = useState(false)
   const [showCustomerDetailDialog, setShowCustomerDetailDialog] = useState(false)
+
+  // Tab management
+  const [activeTab, setActiveTab] = useState('pending')
+  const [selectedUserIdForUpload, setSelectedUserIdForUpload] = useState<string | null>(null)
 
   // Completed KYC states
   const [completedKycUsers, setCompletedKycUsers] = useState<CompletedKycUser[]>([])
@@ -81,24 +84,15 @@ export function Customers() {
 
   const { toast } = useToast()
 
-  // Copy user ID to clipboard
-  const handleCopyUserId = async (userId: string) => {
-    try {
-      await navigator.clipboard.writeText(userId)
-      setCopiedUserId(true)
-      toast({
-        title: "✅ Đã copy",
-        description: "User ID đã được copy vào clipboard",
-      })
-      setTimeout(() => setCopiedUserId(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy:', error)
-      toast({
-        title: "❌ Lỗi",
-        description: "Không thể copy. Vui lòng copy thủ công.",
-        variant: "destructive",
-      })
-    }
+  // Navigate to KYC pending tab with User ID
+  const handleNavigateToKycPending = (userId: string) => {
+    setSelectedUserIdForUpload(userId)
+    setActiveTab('pending')
+    setShowUserInfoDialog(false)
+    toast({
+      title: "✅ Đã chuyển tab",
+      description: "Đã chuyển sang tab KYC Đang chờ duyệt với User ID đã chọn",
+    })
   }
 
   const handleImageClick = (imageUrl: string) => {
@@ -439,7 +433,7 @@ export function Customers() {
         </div>
       </div>
 
-      <Tabs defaultValue="pending" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="pending" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
@@ -517,6 +511,45 @@ export function Customers() {
             </div>
           </div>
 
+          {/* Selected User ID Indicator */}
+          {selectedUserIdForUpload && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4"
+            >
+              <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <UserCheck className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                          User đã chọn để upload:
+                        </p>
+                        <p className="font-semibold text-sm text-blue-900 dark:text-blue-100">
+                          {(() => {
+                            const selectedUser = notSubmittedUsers.find(user => user.id === selectedUserIdForUpload);
+                            return selectedUser ? selectedUser.fullname || selectedUser.email : selectedUserIdForUpload;
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedUserIdForUpload(null)}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Xóa
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Upload Section */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -546,9 +579,17 @@ export function Customers() {
                       className="max-w-xs mx-auto"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        const userId = prompt("Nhập userId của khách hàng:");
-                        if (file && userId) {
-                          handleFileUpload(file, userId, 'front');
+                        if (file) {
+                          if (selectedUserIdForUpload) {
+                            handleFileUpload(file, selectedUserIdForUpload, 'front');
+                          } else {
+                            setActiveTab('not-submitted');
+                            toast({
+                              title: "⚠️ Chưa chọn user",
+                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
+                              variant: "destructive"
+                            });
+                          }
                         }
                       }}
                       disabled={uploadingFor !== null}
@@ -569,9 +610,17 @@ export function Customers() {
                       className="max-w-xs mx-auto"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        const userId = prompt("Nhập userId của khách hàng:");
-                        if (file && userId) {
-                          handleFileUpload(file, userId, 'back');
+                        if (file) {
+                          if (selectedUserIdForUpload) {
+                            handleFileUpload(file, selectedUserIdForUpload, 'back');
+                          } else {
+                            setActiveTab('not-submitted');
+                            toast({
+                              title: "⚠️ Chưa chọn user",
+                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
+                              variant: "destructive"
+                            });
+                          }
                         }
                       }}
                       disabled={uploadingFor !== null}
@@ -592,9 +641,17 @@ export function Customers() {
                       className="max-w-xs mx-auto"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        const userId = prompt("Nhập userId của khách hàng:");
-                        if (file && userId) {
-                          handleFileUpload(file, userId, 'license-front');
+                        if (file) {
+                          if (selectedUserIdForUpload) {
+                            handleFileUpload(file, selectedUserIdForUpload, 'license-front');
+                          } else {
+                            setActiveTab('not-submitted');
+                            toast({
+                              title: "⚠️ Chưa chọn user",
+                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
+                              variant: "destructive"
+                            });
+                          }
                         }
                       }}
                       disabled={uploadingFor !== null}
@@ -615,9 +672,17 @@ export function Customers() {
                       className="max-w-xs mx-auto"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        const userId = prompt("Nhập userId của khách hàng:");
-                        if (file && userId) {
-                          handleFileUpload(file, userId, 'license-back');
+                        if (file) {
+                          if (selectedUserIdForUpload) {
+                            handleFileUpload(file, selectedUserIdForUpload, 'license-back');
+                          } else {
+                            setActiveTab('not-submitted');
+                            toast({
+                              title: "⚠️ Chưa chọn user",
+                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
+                              variant: "destructive"
+                            });
+                          }
                         }
                       }}
                       disabled={uploadingFor !== null}
@@ -1869,39 +1934,6 @@ export function Customers() {
                 </div>
               </div>
 
-              {/* User ID with Copy Button */}
-              <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950">
-                <CardContent className="p-4">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                    User ID:
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={selectedUserForUpload.id}
-                      readOnly
-                      className="flex-1 font-mono text-sm bg-white dark:bg-gray-900 border-2"
-                      onClick={(e) => e.currentTarget.select()}
-                    />
-                    <Button
-                      onClick={() => handleCopyUserId(selectedUserForUpload.id)}
-                      className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    >
-                      {copiedUserId ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          Đã copy
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          Copy ID
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* User Details */}
               <div className="grid grid-cols-2 gap-4">
                 <Card>
@@ -2002,7 +2034,7 @@ export function Customers() {
                     Upload tài liệu cho user
                   </CardTitle>
                   <CardDescription>
-                    Sử dụng User ID bên trên để upload tài liệu thông qua các file input ở tab "KYC Đang chờ duyệt"
+                    Nhấn nút "Chuyển đến KYC" để chuyển sang tab "KYC Đang chờ duyệt" và upload tài liệu cho user này
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -2014,10 +2046,10 @@ export function Customers() {
                           Hướng dẫn upload:
                         </p>
                         <ol className="text-sm text-yellow-700 dark:text-yellow-400 mt-2 space-y-1 list-decimal list-inside">
-                          <li>Copy User ID bên trên</li>
-                          <li>Chuyển sang tab "KYC Đang chờ duyệt"</li>
+                          <li>Nhấn nút "Chuyển đến KYC" bên trên</li>
+                          <li>Hệ thống sẽ tự động chuyển sang tab "KYC Đang chờ duyệt"</li>
                           <li>Sử dụng các file input để upload CCCD/GPLX</li>
-                          <li>Nhập User ID khi được yêu cầu</li>
+                          <li>User ID sẽ được tự động điền khi cần thiết</li>
                         </ol>
                       </div>
                     </div>
@@ -2033,17 +2065,16 @@ export function Customers() {
                   onClick={() => {
                     setShowUserInfoDialog(false)
                     setSelectedUserForUpload(null)
-                    setCopiedUserId(false)
                   }}
                 >
                   Đóng
                 </Button>
                 <Button
                   className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  onClick={() => handleCopyUserId(selectedUserForUpload.id)}
+                  onClick={() => handleNavigateToKycPending(selectedUserForUpload.id)}
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  {copiedUserId ? 'Đã copy ID' : 'Copy User ID'}
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Chuyển đến KYC
                 </Button>
               </div>
             </div>
