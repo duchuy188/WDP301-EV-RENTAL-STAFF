@@ -902,7 +902,7 @@ export function Contracts() {
                               />
                             ) : (
                               <p className="text-2xl font-signature text-purple-600 dark:text-purple-400">
-                                {selectedContract.customer_signed_by?.fullname || 'N/A'}
+                                {selectedContract.customer.fullname || 'N/A'}
                               </p>
                             )}
                           </div>
@@ -910,11 +910,11 @@ export function Contracts() {
                         
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Người ký:</span>
-                          <span className="font-medium">{selectedContract.customer_signed_by?.fullname || 'N/A'}</span>
+                          <span className="font-medium">{selectedContract.customer.fullname || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                          <span className="font-medium text-xs">{selectedContract.customer_signed_by?.email || 'N/A'}</span>
+                          <span className="font-medium text-xs">{selectedContract.customer.email || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>

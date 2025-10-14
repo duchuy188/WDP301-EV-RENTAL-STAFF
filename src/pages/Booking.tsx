@@ -463,10 +463,24 @@ const Booking: React.FC = () => {
 
   // Handle walk-in form change
   const handleWalkInFormChange = (field: keyof WalkInBookingRequest, value: string) => {
-    setWalkInFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setWalkInFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // If start_date is changed and end_date is before the new start_date, reset end_date
+      if (field === 'start_date' && value && prev.end_date) {
+        const newStartDate = new Date(value);
+        const currentEndDate = new Date(prev.end_date);
+        
+        if (currentEndDate < newStartDate) {
+          newData.end_date = '';
+        }
+      }
+      
+      return newData;
+    });
   };
 
   // Validate walk-in form
@@ -490,6 +504,25 @@ const Booking: React.FC = () => {
     // Validate phone format (basic)
     if (walkInFormData.customer_phone.length < 10) {
       return 'Số điện thoại không hợp lệ';
+    }
+    
+    // Validate dates - cannot be in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+    
+    const startDate = new Date(walkInFormData.start_date);
+    const endDate = new Date(walkInFormData.end_date);
+    
+    if (startDate < today) {
+      return 'Ngày bắt đầu không được là ngày trong quá khứ';
+    }
+    
+    if (endDate < today) {
+      return 'Ngày kết thúc không được là ngày trong quá khứ';
+    }
+    
+    if (endDate < startDate) {
+      return 'Ngày kết thúc phải sau ngày bắt đầu';
     }
     
     return null;
@@ -1504,6 +1537,7 @@ const Booking: React.FC = () => {
                           type="date"
                           value={walkInFormData.start_date}
                           onChange={(e) => handleWalkInFormChange('start_date', e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
                         />
                       </div>
                       
@@ -1514,6 +1548,7 @@ const Booking: React.FC = () => {
                           type="date"
                           value={walkInFormData.end_date}
                           onChange={(e) => handleWalkInFormChange('end_date', e.target.value)}
+                          min={walkInFormData.start_date || new Date().toISOString().split('T')[0]}
                         />
                       </div>
                     </div>

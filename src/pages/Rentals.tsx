@@ -51,7 +51,6 @@ export function Rentals() {
   // Create Contract states
   const [showCreateContractDialog, setShowCreateContractDialog] = useState(false);
   const [contractNotes, setContractNotes] = useState('');
-  const [contractSpecialConditions, setContractSpecialConditions] = useState('');
   const [creatingContract, setCreatingContract] = useState(false);
   
   // Checkout states
@@ -148,7 +147,6 @@ export function Rentals() {
       const response = await createContract({
         rental_id: selectedRental._id,
         notes: contractNotes || 'Contract cho thuê xe điện',
-        special_conditions: contractSpecialConditions || undefined,
       });
       
       toast({
@@ -158,7 +156,6 @@ export function Rentals() {
       
       setShowCreateContractDialog(false);
       setContractNotes('');
-      setContractSpecialConditions('');
       
       // Reload rental detail to see updated info
       const updatedRental = await getRentalById(selectedRental._id);
@@ -1070,7 +1067,6 @@ export function Rentals() {
                         onClick={() => {
                           setShowCreateContractDialog(true);
                           setContractNotes('');
-                          setContractSpecialConditions('');
                         }}
                         className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                         size="lg"
@@ -1196,21 +1192,6 @@ export function Rentals() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="contract-conditions">
-                    Điều khoản đặc biệt <span className="text-xs text-gray-500">(Optional - cho khách VIP)</span>
-                  </Label>
-                  <Textarea
-                    id="contract-conditions"
-                    placeholder="Khách hàng VIP - Ưu tiên hỗ trợ 24/7"
-                    value={contractSpecialConditions}
-                    onChange={(e) => setContractSpecialConditions(e.target.value)}
-                    rows={3}
-                  />
-                  <p className="text-xs text-gray-500">
-                    Chỉ dành cho khách hàng VIP hoặc yêu cầu đặc biệt
-                  </p>
-                </div>
               </div>
 
               {/* Important Note */}
