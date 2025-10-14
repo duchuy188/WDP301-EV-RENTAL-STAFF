@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode } from 'lucide-react'
+import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode, ArrowLeftRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails, confirmPayment, ConfirmPaymentRequest, cancelPayment, CancelPaymentRequest } from '@/api/payments'
+import { getPayments, Payment, PaymentListParams, createPayment, CreatePaymentRequest, QRData, getPaymentDetails, confirmPayment, ConfirmPaymentRequest, cancelPayment, CancelPaymentRequest, updatePaymentMethod } from '@/api/payments'
 import { getStationBookings, Booking } from '@/api/booking'
 import { getStaffRentals, Rental } from '@/api/rentals'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -30,6 +30,9 @@ export function Payments() {
   const [confirming, setConfirming] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [updateMethodDialogOpen, setUpdateMethodDialogOpen] = useState(false)
+  const [updatingMethod, setUpdatingMethod] = useState(false)
+  const [newPaymentMethod, setNewPaymentMethod] = useState<'cash' | 'vnpay'>('cash')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loadingBookings, setLoadingBookings] = useState(false)
   const [rentals, setRentals] = useState<Rental[]>([])
@@ -410,6 +413,74 @@ export function Payments() {
       })
     } finally {
       setCancelling(false)
+    }
+  }
+
+  // Open update method dialog
+  const openUpdateMethodDialog = () => {
+    if (selectedPayment) {
+      // Set the opposite method as default
+      const oppositeMethod = selectedPayment.payment_method === 'cash' ? 'vnpay' : 'cash'
+      setNewPaymentMethod(oppositeMethod)
+      setUpdateMethodDialogOpen(true)
+    }
+  }
+
+  // Handle update payment method
+  const handleUpdatePaymentMethod = async () => {
+    if (!selectedPayment) return
+
+    try {
+      setUpdatingMethod(true)
+
+      const response = await updatePaymentMethod(selectedPayment._id, {
+        payment_method: newPaymentMethod
+      })
+
+      toast({
+        title: "Thành công",
+        description: response.message || "Cập nhật phương thức thanh toán thành công",
+      })
+
+      // Close dialog
+      setUpdateMethodDialogOpen(false)
+      
+      // Update selected payment with new data
+      setSelectedPayment(response.payment)
+      
+      // Refresh list
+      fetchPayments()
+
+      // If changed to VNPay, show QR dialog
+      if (newPaymentMethod === 'vnpay' && response.payment.vnpay_url) {
+        setQrData({
+          qrData: response.payment.qr_code_data || response.payment.vnpay_url,
+          qrImageUrl: response.payment.qr_code_image || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(response.payment.vnpay_url)}`,
+          qrText: `Mã giao dịch: ${response.payment.code}\nQuét mã QR hoặc truy cập link để thanh toán VNPay`,
+          vnpayData: {
+            paymentUrl: response.payment.vnpay_url,
+            orderId: response.payment.vnpay_transaction_no || response.payment.code,
+            txnRef: response.payment.code,
+            orderInfo: `Thanh toán ${response.payment.code}`,
+            amount: response.payment.amount,
+            createDate: new Date().toISOString(),
+            expireDate: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            params: {}
+          }
+        })
+        setShowQrDialog(true)
+      }
+
+    } catch (error) {
+      console.error('Error updating payment method:', error)
+      const errorMessage = error instanceof Error ? error.message : "Không thể cập nhật phương thức thanh toán"
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setUpdatingMethod(false)
     }
   }
 
@@ -933,6 +1004,15 @@ export function Payments() {
                       Xác nhận thanh toán
                     </Button>
                   )}
+                  {/* Update Payment Method Button */}
+                  <Button
+                    onClick={openUpdateMethodDialog}
+                    variant="outline"
+                    className="w-full border-blue-500 text-blue-600 hover:bg-blue-50"
+                  >
+                    <ArrowLeftRight className="h-4 w-4 mr-2" />
+                    Đổi phương thức thanh toán
+                  </Button>
                   <Button
                     onClick={openCancelDialog}
                     variant="destructive"
@@ -1294,6 +1374,109 @@ export function Payments() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Payment Method Dialog */}
+      <Dialog open={updateMethodDialogOpen} onOpenChange={setUpdateMethodDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="h-5 w-5 text-blue-500" />
+              Đổi phương thức thanh toán
+            </DialogTitle>
+            <DialogDescription>
+              Chuyển đổi phương thức thanh toán cho payment {selectedPayment?.code}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPayment && (
+            <div className="space-y-4 py-4">
+              {/* Current Method */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <label className="text-sm font-medium text-gray-500">Phương thức hiện tại</label>
+                <p className="text-lg font-semibold mt-1">
+                  {selectedPayment.payment_method === 'cash' ? '💵 Tiền mặt' : '💳 VNPay'}
+                </p>
+              </div>
+
+              {/* New Method Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="new_method">
+                  Phương thức mới <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={newPaymentMethod}
+                  onValueChange={(value) => setNewPaymentMethod(value as 'cash' | 'vnpay')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">💵 Tiền mặt</SelectItem>
+                    <SelectItem value="vnpay">💳 VNPay</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Info Card */}
+              <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-2">
+                    <div className="text-blue-600 dark:text-blue-400 text-sm">
+                      <p className="font-semibold mb-1">ℹ️ Lưu ý:</p>
+                      {newPaymentMethod === 'vnpay' ? (
+                        <p>Sau khi chuyển sang VNPay, hệ thống sẽ tạo link thanh toán và mã QR mới cho khách hàng.</p>
+                      ) : (
+                        <p>Sau khi chuyển sang tiền mặt, khách hàng có thể thanh toán trực tiếp tại trạm.</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Payment Info */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Số tiền:</span>
+                  <span className="font-semibold">{formatCurrency(selectedPayment.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                  <span>{getStatusBadge(selectedPayment.status)}</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex space-x-3 pt-4">
+                <Button
+                  onClick={() => setUpdateMethodDialogOpen(false)}
+                  variant="outline"
+                  className="flex-1"
+                  disabled={updatingMethod}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleUpdatePaymentMethod}
+                  disabled={updatingMethod || newPaymentMethod === selectedPayment.payment_method}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+                >
+                  {updatingMethod ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Đang cập nhật...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowLeftRight className="h-4 w-4 mr-2" />
+                      Xác nhận đổi
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </motion.div>

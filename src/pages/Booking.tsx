@@ -604,7 +604,7 @@ const Booking: React.FC = () => {
               Có lỗi xảy ra
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Không thể tải giao diện quản lý booking. Vui lòng thử lại.
+              Không thể tải giao diện quản lý đặt xe. Vui lòng thử lại.
             </p>
             <Button 
               onClick={() => {
@@ -635,7 +635,7 @@ const Booking: React.FC = () => {
           <div className="flex justify-between items-center mb-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                Quản lý Booking
+              Quản lý đặt xe
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300">
                 Quản lý tất cả đặt xe tại trạm của bạn

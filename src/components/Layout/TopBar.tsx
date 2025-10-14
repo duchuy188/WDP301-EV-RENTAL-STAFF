@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Search,
   Bell,
   Moon,
   Sun,
@@ -10,7 +9,6 @@ import {
   Settings
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,16 +51,8 @@ export function TopBar({ onLogout }: TopBarProps) {
       className="h-16 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 flex-shrink-0"
     >
       <div className="flex items-center justify-between px-6 h-full">
-        {/* Search */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Tìm kiếm xe, khách hàng..."
-              className="pl-10 bg-gray-50 dark:bg-gray-800 border-0 focus-visible:ring-1 focus-visible:ring-green-500"
-            />
-          </div>
-        </div>
+        {/* Spacer (search removed) */}
+        <div className="flex-1" />
 
         {/* Right side */}
         <div className="flex items-center space-x-4">

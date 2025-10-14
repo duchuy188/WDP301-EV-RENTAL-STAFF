@@ -287,3 +287,36 @@ export async function cancelPayment(
 
   return res.json();
 }
+
+// Types for update payment method
+export interface UpdatePaymentMethodRequest {
+  payment_method: 'cash' | 'vnpay';
+}
+
+export interface UpdatePaymentMethodResponse {
+  success: boolean;
+  message: string;
+  payment: Payment;
+}
+
+// API function to update payment method
+export async function updatePaymentMethod(
+  paymentId: string,
+  data: UpdatePaymentMethodRequest
+): Promise<UpdatePaymentMethodResponse> {
+  const res = await fetch(apiUrl(`/api/payments/${paymentId}/update-method`), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    const errorMessage = errorData?.message || 'Lỗi khi cập nhật phương thức thanh toán';
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}
+
+// Types for verify VNPay payment

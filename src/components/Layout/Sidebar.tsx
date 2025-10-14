@@ -18,7 +18,7 @@ import { useSidebar } from '@/context/SidebarContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Quản lý Booking', href: '/bookings', icon: Calendar },
+  { name: 'Quản lý đặt xe', href: '/bookings', icon: Calendar },
   // { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
   { name: 'Quản lý thuê xe', href: '/rentals', icon: FileText },
   { name: 'Quản lý hợp đồng', href: '/contracts', icon: FileSignature },
