@@ -200,8 +200,30 @@ const Booking: React.FC = () => {
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return 'N/A';
     try {
-      return new Date(dateStr).toLocaleDateString('vi-VN');
-    } catch {
+      // Handle DD/MM/YYYY HH:mm:ss format
+      if (dateStr.includes('/') && dateStr.includes(' ')) {
+        const [datePart, timePart] = dateStr.split(' ');
+        const [day, month, year] = datePart.split('/');
+        // Convert to YYYY-MM-DDTHH:mm:ss format for reliable parsing
+        const isoDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart}`;
+        const date = new Date(isoDateStr);
+        
+        if (isNaN(date.getTime())) {
+          console.log('Still invalid after reformatting:', dateStr, isoDateStr);
+          return 'N/A';
+        }
+        return date.toLocaleDateString('vi-VN');
+      }
+      
+      // Fallback for other formats
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date string:', dateStr);
+        return 'N/A';
+      }
+      return date.toLocaleDateString('vi-VN');
+    } catch (error) {
+      console.log('Error formatting date:', dateStr, error);
       return 'N/A';
     }
   };
@@ -624,14 +646,13 @@ const Booking: React.FC = () => {
 
   try {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        <div>
           <div className="flex justify-between items-center mb-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
@@ -644,14 +665,16 @@ const Booking: React.FC = () => {
             <div className="flex gap-2">
               <Button 
                 onClick={openWalkInDialog}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                size="lg"
               >
-                <UserPlus className="h-4 w-4" />
-                Tạo Walk-in
+                <UserPlus className="h-5 w-5" />
+                <span className="font-semibold">Tạo Walk-in Booking</span>
               </Button>
               <Button 
                 onClick={() => loadBookings()}
                 disabled={isLoading}
+                variant="outline"
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -697,32 +720,46 @@ const Booking: React.FC = () => {
               )}
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="text-center">
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Tổng số</p>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Tổng số</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            </motion.div>
+          </motion.div>
 
-            <motion.div
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="text-center">
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Chờ xử lý</p>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+                    <Clock className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Chờ xử lý</p>
+                    <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -732,42 +769,81 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="text-center">
-                        <CardContent className="p-4">
-                <div className="text-2xl font-bold text-green-600">{stats.confirmed}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Đã xác nhận</p>
-                        </CardContent>
-                      </Card>
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Đã xác nhận</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.confirmed}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
           
-          {/* Đã bỏ UI trạng thái Đang thuê */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                    <Car className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Đang thuê</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats.in_progress}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <Card className="text-center">
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Hoàn thành</p>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
+                    <Check className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Hoàn thành</p>
+                    <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
           
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <Card className="text-center">
+            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
               <CardContent className="p-4">
-                <div className="text-2xl font-bold text-red-600">{stats.cancelled}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Đã hủy</p>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                    <XCircle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Đã hủy</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-                    </motion.div>
-                    </div>
+          </motion.div>
+        </div>
 
         {/* Main Content */}
         <motion.div
@@ -812,96 +888,116 @@ const Booking: React.FC = () => {
                         exit={{ opacity: 0, y: -20 }}
                         layout
                       >
-                        <Card className="hover:shadow-md transition-shadow">
+                        <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300">
                           <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold">{booking.code || 'N/A'}</h3>
+                            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{booking.code || 'N/A'}</h3>
                                   {getStatusIcon(booking.status)}
-                                  <Badge variant={getStatusVariant(booking.status)}>
+                                  <Badge variant={getStatusVariant(booking.status)} className="text-xs px-2 py-1">
                                     {getStatusText(booking.status)}
                                   </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {booking.booking_type === 'online' ? '🌐 Online' : '🏢 Tại chỗ'}
+                                  </Badge>
                                 </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-300">
-                                  {booking.booking_type === 'online' ? '🌐 Đặt online' : '🏢 Đặt tại chỗ'}
-                                </p>
+                                {typeof booking.vehicle_id === 'object' && booking.vehicle_id && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                    <Car className="h-4 w-4" />
+                                    <span className="font-medium">{booking.vehicle_id.name}</span>
+                                    <span className="text-gray-400">•</span>
+                                    <span>{booking.vehicle_id.license_plate}</span>
+                                  </p>
+                                )}
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap gap-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => openDetailDialog(booking._id)}
+                                  className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20"
                                 >
                                   <Eye className="h-4 w-4 mr-1" />
                                   Chi tiết
                                 </Button>
                                 
                                 {booking.status === 'pending' && (
-                  <Button
+                                  <Button
                                     size="sm"
                                     onClick={() => openConfirmDialog(booking._id)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
+                                    className="bg-green-600 hover:bg-green-700 shadow-md"
+                                  >
                                     <CheckCircle className="h-4 w-4 mr-1" />
-                                    Xác nhận bàn giao
-                  </Button>
+                                    Xác nhận
+                                  </Button>
                                 )}
                                 
                                 {booking.status === 'pending' && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => openCancelDialog(booking._id)}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Hủy
-                  </Button>
-                )}
-              </div>
-          </div>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => openCancelDialog(booking._id)}
+                                    className="shadow-md"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Hủy
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                <div className="text-sm">
-                                  <p className="font-medium">Thời gian thuê</p>
-                                  <p className="text-gray-600 dark:text-gray-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+                              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                                  <Calendar className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div className="text-sm flex-1">
+                                  <p className="font-medium text-gray-700 dark:text-gray-300">Thời gian thuê</p>
+                                  <p className="text-gray-600 dark:text-gray-400 text-xs">
                                     {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                                   </p>
                                 </div>
-                        </div>
+                              </div>
                               
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-gray-400" />
-                                <div className="text-sm">
-                                  <p className="font-medium">Giờ</p>
-                                  <p className="text-gray-600 dark:text-gray-300">
+                              <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg">
+                                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                                  <Clock className="h-4 w-4 text-purple-600" />
+                                </div>
+                                <div className="text-sm flex-1">
+                                  <p className="font-medium text-gray-700 dark:text-gray-300">Giờ nhận/trả</p>
+                                  <p className="text-gray-600 dark:text-gray-400 text-xs">
                                     {booking.pickup_time || 'N/A'} - {booking.return_time || 'N/A'}
-                                  </p>
-                        </div>
-                      </div>
-
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-gray-400" />
-                                <div className="text-sm">
-                                  <p className="font-medium">Khách hàng</p>
-                                  <p className="text-gray-600 dark:text-gray-300">
-                                    {booking.user_id ? String(booking.user_id).slice(-8) + '...' : 'N/A'}
                                   </p>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                <CreditCard className="h-4 w-4 text-gray-400" />
-                                <div className="text-sm">
-                                  <p className="font-medium">Tổng tiền</p>
-                                  <p className="text-green-600 font-semibold">
+                              <div className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg">
+                                <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                                  <User className="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div className="text-sm flex-1">
+                                  <p className="font-medium text-gray-700 dark:text-gray-300">Khách hàng</p>
+                                  <p className="text-gray-600 dark:text-gray-400 text-xs truncate">
+                                    {typeof booking.user_id === 'object' && booking.user_id?.fullname 
+                                      ? booking.user_id.fullname 
+                                      : (booking.user_id ? String(booking.user_id).slice(-8) + '...' : 'N/A')}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
+                                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                                  <CreditCard className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div className="text-sm flex-1">
+                                  <p className="font-medium text-gray-700 dark:text-gray-300">Tổng tiền</p>
+                                  <p className="text-green-600 font-bold">
                                     {formatPriceDisplay(booking.total_price)}
                                   </p>
                                 </div>
-                          </div>
-                      </div>
+                              </div>
+                            </div>
 
                             {booking.special_requests && (
                               <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
@@ -930,19 +1026,19 @@ const Booking: React.FC = () => {
 
               {/* Pagination Controls */}
               {!isLoading && filteredBookings.length > 0 && (
-                <div className="mt-6 space-y-4">
+                <div className="mt-8 space-y-4">
                   {/* Pagination info and items per page selector */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-2">
-                    <div className="text-sm text-gray-600 dark:text-gray-300">
-                      Hiển thị <span className="font-semibold">{((currentPage - 1) * itemsPerPage) + 1}</span> - <span className="font-semibold">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số <span className="font-semibold">{totalItems}</span> booking
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                    <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                      Hiển thị <span className="font-bold text-blue-600">{((currentPage - 1) * itemsPerPage) + 1}</span> - <span className="font-bold text-blue-600">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số <span className="font-bold text-blue-600">{totalItems}</span> booking
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="items-per-page" className="text-sm whitespace-nowrap">
+                      <Label htmlFor="items-per-page" className="text-sm whitespace-nowrap font-medium">
                         Số mục/trang:
                       </Label>
                       <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                        <SelectTrigger id="items-per-page" className="w-20">
+                        <SelectTrigger id="items-per-page" className="w-20 bg-white dark:bg-gray-800">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1231,58 +1327,62 @@ const Booking: React.FC = () => {
                     </div>
 
                     {/* Payment Info */}
-                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-3 flex items-center">
-                        <CreditCard className="h-5 w-5 mr-2" />
-                        Thông tin Thanh toán
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium">Mã thanh toán:</span> {confirmResult.payment.code}
+                    {confirmResult.payment && (
+                      <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center">
+                          <CreditCard className="h-5 w-5 mr-2" />
+                          Thông tin Thanh toán
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Mã thanh toán:</span> {confirmResult.payment.code}
+                          </div>
+                          <div>
+                            <span className="font-medium">Số tiền:</span> {formatPrice(confirmResult.payment.amount)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Phương thức:</span> {confirmResult.payment.payment_method}
+                          </div>
+                          <div>
+                            <span className="font-medium">Loại:</span> {confirmResult.payment.payment_type}
+                          </div>
+                          <div>
+                            <span className="font-medium">Trạng thái:</span> {confirmResult.payment.status}
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-medium">Số tiền:</span> {formatPrice(confirmResult.payment.amount)}
-                        </div>
-                        <div>
-                          <span className="font-medium">Phương thức:</span> {confirmResult.payment.payment_method}
-                        </div>
-                        <div>
-                          <span className="font-medium">Loại:</span> {confirmResult.payment.payment_type}
-                        </div>
-                        <div>
-                          <span className="font-medium">Trạng thái:</span> {confirmResult.payment.status}
-                        </div>
+                        {confirmResult.payment.qr_code_image && (
+                          <div className="mt-4">
+                            <span className="font-medium">QR Code:</span>
+                            <img 
+                              src={confirmResult.payment.qr_code_image} 
+                              alt="QR Code Payment" 
+                              className="mt-2 max-w-48 mx-auto border rounded"
+                            />
+                          </div>
+                        )}
                       </div>
-                      {confirmResult.payment.qr_code_image && (
-                        <div className="mt-4">
-                          <span className="font-medium">QR Code:</span>
-                          <img 
-                            src={confirmResult.payment.qr_code_image} 
-                            alt="QR Code Payment" 
-                            className="mt-2 max-w-48 mx-auto border rounded"
-                          />
-                        </div>
-                      )}
-                    </div>
+                    )}
 
                     {/* Rental Info */}
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-3 flex items-center">
-                        <CheckCircle className="h-5 w-5 mr-2" />
-                        Thông tin Thuê xe
-                      </h3>
-                      <div className="grid grid-cols-1 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium">Mã thuê xe:</span> {confirmResult.rental.code}
-                        </div>
-                        <div>
-                          <span className="font-medium">Ghi chú nhân viên:</span> {confirmResult.rental.staff_notes}
-                        </div>
-                        <div>
-                          <span className="font-medium">Số ảnh trước bàn giao:</span> {confirmResult.rental.images_before.length} ảnh
+                    {confirmResult.rental && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center">
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          Thông tin Thuê xe
+                        </h3>
+                        <div className="grid grid-cols-1 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Mã thuê xe:</span> {confirmResult.rental.code}
+                          </div>
+                          <div>
+                            <span className="font-medium">Ghi chú nhân viên:</span> {confirmResult.rental.staff_notes}
+                          </div>
+                          <div>
+                            <span className="font-medium">Số ảnh trước bàn giao:</span> {confirmResult.rental.images_before.length} ảnh
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Close Button */}
                     <div className="flex justify-end pt-4">
@@ -1944,7 +2044,7 @@ const Booking: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        {typeof selectedBookingDetail.cancelled_by === 'object' && (
+                        {selectedBookingDetail.cancelled_by && typeof selectedBookingDetail.cancelled_by === 'object' && (
                           <div className="flex justify-between">
                             <span className="text-gray-500 dark:text-gray-400">ID Staff:</span>
                             <span className="font-mono text-xs">{selectedBookingDetail.cancelled_by._id}</span>
@@ -2065,12 +2165,12 @@ const Booking: React.FC = () => {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
-                  Bộ lọc nâng cao
+                  <Filter className="h-5 w-5 text-blue-600" />
+                  <span className="text-xl font-bold">Bộ lọc nâng cao</span>
                 </DialogTitle>
               </DialogHeader>
               
-              <div className="space-y-4 py-4">
+              <div className="space-y-6 py-4">
                 {/* Date Type Filter */}
                 <div className="space-y-2">
                   <Label>Lọc theo loại ngày</Label>
@@ -2234,8 +2334,7 @@ const Booking: React.FC = () => {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+      </motion.div>
     );
   } catch (renderError) {
     console.error('Render error in Booking component:', renderError);

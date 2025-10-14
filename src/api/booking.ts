@@ -263,8 +263,8 @@ export interface Rental {
 export interface ConfirmBookingResponse {
   message: string;
   booking: Booking;
-  payment: Payment;
-  rental: Rental;
+  payment?: Payment;
+  rental?: Rental;
 }
 
 // API function to confirm booking with multipart form data
