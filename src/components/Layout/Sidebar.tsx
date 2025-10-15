@@ -24,7 +24,7 @@ const navigation = [
   { name: 'Quản lý hợp đồng', href: '/contracts', icon: FileSignature },
   { name: 'Xác thực KH', href: '/customers', icon: UserCheck },
   { name: 'Thanh toán', href: '/payments', icon: CreditCard },
-  { name: 'Quản lý Xe', href: '/fleet', icon: Settings },
+  { name: 'Quản lý Xe và Bảo trì', href: '/fleet', icon: Settings },
 ]
 
 export function Sidebar() {

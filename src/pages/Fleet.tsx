@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, XCircle } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, XCircle, FileText, CheckCircle, X, Eye, Edit, Save, Car, User, Calendar, Clock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -8,7 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, updateVehicleStatus, type Vehicle } from '@/api/vehicles'
+import { getMaintenanceReportsByStation, getMaintenanceReportById, updateMaintenanceReport, type MaintenanceReport } from '@/api/maintenance'
 import { useToast } from '@/hooks/use-toast'
 
 export function Fleet() {
@@ -37,6 +40,31 @@ export function Fleet() {
     color: '',
     type: 'all' as 'all' | 'scooter' | 'motorcycle'
   })
+  
+  // Maintenance reports states
+  const [activeTab, setActiveTab] = useState<'vehicles' | 'maintenance'>('vehicles')
+  const [maintenanceReports, setMaintenanceReports] = useState<MaintenanceReport[]>([])
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false)
+  const [selectedMaintenanceReport, setSelectedMaintenanceReport] = useState<MaintenanceReport | null>(null)
+  const [showMaintenanceDetail, setShowMaintenanceDetail] = useState(false)
+  const [maintenanceDetailLoading, setMaintenanceDetailLoading] = useState(false)
+  const [showUpdateForm, setShowUpdateForm] = useState(false)
+  const [updateFormData, setUpdateFormData] = useState({
+    status: 'reported' as 'reported' | 'fixed',
+    notes: ''
+  })
+  const [updateImages, setUpdateImages] = useState<File[]>([])
+  const [updating, setUpdating] = useState(false)
+  const [maintenancePagination, setMaintenancePagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0
+  })
+  const [maintenanceFilters, setMaintenanceFilters] = useState({
+    status: 'all' as 'all' | 'reported' | 'fixed'
+  })
+  
   const { toast } = useToast()
 
   // Load vehicles from API
@@ -98,6 +126,127 @@ export function Fleet() {
     }
   }, [pagination.page, pagination.limit, filters, toast])
 
+  // Load maintenance reports from API
+  const loadMaintenanceReports = useCallback(async () => {
+    setMaintenanceLoading(true)
+    try {
+      const response = await getMaintenanceReportsByStation({
+        page: maintenancePagination.page,
+        limit: maintenancePagination.limit,
+        status: maintenanceFilters.status === 'all' ? undefined : maintenanceFilters.status
+      })
+      
+      setMaintenanceReports(response.data.reports)
+      setMaintenancePagination({
+        page: response.data.pagination.page,
+        limit: response.data.pagination.limit,
+        total: response.data.pagination.total,
+        pages: response.data.pagination.pages
+      })
+    } catch (error: unknown) {
+      console.error('Maintenance Reports API Error:', error)
+      const errorMessage = (error as Error)?.message || 'Lỗi khi tải báo cáo bảo trì'
+      
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+      setMaintenanceReports([])
+    } finally {
+      setMaintenanceLoading(false)
+    }
+  }, [maintenancePagination.page, maintenancePagination.limit, maintenanceFilters, toast])
+
+  // Load maintenance report detail by ID
+  const loadMaintenanceReportDetail = useCallback(async (reportId: string) => {
+    setMaintenanceDetailLoading(true)
+    try {
+      const response = await getMaintenanceReportById(reportId)
+      setSelectedMaintenanceReport(response.data)
+      setShowMaintenanceDetail(true)
+    } catch (error: unknown) {
+      console.error('Maintenance Report Detail API Error:', error)
+      const errorMessage = (error as Error)?.message || 'Lỗi khi tải chi tiết báo cáo bảo trì'
+      
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setMaintenanceDetailLoading(false)
+    }
+  }, [toast])
+
+  // Update maintenance report
+  const handleUpdateMaintenanceReport = useCallback(async () => {
+    if (!selectedMaintenanceReport) return;
+    
+    setUpdating(true)
+    try {
+      const response = await updateMaintenanceReport(selectedMaintenanceReport._id, {
+        status: updateFormData.status,
+        notes: updateFormData.notes || undefined,
+        images: updateImages.length > 0 ? updateImages : undefined
+      })
+      
+      // Update the selected report with new data
+      setSelectedMaintenanceReport(response.data)
+      
+      // Update the report in the list
+      setMaintenanceReports(prev => prev.map(report => 
+        report._id === selectedMaintenanceReport._id ? response.data : report
+      ))
+      
+      // Reset form
+      setUpdateFormData({ status: 'reported', notes: '' })
+      setUpdateImages([])
+      setShowUpdateForm(false)
+      
+      toast({
+        title: "Cập nhật thành công ✅",
+        description: response.message || "Trạng thái báo cáo bảo trì đã được cập nhật"
+      })
+    } catch (error: unknown) {
+      console.error('Update Maintenance Report Error:', error)
+      const errorMessage = (error as Error)?.message || 'Lỗi khi cập nhật báo cáo bảo trì'
+      
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setUpdating(false)
+    }
+  }, [selectedMaintenanceReport, updateFormData, updateImages, toast])
+
+  // Initialize update form when opening
+  const handleOpenUpdateForm = useCallback(() => {
+    if (selectedMaintenanceReport) {
+      setUpdateFormData({
+        status: selectedMaintenanceReport.status,
+        notes: selectedMaintenanceReport.notes || ''
+      })
+      setUpdateImages([])
+      setShowUpdateForm(true)
+    }
+  }, [selectedMaintenanceReport])
+
+  // Handle image upload for update form
+  const handleUpdateImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    const newFiles = Array.from(files).filter(file => file.type.startsWith('image/'))
+    setUpdateImages(prev => [...prev, ...newFiles])
+  }
+
+  const removeUpdateImage = (index: number) => {
+    setUpdateImages(prev => prev.filter((_, i) => i !== index))
+  }
+
   useEffect(() => {
     // Debug: Check token availability
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
@@ -106,6 +255,25 @@ export function Fleet() {
     
     loadVehicles()
   }, [loadVehicles])
+
+  useEffect(() => {
+    if (activeTab === 'maintenance') {
+      loadMaintenanceReports()
+    }
+  }, [activeTab, loadMaintenanceReports])
+
+  useEffect(() => {
+    if (activeTab === 'maintenance') {
+      setMaintenancePagination(prev => ({ ...prev, page: 1 }))
+      loadMaintenanceReports()
+    }
+  }, [maintenanceFilters, loadMaintenanceReports, activeTab])
+
+  useEffect(() => {
+    if (activeTab === 'maintenance') {
+      loadMaintenanceReports()
+    }
+  }, [maintenancePagination.page, loadMaintenanceReports, activeTab])
 
   const handleUpdateBattery = async (vehicleId: string, newBatteryLevel: number) => {
     try {
@@ -272,6 +440,38 @@ export function Fleet() {
     }
   }
 
+  const getMaintenanceStatusBadge = (status: string) => {
+    switch (status) {
+      case 'reported':
+        return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">Đã báo cáo</Badge>
+      case 'fixed':
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Đã sửa</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const getMaintenanceStatusIcon = (status: string) => {
+    switch (status) {
+      case 'reported':
+        return <FileText className="h-4 w-4 text-orange-600" />
+      case 'fixed':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      default:
+        return <FileText className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -281,31 +481,35 @@ export function Fleet() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quản lý Xe tại điểm</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quản lý Xe và Bảo trì tại điểm</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Theo dõi tình trạng pin, bảo trì và sự cố xe</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* <Button 
-            onClick={() => {
-              const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-              console.log('Debug Token:', token)
-              alert(`Token available: ${!!token}\nToken preview: ${token ? token.substring(0, 30) + '...' : 'No token'}`)
-            }}
-            variant="outline"
-            size="sm"
-          >
-            Debug Token
-          </Button> */}
           <Button 
-            onClick={loadVehicles}
-            disabled={loading}
+            onClick={activeTab === 'vehicles' ? loadVehicles : loadMaintenanceReports}
+            disabled={activeTab === 'vehicles' ? loading : maintenanceLoading}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${(loading || maintenanceLoading) ? 'animate-spin' : ''}`} />
             Làm mới
           </Button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'vehicles' | 'maintenance')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="vehicles" className="flex items-center gap-2">
+            <Battery className="h-4 w-4" />
+            Danh sách xe
+          </TabsTrigger>
+          <TabsTrigger value="maintenance" className="flex items-center gap-2">
+            <Wrench className="h-4 w-4" />
+            Báo cáo bảo trì
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="vehicles" className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -847,6 +1051,603 @@ export function Fleet() {
         </div>
       )}
 
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="space-y-6">
+          {/* Maintenance Reports Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Báo cáo bảo trì</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Theo dõi các báo cáo bảo trì xe tại trạm</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={maintenanceFilters.status} onValueChange={(value) => setMaintenanceFilters(prev => ({ ...prev, status: value as 'all' | 'reported' | 'fixed' }))}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Lọc theo trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="reported">Đã báo cáo</SelectItem>
+                  <SelectItem value="fixed">Đã sửa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Maintenance Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Tổng báo cáo
+                  </CardTitle>
+                  <FileText className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-600">{maintenancePagination.total}</div>
+                  <p className="text-xs text-gray-500 mt-1">Báo cáo tại trạm</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Đã báo cáo
+                  </CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-orange-600">
+                    {maintenanceReports.filter(r => r.status === 'reported').length}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Cần xử lý</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Đã sửa
+                  </CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-600">
+                    {maintenanceReports.filter(r => r.status === 'fixed').length}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Hoàn thành</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+
+          {/* Maintenance Reports List */}
+          {maintenanceLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : maintenanceReports.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-0 shadow-lg">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
+                    <Wrench className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Chưa có báo cáo bảo trì</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
+                    Hiện tại chưa có báo cáo bảo trì nào tại trạm này. Các báo cáo mới sẽ xuất hiện ở đây.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ) : (
+            <div className="space-y-4">
+              {maintenanceReports.map((report, index) => (
+                <motion.div
+                  key={report._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                >
+                  <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col lg:flex-row gap-6">
+                        {/* Left Content */}
+                        <div className="flex-1 space-y-4">
+                          {/* Header */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                                {getMaintenanceStatusIcon(report.status)}
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">
+                                  {report.title}
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">#{report.code}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getMaintenanceStatusBadge(report.status)}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => loadMaintenanceReportDetail(report._id)}
+                                disabled={maintenanceDetailLoading}
+                                className="flex items-center gap-2"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Chi tiết
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Vehicle Info */}
+                          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                  {report.vehicle_id ? `${report.vehicle_id.name} (${report.vehicle_id.license_plate})` : 'Không có thông tin xe'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">{report.reported_by.fullname}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">{formatDate(report.createdAt)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                  {new Date(report.createdAt).toLocaleTimeString('vi-VN', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          {report.description && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Mô tả sự cố</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                                {report.description}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Images */}
+                          {report.images && report.images.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Hình ảnh sự cố</h4>
+                              <div className="flex gap-2 flex-wrap">
+                                {report.images.slice(0, 4).map((image, index) => (
+                                  <div key={index} className="relative group/image">
+                                    <img
+                                      src={image}
+                                      alt={`Maintenance image ${index + 1}`}
+                                      className="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-gray-200 dark:border-gray-700"
+                                      onClick={() => {
+                                        setSelectedImage(image)
+                                        setShowImageModal(true)
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+                                      <Eye className="h-4 w-4 text-white opacity-0 group-hover/image:opacity-100 transition-opacity" />
+                                    </div>
+                                  </div>
+                                ))}
+                                {report.images.length > 4 && (
+                                  <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-xs text-gray-500 border-2 border-gray-200 dark:border-gray-700">
+                                    +{report.images.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Maintenance Reports Pagination */}
+          {maintenancePagination.pages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMaintenancePagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                disabled={maintenancePagination.page === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Trang {maintenancePagination.page} / {maintenancePagination.pages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMaintenancePagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                disabled={maintenancePagination.page === maintenancePagination.pages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Maintenance Report Detail Modal */}
+      <Dialog open={showMaintenanceDetail} onOpenChange={setShowMaintenanceDetail}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Chi tiết báo cáo bảo trì
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedMaintenanceReport && (
+            <div className="space-y-6 py-4">
+              {/* Header Info */}
+              <div className="flex justify-between items-start p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-lg">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    {selectedMaintenanceReport.code || 'N/A'}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {getMaintenanceStatusIcon(selectedMaintenanceReport.status)}
+                    {getMaintenanceStatusBadge(selectedMaintenanceReport.status)}
+                    <Badge variant="outline" className="text-sm">
+                      🔧 Báo cáo bảo trì
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Ngày tạo</p>
+                  <p className="text-lg font-bold text-orange-600">
+                    {formatDate(selectedMaintenanceReport.createdAt)}
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleOpenUpdateForm}
+                    className="flex items-center gap-2 mt-2 bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Cập nhật trạng thái
+                  </Button>
+                </div>
+              </div>
+
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <User className="h-5 w-5 text-blue-600" />
+                      Thông tin người báo cáo
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Họ tên:</span>
+                        <span className="font-medium">{selectedMaintenanceReport.reported_by.fullname || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                        <span className="font-medium">{selectedMaintenanceReport.reported_by.email || 'N/A'}</span>
+                      </div>
+                      {selectedMaintenanceReport.reported_by.phone && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Số điện thoại:</span>
+                          <span className="font-medium">{selectedMaintenanceReport.reported_by.phone}</span>
+                        </div>
+                      )}
+                      {selectedMaintenanceReport.reported_by.role && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Vai trò:</span>
+                          <span className="font-medium">{selectedMaintenanceReport.reported_by.role}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Car className="h-5 w-5 text-green-600" />
+                      Thông tin xe
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      {selectedMaintenanceReport.vehicle_id ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500 dark:text-gray-400">Biển số xe:</span>
+                            <span className="font-bold text-lg text-green-600">{selectedMaintenanceReport.vehicle_id.license_plate || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Tên xe:</span>
+                            <span className="font-medium">{selectedMaintenanceReport.vehicle_id.name || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Hãng:</span>
+                            <span className="font-medium">{(selectedMaintenanceReport.vehicle_id as unknown as Record<string, string>)?.brand || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Model:</span>
+                            <span className="font-medium">{(selectedMaintenanceReport.vehicle_id as unknown as Record<string, string>)?.model || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Năm sản xuất:</span>
+                            <span className="font-medium">{(selectedMaintenanceReport.vehicle_id as unknown as Record<string, string>)?.year || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Màu sắc:</span>
+                            <span className="font-medium">{(selectedMaintenanceReport.vehicle_id as unknown as Record<string, string>)?.color || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Loại xe:</span>
+                            <span className="font-medium">{selectedMaintenanceReport.vehicle_id.type === 'scooter' ? 'Xe tay ga' : 'Xe máy'}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-4">
+                          <Car className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-gray-500 dark:text-gray-400 italic">Không có thông tin xe</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {typeof selectedMaintenanceReport.station_id === 'object' && selectedMaintenanceReport.station_id && (
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Settings className="h-5 w-5 text-orange-600" />
+                        Thông tin trạm
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Tên trạm:</span>
+                          <span className="font-semibold">{selectedMaintenanceReport.station_id.name || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-gray-500 dark:text-gray-400">Địa chỉ:</span>
+                          <span className="font-medium text-right">{selectedMaintenanceReport.station_id.address || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Mã trạm:</span>
+                          <span className="font-medium">{selectedMaintenanceReport.station_id.code || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      Chi tiết báo cáo
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm block mb-1">Tiêu đề:</span>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {selectedMaintenanceReport.title}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm block mb-2">Mô tả sự cố:</span>
+                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <p className="text-gray-900 dark:text-white leading-relaxed">
+                            {selectedMaintenanceReport.description}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {selectedMaintenanceReport.notes && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400 text-sm block mb-2">Ghi chú:</span>
+                          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <p className="text-gray-900 dark:text-white leading-relaxed">
+                              {selectedMaintenanceReport.notes}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-purple-600" />
+                      Thời gian
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Ngày tạo:</span>
+                        <span className="font-medium">{formatDate(selectedMaintenanceReport.createdAt)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Cập nhật cuối:</span>
+                        <span className="font-medium">{formatDate(selectedMaintenanceReport.updatedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedMaintenanceReport.images && selectedMaintenanceReport.images.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Camera className="h-5 w-5 text-red-600" />
+                        Hình ảnh sự cố ({selectedMaintenanceReport.images.length})
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedMaintenanceReport.images.map((image, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={image}
+                              alt={`Maintenance image ${index + 1}`}
+                              className="w-full h-20 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                setSelectedImage(image)
+                                setShowImageModal(true)
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded flex items-center justify-center">
+                              <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <div className="absolute top-1 right-1 bg-black/50 text-white text-xs px-1 py-0.5 rounded">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Maintenance Report Modal */}
+      <Dialog open={showUpdateForm} onOpenChange={setShowUpdateForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Cập nhật trạng thái báo cáo bảo trì
+            </DialogTitle>
+            <DialogDescription>
+              Cập nhật trạng thái và ghi chú cho báo cáo bảo trì
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Trạng thái mới
+              </label>
+              <Select 
+                value={updateFormData.status} 
+                onValueChange={(value) => setUpdateFormData(prev => ({ ...prev, status: value as 'reported' | 'fixed' }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reported">Đã báo cáo</SelectItem>
+                  <SelectItem value="fixed">Đã sửa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Ghi chú
+              </label>
+              <Textarea
+                value={updateFormData.notes}
+                onChange={(e) => setUpdateFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Nhập ghi chú về việc sửa chữa..."
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Ảnh sau khi sửa chữa (tùy chọn)
+              </label>
+              <div className="space-y-4">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleUpdateImageUpload}
+                  className="cursor-pointer"
+                />
+                
+                {updateImages.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {updateImages.map((file, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Update image ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => {
+                            setSelectedImage(URL.createObjectURL(file))
+                            setShowImageModal(true)
+                          }}
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeUpdateImage(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowUpdateForm(false)}
+                disabled={updating}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleUpdateMaintenanceReport}
+                disabled={updating}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {updating ? 'Đang cập nhật...' : 'Cập nhật'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
@@ -862,7 +1663,7 @@ export function Fleet() {
             {selectedImage && (
               <img 
                 src={selectedImage} 
-                alt="Incident Image" 
+                alt="Maintenance Image" 
                 className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
               />
             )}
