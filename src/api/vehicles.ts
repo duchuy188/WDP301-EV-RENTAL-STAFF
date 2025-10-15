@@ -95,7 +95,7 @@ function getAuthHeaders(): HeadersInit {
 export async function getStaffVehicles(params: {
   page?: number;
   limit?: number;
-  status?: 'available' | 'rented' | 'maintenance';
+  status?: 'available' | 'rented' | 'maintenance' | 'draft';
   color?: string;
   type?: 'scooter' | 'motorcycle';
 } = {}): Promise<VehiclesResponse> {
@@ -138,17 +138,37 @@ export async function getVehicleById(id: string): Promise<{ success: boolean; da
 // API function to update vehicle status
 export async function updateVehicleStatus(
   id: string, 
-  status: 'available' | 'rented' | 'maintenance'
-): Promise<{ success: boolean; message: string; data: Vehicle }> {
+  status: 'available' | 'rented' | 'maintenance' | 'draft',
+  maintenance_reason?: string
+): Promise<{ message: string; vehicle: Vehicle }> {
+  const body: { status: string; maintenance_reason?: string } = { status };
+  
+  if (maintenance_reason) {
+    body.maintenance_reason = maintenance_reason;
+  }
+
   const res = await fetch(apiUrl(`/api/vehicles/${id}/status`), {
-    method: 'PUT',
+    method: 'PATCH',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi cập nhật trạng thái xe', res.status);
+    let errorMessage = 'Lỗi khi cập nhật trạng thái xe';
+    
+    try {
+      const errorData = await res.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        errorMessage = text;
+      }
+    }
+    
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

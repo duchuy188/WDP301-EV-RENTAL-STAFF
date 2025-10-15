@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, type Vehicle } from '@/api/vehicles'
+import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, updateVehicleStatus, type Vehicle } from '@/api/vehicles'
 import { useToast } from '@/hooks/use-toast'
 
 export function Fleet() {
@@ -19,6 +19,7 @@ export function Fleet() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [showImageModal, setShowImageModal] = useState(false)
   const [submittingReport, setSubmittingReport] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState<string>('')
   const [statistics, setStatistics] = useState({
     available: 0,
     rented: 0,
@@ -32,7 +33,7 @@ export function Fleet() {
     pages: 0
   })
   const [filters, setFilters] = useState({
-    status: 'all' as 'all' | 'available' | 'rented' | 'maintenance',
+    status: 'all' as 'all' | 'available' | 'rented' | 'maintenance' | 'draft',
     color: '',
     type: 'all' as 'all' | 'scooter' | 'motorcycle'
   })
@@ -131,6 +132,63 @@ export function Fleet() {
     }
   }
 
+  const handleUpdateStatus = async (vehicleId: string, newStatus: 'available' | 'rented' | 'maintenance' | 'draft', maintenanceReason?: string) => {
+    try {
+      const response = await updateVehicleStatus(vehicleId, newStatus, maintenanceReason)
+      
+      // Update local state with the response from API
+      setVehicles(prev => prev.map(vehicle => 
+        vehicle._id === vehicleId 
+          ? { ...vehicle, status: response.vehicle.status }
+          : vehicle
+      ))
+      
+      toast({
+        title: "Cập nhật thành công ✅",
+        description: response.message || "Trạng thái xe đã được cập nhật"
+      })
+    } catch (error: unknown) {
+      let errorMessage = 'Không thể cập nhật trạng thái xe'
+      
+      // Parse error message to show user-friendly text
+      if (error instanceof Error) {
+        const message = error.message
+        
+        // Handle specific error cases
+        if (message.includes('Xe phải ở tình trạng kỹ thuật tốt trước khi đổi trạng thái thành available')) {
+          errorMessage = 'Xe phải ở tình trạng kỹ thuật tốt trước khi chuyển sang trạng thái "Có sẵn". Vui lòng kiểm tra tình trạng kỹ thuật của xe.'
+        } else if (message.includes('tình trạng kỹ thuật')) {
+          errorMessage = 'Không thể thay đổi trạng thái do tình trạng kỹ thuật của xe không phù hợp.'
+        } else if (message.includes('maintenance')) {
+          errorMessage = 'Xe đang trong trạng thái bảo trì, không thể thay đổi trạng thái.'
+        } else if (message.includes('rented')) {
+          errorMessage = 'Xe đang được thuê, không thể thay đổi trạng thái.'
+        } else if (message.includes('JSON')) {
+          // Try to parse JSON error message
+          try {
+            const jsonMatch = message.match(/\{.*\}/)
+            if (jsonMatch) {
+              const errorData = JSON.parse(jsonMatch[0])
+              if (errorData.message) {
+                errorMessage = errorData.message
+              }
+            }
+          } catch {
+            errorMessage = message
+          }
+        } else {
+          errorMessage = message
+        }
+      }
+      
+      toast({
+        title: "Lỗi cập nhật trạng thái",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleReportIssue = async (reason: string, images: File[]) => {
     if (!selectedVehicle) return;
     
@@ -207,6 +265,8 @@ export function Fleet() {
         return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">Đang thuê</Badge>
       case 'maintenance':
         return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Bảo trì</Badge>
+      case 'draft':
+        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300">Nháp</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
@@ -333,7 +393,7 @@ export function Fleet() {
             <div className="flex items-center gap-2 flex-1">
               <span className="text-sm font-medium whitespace-nowrap">Lọc theo:</span>
               <Select value={filters.status} onValueChange={(value) => {
-                setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' }))
+                setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' | 'draft' }))
                 setPagination(prev => ({ ...prev, page: 1 }))
               }}>
                 <SelectTrigger className="w-[150px] border-2 focus:border-blue-500">
@@ -344,6 +404,7 @@ export function Fleet() {
                   <SelectItem value="available">✅ Có sẵn</SelectItem>
                   <SelectItem value="rented">🛵 Đang thuê</SelectItem>
                   <SelectItem value="maintenance">🔧 Bảo trì</SelectItem>
+                  <SelectItem value="draft">📝 Nháp</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -408,7 +469,8 @@ export function Fleet() {
                     <div className={`h-2 ${
                       vehicle.status === 'available' ? 'bg-gradient-to-r from-green-500 to-green-600' :
                       vehicle.status === 'rented' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
-                      'bg-gradient-to-r from-red-500 to-red-600'
+                      vehicle.status === 'maintenance' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                      'bg-gradient-to-r from-gray-500 to-gray-600'
                     }`} />
                     
                     <CardContent className="p-6">
@@ -483,7 +545,7 @@ export function Fleet() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div className="grid grid-cols-3 gap-2 pt-2">
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-300">
@@ -526,6 +588,93 @@ export function Fleet() {
                                   className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
                                 >
                                   Cập nhật
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="hover:bg-purple-50 hover:border-purple-300">
+                                <Settings className="h-3 w-3 mr-1" />
+                                Đổi trạng thái
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Đổi trạng thái: {vehicle.name}</DialogTitle>
+                                <DialogDescription>
+                                  Chọn trạng thái mới cho xe
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div>
+                                  <label className="block text-sm font-medium mb-2">Trạng thái hiện tại</label>
+                                  <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                                    {getStatusBadge(vehicle.status)}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium mb-2">Trạng thái mới</label>
+                                  <Select 
+                                    value={selectedStatus || vehicle.status} 
+                                    onValueChange={setSelectedStatus}
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="available">✅ Có sẵn</SelectItem>
+                                      <SelectItem value="rented">🛵 Đang thuê</SelectItem>
+                                      <SelectItem value="maintenance">🔧 Bảo trì</SelectItem>
+                                      <SelectItem value="draft">📝 Nháp</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium mb-2">Lý do bảo trì (nếu chọn bảo trì)</label>
+                                  <Input
+                                    id={`maintenance-reason-${vehicle._id}`}
+                                    placeholder="Nhập lý do bảo trì..."
+                                    className="w-full"
+                                  />
+                                </div>
+                                
+                                {/* Technical Status Warning */}
+                                {vehicle.technical_status !== 'excellent' && vehicle.technical_status !== 'good' && (
+                                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                        Lưu ý về tình trạng kỹ thuật
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                                      Tình trạng kỹ thuật hiện tại: <strong>{vehicle.technical_status === 'fair' ? 'Khá' : 'Kém'}</strong>. 
+                                      Xe cần có tình trạng kỹ thuật "Tốt" hoặc "Xuất sắc" để chuyển sang trạng thái "Có sẵn".
+                                    </p>
+                                  </div>
+                                )}
+                                <Button
+                                  onClick={() => {
+                                    const newStatus = selectedStatus || vehicle.status
+                                    const maintenanceReason = (document.getElementById(`maintenance-reason-${vehicle._id}`) as HTMLInputElement)?.value || ''
+                                    
+                                    if (newStatus === 'maintenance' && !maintenanceReason.trim()) {
+                                      toast({
+                                        title: "Lỗi",
+                                        description: "Vui lòng nhập lý do bảo trì",
+                                        variant: "destructive",
+                                      })
+                                      return
+                                    }
+                                    
+                                    handleUpdateStatus(vehicle._id, newStatus as 'available' | 'rented' | 'maintenance' | 'draft', maintenanceReason || undefined)
+                                    setSelectedStatus('')
+                                  }}
+                                  className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
+                                >
+                                  Cập nhật trạng thái
                                 </Button>
                               </div>
                             </DialogContent>
