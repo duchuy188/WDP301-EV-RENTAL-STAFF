@@ -49,6 +49,23 @@ export interface VehiclesResponse {
   };
 }
 
+export interface Maintenance {
+  code: string;
+  vehicle_id: string;
+  station_id: string;
+  title: string;
+  description: string;
+  status: string;
+  reported_by: string;
+  notes: string;
+  images: string[];
+  is_active: boolean;
+  _id: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
 // API configuration
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -170,6 +187,49 @@ export async function updateVehicleBattery(
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new ApiError(text || 'Lỗi khi cập nhật pin xe', res.status);
+  }
+
+  return res.json();
+}
+
+// API function to report vehicle maintenance
+export async function reportVehicleMaintenance(
+  id: string, 
+  reason: string,
+  images?: File[]
+): Promise<{ message: string; maintenance: Maintenance }> {
+  const formData = new FormData();
+  formData.append('reason', reason);
+  
+  if (images && images.length > 0) {
+    images.forEach(image => {
+      formData.append('images', image);
+    });
+  }
+
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || localStorage.getItem('token');
+  const headers: HeadersInit = {};
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(apiUrl(`/api/vehicles/${id}/maintenance`), {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Lỗi khi báo cáo bảo trì xe';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      errorMessage = text || errorMessage;
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

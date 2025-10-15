@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, XCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -8,13 +8,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { getStaffVehicles, updateVehicleBattery, type Vehicle } from '@/api/vehicles'
+import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, type Vehicle } from '@/api/vehicles'
 import { useToast } from '@/hooks/use-toast'
 
 export function Fleet() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(false)
+  const [uploadedImages, setUploadedImages] = useState<File[]>([])
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [submittingReport, setSubmittingReport] = useState(false)
   const [statistics, setStatistics] = useState({
     available: 0,
     rented: 0,
@@ -127,12 +131,64 @@ export function Fleet() {
     }
   }
 
-  const handleReportIssue = () => {
-    toast({
-      title: "Báo sự cố thành công ⚠️",
-      description: "Sự cố đã được ghi nhận và chuyển đến bộ phận kỹ thuật"
-    })
-    setSelectedVehicle(null)
+  const handleReportIssue = async (reason: string, images: File[]) => {
+    if (!selectedVehicle) return;
+    
+    setSubmittingReport(true)
+    try {
+      const response = await reportVehicleMaintenance(selectedVehicle._id, reason, images);
+      
+      // Update vehicle status to maintenance
+      setVehicles(prev => prev.map(vehicle => 
+        vehicle._id === selectedVehicle._id 
+          ? { ...vehicle, status: 'maintenance' as const }
+          : vehicle
+      ))
+      
+      // Clear form data
+      setUploadedImages([])
+      
+      toast({
+        title: "Báo sự cố thành công ⚠️",
+        description: response.message || "Sự cố đã được ghi nhận và chuyển đến bộ phận kỹ thuật"
+      })
+      setSelectedVehicle(null)
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || 'Không thể báo cáo sự cố'
+      
+      // Parse error message to show user-friendly text
+      let friendlyMessage = errorMessage
+      if (errorMessage.includes('Chỉ có thể báo cáo bảo trì xe đang available')) {
+        friendlyMessage = 'Chỉ có thể báo cáo bảo trì cho xe đang có sẵn. Xe này hiện đang trong trạng thái bảo trì.'
+      } else if (errorMessage.includes('maintenance')) {
+        friendlyMessage = 'Xe này đang trong trạng thái bảo trì, không thể báo cáo thêm sự cố.'
+      }
+      
+      toast({
+        title: "Không thể báo cáo sự cố",
+        description: friendlyMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setSubmittingReport(false)
+    }
+  }
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    const newFiles = Array.from(files).filter(file => file.type.startsWith('image/'))
+    setUploadedImages(prev => [...prev, ...newFiles])
+  }
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleImageClick = (imageUrl: string) => {
+    setSelectedImage(imageUrl)
+    setShowImageModal(true)
   }
 
   const getBatteryColor = (level: number) => {
@@ -487,7 +543,7 @@ export function Fleet() {
                                 Báo sự cố
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
+                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle>Báo sự cố: {selectedVehicle?.name}</DialogTitle>
                                 <DialogDescription>
@@ -498,6 +554,7 @@ export function Fleet() {
                                 <div>
                                   <label className="block text-sm font-medium mb-2">Mô tả sự cố</label>
                                   <textarea
+                                    id="issue-description"
                                     placeholder="Mô tả chi tiết tình trạng xe, sự cố gặp phải..."
                                     className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                   />
@@ -505,11 +562,47 @@ export function Fleet() {
                                 
                                 <div>
                                   <label className="block text-sm font-medium mb-2">Hình ảnh sự cố</label>
-                                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                                    <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                    <p className="text-gray-600 dark:text-gray-400 mb-2">Chụp ảnh sự cố</p>
-                                    <Input type="file" accept="image/*" multiple className="max-w-xs mx-auto" />
+                                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
+                                    <Camera className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Chụp ảnh sự cố</p>
+                                    <Input 
+                                      id="issue-images"
+                                      type="file" 
+                                      accept="image/*" 
+                                      multiple 
+                                      className="max-w-xs mx-auto text-sm" 
+                                      onChange={handleImageUpload}
+                                    />
                                   </div>
+                                  
+                                  {/* Image Previews */}
+                                  {uploadedImages.length > 0 && (
+                                    <div className="mt-3">
+                                      <p className="text-xs font-medium mb-2 text-gray-600">Ảnh đã chọn:</p>
+                                      <div className="max-h-32 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2">
+                                        <div className="grid grid-cols-3 gap-2">
+                                          {uploadedImages.map((image, index) => (
+                                            <div key={index} className="relative group">
+                                            <img
+                                              src={URL.createObjectURL(image)}
+                                              alt={`Preview ${index + 1}`}
+                                              className="w-full h-16 object-cover rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                                              onClick={() => handleImageClick(URL.createObjectURL(image))}
+                                            />
+                                              <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                className="absolute top-0.5 right-0.5 h-4 w-4 p-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={() => removeImage(index)}
+                                              >
+                                                ×
+                                              </Button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
@@ -522,11 +615,34 @@ export function Fleet() {
                                 </div>
                                 
                                 <Button
-                                  onClick={handleReportIssue}
-                                  className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600"
+                                  onClick={() => {
+                                    const description = (document.getElementById('issue-description') as HTMLTextAreaElement)?.value || '';
+                                    
+                                    if (!description.trim()) {
+                                      toast({
+                                        title: "Lỗi",
+                                        description: "Vui lòng nhập mô tả sự cố",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    
+                                    handleReportIssue(description, uploadedImages);
+                                  }}
+                                  disabled={submittingReport}
+                                  className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <AlertTriangle className="h-4 w-4 mr-2" />
-                                  Gửi báo cáo sự cố
+                                  {submittingReport ? (
+                                    <>
+                                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                      Đang gửi...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertTriangle className="h-4 w-4 mr-2" />
+                                      Gửi báo cáo sự cố
+                                    </>
+                                  )}
                                 </Button>
                               </div>
                             </DialogContent>
@@ -581,6 +697,29 @@ export function Fleet() {
           )}
         </div>
       )}
+
+      {/* Image Modal */}
+      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white"
+              onClick={() => setShowImageModal(false)}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+            {selectedImage && (
+              <img 
+                src={selectedImage} 
+                alt="Incident Image" 
+                className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }
