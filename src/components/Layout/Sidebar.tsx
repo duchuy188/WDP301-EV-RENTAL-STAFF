@@ -18,13 +18,13 @@ import { useSidebar } from '@/context/SidebarContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Quản lý đặt xe', href: '/bookings', icon: Calendar },
+  { name: 'Quản Lý Đặt Xe', href: '/bookings', icon: Calendar },
   // { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
-  { name: 'Quản lý thuê xe', href: '/rentals', icon: FileText },
-  { name: 'Quản lý hợp đồng', href: '/contracts', icon: FileSignature },
-  { name: 'Xác thực KH', href: '/customers', icon: UserCheck },
-  { name: 'Thanh toán', href: '/payments', icon: CreditCard },
-  { name: 'Quản lý Xe và Bảo trì', href: '/fleet', icon: Settings },
+  { name: 'Quản Lý Thuê Xe', href: '/rentals', icon: FileText },
+  { name: 'Quản Lý Hợp Đồng', href: '/contracts', icon: FileSignature },
+  { name: 'Xác Thực KH', href: '/customers', icon: UserCheck },
+  { name: 'Thanh Toán', href: '/payments', icon: CreditCard },
+  { name: 'Quản Lý Xe', href: '/fleet', icon: Settings },
 ]
 
 export function Sidebar() {

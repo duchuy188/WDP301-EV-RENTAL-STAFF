@@ -317,8 +317,22 @@ export async function cancelBooking(bookingId: string, reason: string): Promise<
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi hủy đặt xe', res.status);
+    let errorMessage = 'Lỗi khi hủy đặt xe';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

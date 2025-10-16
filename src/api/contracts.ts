@@ -1,6 +1,35 @@
 import { ApiError } from './auth';
 
 // Types for Contract data
+// Payment interfaces
+export interface Payment {
+  _id: string;
+  code: string;
+  rental_id: string;
+  user_id: string;
+  booking_id: string;
+  amount: number;
+  payment_method: string;
+  status: string;
+  payment_type: string;
+  reason: string;
+  transaction_id: string;
+  payment_gateway: string;
+  qr_code_data: string;
+  vnpay_url: string;
+  vnpay_transaction_no: string;
+  vnpay_bank_code: string;
+  refund_amount: number;
+  refund_reason: string;
+  refunded_at: string | null;
+  refunded_by: string | null;
+  notes: string;
+  processed_by: string;
+  is_active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Contract {
   _id: string;
   code: string;
@@ -55,6 +84,24 @@ export interface Contract {
     fullname: string;
     email: string;
   } | null;
+  rental_details?: {
+    rental_code: string;
+    rental_status: string;
+    booking_code: string;
+    start_date: string;
+    end_date: string;
+    pickup_time: string;
+    return_time: string;
+    total_days: number;
+    price_per_day: number;
+    total_price: number;
+    deposit_amount: number;
+  };
+  payment_summary?: {
+    deposit_payment: Payment | null;
+    rental_fee_payment: Payment | null;
+    additional_fee_payments: Payment[];
+  };
 }
 
 export interface ContractsResponse {
@@ -168,8 +215,22 @@ export async function getContracts(params: {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi lấy danh sách contracts', res.status);
+    let errorMessage = 'Lỗi khi lấy danh sách contracts';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();
@@ -183,8 +244,22 @@ export async function getContractById(id: string): Promise<ContractDetailRespons
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi lấy chi tiết contract', res.status);
+    let errorMessage = 'Lỗi khi lấy chi tiết contract';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

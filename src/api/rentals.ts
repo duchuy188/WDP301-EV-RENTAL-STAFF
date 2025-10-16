@@ -444,8 +444,22 @@ export async function checkoutFees(
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi thực hiện checkout có phí', res.status);
+    let errorMessage = 'Lỗi khi thực hiện checkout có phí';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

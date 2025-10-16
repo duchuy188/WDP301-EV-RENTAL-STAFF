@@ -22,7 +22,7 @@ export interface Vehicle {
   current_mileage?: number;
   price_per_day: number;
   deposit_percentage: number;
-  status: 'available' | 'rented' | 'maintenance' | 'draft';
+  status: 'available' | 'rented' | 'maintenance';
   technical_status: 'excellent' | 'good' | 'fair' | 'poor';
   images: string[];
   station_id: Station;
@@ -95,7 +95,7 @@ function getAuthHeaders(): HeadersInit {
 export async function getStaffVehicles(params: {
   page?: number;
   limit?: number;
-  status?: 'available' | 'rented' | 'maintenance' | 'draft';
+  status?: 'available' | 'rented' | 'maintenance';
   color?: string;
   type?: 'scooter' | 'motorcycle';
 } = {}): Promise<VehiclesResponse> {
@@ -113,8 +113,22 @@ export async function getStaffVehicles(params: {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi lấy danh sách xe', res.status);
+    let errorMessage = 'Lỗi khi lấy danh sách xe';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();
@@ -128,51 +142,27 @@ export async function getVehicleById(id: string): Promise<{ success: boolean; da
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi lấy thông tin xe', res.status);
-  }
-
-  return res.json();
-}
-
-// API function to update vehicle status
-export async function updateVehicleStatus(
-  id: string, 
-  status: 'available' | 'rented' | 'maintenance' | 'draft',
-  maintenance_reason?: string
-): Promise<{ message: string; vehicle: Vehicle }> {
-  const body: { status: string; maintenance_reason?: string } = { status };
-  
-  if (maintenance_reason) {
-    body.maintenance_reason = maintenance_reason;
-  }
-
-  const res = await fetch(apiUrl(`/api/vehicles/${id}/status`), {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    let errorMessage = 'Lỗi khi cập nhật trạng thái xe';
-    
+    let errorMessage = 'Lỗi khi lấy thông tin xe';
     try {
       const errorData = await res.json();
-      if (errorData.message) {
-        errorMessage = errorData.message;
-      }
+      errorMessage = errorData.message || errorData.error || errorMessage;
     } catch {
       const text = await res.text().catch(() => '');
       if (text) {
-        errorMessage = text;
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
       }
     }
-    
     throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();
 }
+
 
 // API function to update vehicle technical status
 export async function updateVehicleTechnicalStatus(
@@ -186,8 +176,22 @@ export async function updateVehicleTechnicalStatus(
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi cập nhật tình trạng kỹ thuật xe', res.status);
+    let errorMessage = 'Lỗi khi cập nhật tình trạng kỹ thuật xe';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();
@@ -205,8 +209,22 @@ export async function updateVehicleBattery(
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new ApiError(text || 'Lỗi khi cập nhật pin xe', res.status);
+    let errorMessage = 'Lỗi khi cập nhật pin xe';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
   }
 
   return res.json();

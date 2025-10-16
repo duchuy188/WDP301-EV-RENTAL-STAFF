@@ -17,7 +17,10 @@ import {
   Search,
   Filter,
   Loader2,
-  Ban
+  Ban,
+  CreditCard,
+  DollarSign,
+  Receipt
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +33,45 @@ import { Textarea } from '@/components/ui/textarea';
 import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, type Contract } from '@/api/contracts';
 import { SignaturePad } from '@/components/SignaturePad';
 import { formatDate, formatDateTime } from '@/lib/utils';
+
+// Helper function to convert status to Vietnamese
+const getPaymentStatusText = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'Hoàn thành';
+    case 'pending':
+      return 'Chờ xử lý';
+    case 'failed':
+      return 'Thất bại';
+    case 'cancelled':
+      return 'Đã hủy';
+    case 'refunded':
+      return 'Đã hoàn tiền';
+    default:
+      return status;
+  }
+};
+
+const getRentalStatusText = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'Hoàn thành';
+    case 'in_progress':
+      return 'Đang thuê';
+    case 'active':
+      return 'Đang hoạt động';
+    case 'pending':
+      return 'Chờ xử lý';
+    case 'cancelled':
+      return 'Đã hủy';
+    case 'checked_in':
+      return 'Đã nhận xe';
+    case 'checked_out':
+      return 'Đã trả xe';
+    default:
+      return status;
+  }
+};
 
 export function Contracts() {
   const { toast } = useToast();
@@ -462,10 +504,10 @@ export function Contracts() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">-- Tất cả --</SelectItem>
-                    <SelectItem value="pending">pending</SelectItem>
-                    <SelectItem value="signed">signed</SelectItem>
-                    <SelectItem value="cancelled">cancelled</SelectItem>
-                    <SelectItem value="expired">expired</SelectItem>
+                    <SelectItem value="pending">⏳ Chờ ký</SelectItem>
+                    <SelectItem value="signed">✅ Đã ký</SelectItem>
+                    <SelectItem value="cancelled">❌ Đã hủy</SelectItem>
+                    <SelectItem value="expired">⏰ Hết hạn</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -499,10 +541,10 @@ export function Contracts() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">-- Không sắp xếp --</SelectItem>
-                      <SelectItem value="createdAt">createdAt</SelectItem>
-                      <SelectItem value="updatedAt">updatedAt</SelectItem>
-                      <SelectItem value="valid_from">valid_from</SelectItem>
-                      <SelectItem value="valid_until">valid_until</SelectItem>
+                      <SelectItem value="createdAt">📅 Ngày tạo</SelectItem>
+                      <SelectItem value="updatedAt">🔄 Ngày cập nhật</SelectItem>
+                      <SelectItem value="valid_from">📆 Ngày bắt đầu</SelectItem>
+                      <SelectItem value="valid_until">📆 Ngày kết thúc</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -521,8 +563,8 @@ export function Contracts() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="asc">asc ↑</SelectItem>
-                      <SelectItem value="desc">desc ↓</SelectItem>
+                      <SelectItem value="asc">⬆️ Tăng dần</SelectItem>
+                      <SelectItem value="desc">⬇️ Giảm dần</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -635,6 +677,29 @@ export function Contracts() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Payment Status Indicator */}
+                    {contract.payment_summary?.deposit_payment && (
+                      <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-600 dark:text-gray-400">Thanh toán cọc:</span>
+                          <div className="flex items-center gap-2">
+                            <Badge className={
+                              contract.payment_summary.deposit_payment.status === 'completed' 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                                : contract.payment_summary.deposit_payment.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                            }>
+                              {getPaymentStatusText(contract.payment_summary.deposit_payment.status)}
+                            </Badge>
+                            <span className="font-medium text-green-600 dark:text-green-400">
+                              {contract.payment_summary.deposit_payment.amount.toLocaleString('vi-VN')} VNĐ
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Actions */}
                     <div className="flex gap-2">
@@ -809,16 +874,175 @@ export function Contracts() {
                     <span className="text-gray-600 dark:text-gray-400">Địa chỉ:</span>
                     <span className="col-span-2 font-medium text-xs">{selectedContract.station.address}</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-gray-600 dark:text-gray-400">Hiệu lực từ:</span>
-                    <span className="col-span-2 font-medium">{formatDate(selectedContract.valid_from)}</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-gray-600 dark:text-gray-400">Hiệu lực đến:</span>
-                    <span className="col-span-2 font-medium">{formatDate(selectedContract.valid_until)}</span>
-                  </div>
                 </div>
               </Card>
+
+              {/* Rental Details */}
+              {selectedContract.rental_details && (
+                <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
+                  <h4 className="font-medium mb-3 text-green-600 dark:text-green-400 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Chi tiết thuê xe
+                  </h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Mã Rental:</span>
+                        <span className="col-span-2 font-medium text-green-700 dark:text-green-300">{selectedContract.rental_details.rental_code}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Mã Booking:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.booking_code}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                        <span className="col-span-2">
+                          <Badge className={
+                            selectedContract.rental_details.rental_status === 'active' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                          }>
+                            {getRentalStatusText(selectedContract.rental_details.rental_status)}
+                          </Badge>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Tổng ngày:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.total_days} ngày</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Ngày bắt đầu:</span>
+                        <span className="col-span-2 font-medium">{formatDate(selectedContract.rental_details.start_date)}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Ngày kết thúc:</span>
+                        <span className="col-span-2 font-medium">{formatDate(selectedContract.rental_details.end_date)}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Giờ nhận xe:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.pickup_time}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Giờ trả xe:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.return_time}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Pricing Information */}
+                  <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-700">
+                    <h5 className="font-medium mb-2 text-green-700 dark:text-green-300">Thông tin giá</h5>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Giá/ngày:</span>
+                        <span className="font-medium">{selectedContract.rental_details.price_per_day.toLocaleString('vi-VN')} VNĐ</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Tổng tiền:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">{selectedContract.rental_details.total_price.toLocaleString('vi-VN')} VNĐ</span>
+                      </div>
+                      <div className="flex justify-between col-span-2 border-t pt-2">
+                        <span className="text-gray-600 dark:text-gray-400">Tiền cọc:</span>
+                        <span className="font-medium text-blue-600 dark:text-blue-400">{selectedContract.rental_details.deposit_amount.toLocaleString('vi-VN')} VNĐ</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Payment Summary */}
+              {selectedContract.payment_summary && (
+                <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
+                  <h4 className="font-medium mb-3 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Tóm tắt thanh toán
+                  </h4>
+                  
+                  {/* Deposit Payment */}
+                  {selectedContract.payment_summary.deposit_payment && (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <h5 className="font-medium mb-3 text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Thanh toán cọc
+                        </h5>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Mã thanh toán:</span>
+                              <span className="col-span-2 font-medium text-blue-700 dark:text-blue-300">{selectedContract.payment_summary.deposit_payment.code}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Số tiền:</span>
+                              <span className="col-span-2 font-medium text-green-600 dark:text-green-400">{selectedContract.payment_summary.deposit_payment.amount.toLocaleString('vi-VN')} VNĐ</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Phương thức:</span>
+                              <span className="col-span-2 font-medium">{selectedContract.payment_summary.deposit_payment.payment_method.toUpperCase()}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                              <span className="col-span-2">
+                                <Badge className={
+                                  selectedContract.payment_summary.deposit_payment.status === 'completed' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                                    : selectedContract.payment_summary.deposit_payment.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                                }>
+                                  {getPaymentStatusText(selectedContract.payment_summary.deposit_payment.status)}
+                                </Badge>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Ngày tạo:</span>
+                              <span className="col-span-2 font-medium text-xs">{formatDateTime(selectedContract.payment_summary.deposit_payment.createdAt)}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Cập nhật:</span>
+                              <span className="col-span-2 font-medium text-xs">{formatDateTime(selectedContract.payment_summary.deposit_payment.updatedAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Payment Notes */}
+                        {selectedContract.payment_summary.deposit_payment.notes && (
+                          <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+                            <span className="text-gray-600 dark:text-gray-400">Ghi chú: </span>
+                            <span className="text-gray-800 dark:text-gray-200">{selectedContract.payment_summary.deposit_payment.notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rental Fee Payment */}
+                  {selectedContract.payment_summary.rental_fee_payment && (
+                    <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-700">
+                      <h5 className="font-medium mb-2 text-green-700 dark:text-green-300 flex items-center gap-2">
+                        <Receipt className="h-4 w-4" />
+                        Thanh toán phí thuê
+                      </h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Thông tin thanh toán phí thuê sẽ được hiển thị ở đây</p>
+                    </div>
+                  )}
+
+                  {/* Additional Fee Payments */}
+                  {selectedContract.payment_summary.additional_fee_payments && selectedContract.payment_summary.additional_fee_payments.length > 0 && (
+                    <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-orange-200 dark:border-orange-700">
+                      <h5 className="font-medium mb-2 text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Phí bổ sung
+                      </h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Có {selectedContract.payment_summary.additional_fee_payments.length} khoản phí bổ sung</p>
+                    </div>
+                  )}
+                </Card>
+              )}
 
               {/* Signatures */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

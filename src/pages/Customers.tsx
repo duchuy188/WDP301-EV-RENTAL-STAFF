@@ -116,10 +116,6 @@ export function Customers() {
       setCompletedPagination(response.data.pagination)
       setCompletedStats(response.data.stats)
       
-      toast({
-        title: "Thành công",
-        description: `Đã tải ${response.data.kycs.length} KYC đã duyệt`,
-      })
     } catch (error: unknown) {
       console.error('Completed KYC API Error:', error)
       setCompletedKycUsers([])
@@ -155,10 +151,6 @@ export function Customers() {
       setNotSubmittedPagination(response.data.pagination)
       setNotSubmittedStats(response.data.stats)
       
-      toast({
-        title: "Thành công",
-        description: `Danh sách chờ duyệt KYC`,
-      })
     } catch (error: unknown) {
       console.error('Users Not Submitted KYC API Error:', error)
       setNotSubmittedUsers([])
@@ -193,10 +185,6 @@ export function Customers() {
       setKycUsers(response.users || [])
       setFilteredUsers(response.users || [])
       setTotalCount(response.count || 0)
-      toast({
-        title: "Thành công",
-        description: `Đã tải ${response.count || 0} yêu cầu KYC đang chờ xử lý`,
-      })
     } catch (error: unknown) {
       console.error('KYC API Error:', error)
       // Xử lý trường hợp API trả về 304 hoặc lỗi khác
@@ -633,7 +621,7 @@ export function Customers() {
                   {/* License Front */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
                     <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🚗 GPLX</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🏍️ GPLX</p>
                     <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
                     <Input 
                       type="file" 
@@ -664,7 +652,7 @@ export function Customers() {
                   {/* License Back */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
                     <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🚗 GPLX</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🏍️ GPLX</p>
                     <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
                     <Input 
                       type="file" 
@@ -1658,7 +1646,7 @@ export function Customers() {
                       <SelectItem value="lastUpdatedAt">🕐 Cập nhật cuối</SelectItem>
                       <SelectItem value="identityName">👤 Tên CCCD</SelectItem>
                       <SelectItem value="identityCard">🪪 Số CCCD</SelectItem>
-                      <SelectItem value="licenseNumber">🚗 Số GPLX</SelectItem>
+                      <SelectItem value="licenseNumber">🏍️ Số GPLX</SelectItem>
                     </SelectContent>
                   </Select>
                   
@@ -1745,7 +1733,7 @@ export function Customers() {
 
                             <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
                               <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                                🚗 GPLX:
+                              🏍️ GPLX:
                               </span>
                               <span className="font-semibold text-sm">{kyc.licenseNumber || 'N/A'}</span>
                             </div>

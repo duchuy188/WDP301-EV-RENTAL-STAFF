@@ -142,10 +142,6 @@ const Booking: React.FC = () => {
       setTotalItems(response.pagination?.totalRecords || response.bookings.length);
       setTotalPages(response.pagination?.total || Math.ceil((response.pagination?.totalRecords || response.bookings.length) / itemsPerPage));
       
-      toast({
-        title: "Thành công",
-        description: `Đã tải ${response.bookings.length} booking (trang ${pageToLoad}/${response.pagination?.total || 1})`,
-      });
     } catch (error: unknown) {
       console.error('Error loading bookings:', error);
       setHasError(true);
@@ -425,9 +421,17 @@ const Booking: React.FC = () => {
         description: `Đã hủy booking ${updatedBooking.code || 'N/A'}`,
       });
     } catch (error: unknown) {
+      let errorMessage = 'Không thể hủy booking';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Lỗi",
-        description: (error as Error).message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -573,10 +577,6 @@ const Booking: React.FC = () => {
       setSelectedBookingDetail(response.booking);
       setIsDetailDialogOpen(true);
       
-      toast({
-        title: "Thành công",
-        description: response.message || "Đã tải chi tiết booking",
-      });
     } catch (error: unknown) {
       toast({
         title: "Lỗi",
@@ -1730,7 +1730,7 @@ const Booking: React.FC = () => {
 
           {/* Booking Detail Dialog */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" hideCloseButton>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Car className="h-5 w-5" />
@@ -1810,17 +1810,8 @@ const Booking: React.FC = () => {
                                    'Từ chối'}
                                 </Badge>
                               </div>
-                              <div className="flex justify-between pt-2 border-t">
-                                <span className="text-gray-500 dark:text-gray-400">ID:</span>
-                                <span className="font-mono text-xs">{selectedBookingDetail.user_id._id}</span>
-                              </div>
                             </>
-                          ) : (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500 dark:text-gray-400">ID:</span>
-                              <span className="font-medium">{String(selectedBookingDetail.user_id).slice(-12) || 'N/A'}</span>
-                            </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
 
@@ -1871,17 +1862,8 @@ const Booking: React.FC = () => {
                                   </div>
                                 </div>
                               )}
-                              <div className="flex justify-between pt-2 border-t">
-                                <span className="text-gray-500 dark:text-gray-400">ID xe:</span>
-                                <span className="font-mono text-xs">{selectedBookingDetail.vehicle_id._id}</span>
-                              </div>
                             </>
-                          ) : (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500 dark:text-gray-400">ID xe:</span>
-                              <span className="font-medium">{String(selectedBookingDetail.vehicle_id).slice(-12) || 'N/A'}</span>
-                            </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
 
@@ -1917,17 +1899,8 @@ const Booking: React.FC = () => {
                                 <span className="text-gray-500 dark:text-gray-400">Giờ đóng cửa:</span>
                                 <span className="font-medium text-red-600">{selectedBookingDetail.station_id.closing_time || 'N/A'}</span>
                               </div>
-                              <div className="flex justify-between pt-2 border-t">
-                                <span className="text-gray-500 dark:text-gray-400">ID trạm:</span>
-                                <span className="font-mono text-xs">{selectedBookingDetail.station_id._id}</span>
-                              </div>
                             </>
-                          ) : (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500 dark:text-gray-400">ID trạm:</span>
-                              <span className="font-medium">{String(selectedBookingDetail.station_id).slice(-12) || 'N/A'}</span>
-                            </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -2078,12 +2051,6 @@ const Booking: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        {selectedBookingDetail.cancelled_by && typeof selectedBookingDetail.cancelled_by === 'object' && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500 dark:text-gray-400">ID Staff:</span>
-                            <span className="font-mono text-xs">{selectedBookingDetail.cancelled_by._id}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
@@ -2108,12 +2075,6 @@ const Booking: React.FC = () => {
                                 ? selectedBookingDetail.confirmed_by.fullname 
                                 : String(selectedBookingDetail.confirmed_by).slice(-12)}
                             </span>
-                          </div>
-                        )}
-                        {typeof selectedBookingDetail.confirmed_by === 'object' && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500 dark:text-gray-400">ID Staff:</span>
-                            <span className="font-mono text-xs">{selectedBookingDetail.confirmed_by._id}</span>
                           </div>
                         )}
                       </div>

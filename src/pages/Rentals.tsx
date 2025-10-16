@@ -579,7 +579,7 @@ export function Rentals() {
                 transition={{ delay: index * 0.05 }}
                 whileHover={{ y: -5 }}
               >
-                <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden h-full flex flex-col">
                   {/* Header with gradient based on status */}
                   <div className={`h-2 ${
                     rental.status === 'active' ? 'bg-gradient-to-r from-green-500 to-green-600' :
@@ -587,7 +587,7 @@ export function Rentals() {
                     'bg-gradient-to-r from-blue-500 to-blue-600'
                   }`} />
                   
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 flex-1 flex flex-col">
                     {/* Code and Status */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="font-bold text-lg text-gray-900 dark:text-white">
@@ -597,7 +597,7 @@ export function Rentals() {
                     </div>
 
                     {/* Customer Info */}
-                    <div className="space-y-3 mb-4">
+                    <div className="space-y-3 mb-4 flex-1">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-gray-500" />
                         <div className="flex-1">
@@ -645,7 +645,7 @@ export function Rentals() {
                     {/* View Detail Button */}
                     <Button
                       variant="outline"
-                      className="w-full border-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-500 transition-all"
+                      className="w-full border-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-500 transition-all mt-auto"
                       onClick={() => handleViewDetail(rental)}
                     >
                       <FileText className="h-4 w-4 mr-2" />
@@ -1548,8 +1548,8 @@ export function Rentals() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cash">💵 Tiền mặt</SelectItem>
-                        <SelectItem value="bank_transfer">🏦 Chuyển khoản</SelectItem>
-                        <SelectItem value="credit_card">💳 Thẻ tín dụng</SelectItem>
+                        {/* <SelectItem value="bank_transfer">🏦 Chuyển khoản</SelectItem>
+                        <SelectItem value="credit_card">💳 Thẻ tín dụng</SelectItem> */}
                         <SelectItem value="vnpay">💳 VNPay</SelectItem>
                       </SelectContent>
                     </Select>

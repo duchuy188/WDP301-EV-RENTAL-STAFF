@@ -496,12 +496,22 @@ export function Payments() {
       pending: 'secondary',
       completed: 'default',
       cancelled: 'destructive',
+      active: 'default',
+      failed: 'destructive',
+      in_progress: 'default',
+      checked_in: 'default',
+      checked_out: 'default',
     }
     
     const labels: Record<string, string> = {
       pending: 'Chờ xử lý',
       completed: 'Hoàn thành',
       cancelled: 'Đã hủy',
+      active: 'Hoạt động',
+      failed: 'Thất bại',
+      in_progress: 'Đang thuê',
+      checked_in: 'Đã nhận xe',
+      checked_out: 'Đã trả xe',
     }
     
     return (
@@ -584,99 +594,116 @@ export function Payments() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="lg:col-span-2">
-              <div className="flex space-x-2">
-                <Input
-                  placeholder="Tìm theo mã payment hoặc tên khách hàng..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <Button onClick={handleSearch}>
-                  <Search className="h-4 w-4" />
-                </Button>
+          <div className="space-y-4">
+            {/* Search Row */}
+            <div className="flex space-x-2">
+              <Input
+                placeholder="Tìm theo mã payment hoặc tên khách hàng..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1"
+              />
+              <Button onClick={handleSearch}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Filters Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Status Filter */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium whitespace-nowrap">Trạng thái:</span>
+                <Select
+                  value={filters.status || '--'}
+                  onValueChange={(value) => handleFilterChange('status', value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Lọc theo trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="--">Tất cả trạng thái</SelectItem>
+                    <SelectItem value="pending">⏳ Chờ xử lý</SelectItem>
+                    <SelectItem value="completed">✅ Hoàn thành</SelectItem>
+                    <SelectItem value="cancelled">❌ Đã hủy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Payment Type Filter */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium whitespace-nowrap">Loại:</span>
+                <Select
+                  value={filters.payment_type || '--'}
+                  onValueChange={(value) => handleFilterChange('payment_type', value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Loại thanh toán" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="--">Tất cả loại</SelectItem>
+                    <SelectItem value="deposit">💰 Đặt cọc</SelectItem>
+                    <SelectItem value="rental_fee">🏠 Phí thuê</SelectItem>
+                    <SelectItem value="additional_fee">➕ Phí phát sinh</SelectItem>
+                    {/* <SelectItem value="refund">Hoàn tiền</SelectItem> */}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Payment Method Filter */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium whitespace-nowrap">Phương thức:</span>
+                <Select
+                  value={filters.payment_method || '--'}
+                  onValueChange={(value) => handleFilterChange('payment_method', value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Phương thức" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="--">Tất cả phương thức</SelectItem>
+                    <SelectItem value="cash">💵 Tiền mặt</SelectItem>
+                    <SelectItem value="vnpay">🏦 VNPay</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium whitespace-nowrap">Sắp xếp:</span>
+                <Select
+                  value={filters.sort || 'createdAt'}
+                  onValueChange={(value) => handleFilterChange('sort', value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sắp xếp theo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="createdAt">📅 Ngày tạo</SelectItem>
+                    <SelectItem value="updatedAt">🔄 Ngày cập nhật</SelectItem>
+                    <SelectItem value="amount">💰 Số tiền</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Status Filter */}
-            <Select
-              value={filters.status || '--'}
-              onValueChange={(value) => handleFilterChange('status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Lọc theo trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="--">Tất cả trạng thái</SelectItem>
-                <SelectItem value="pending">Chờ xử lý</SelectItem>
-                <SelectItem value="completed">Hoàn thành</SelectItem>
-                <SelectItem value="cancelled">Đã hủy</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Payment Type Filter */}
-            <Select
-              value={filters.payment_type || '--'}
-              onValueChange={(value) => handleFilterChange('payment_type', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Loại thanh toán" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="--">Tất cả loại</SelectItem>
-                <SelectItem value="deposit">Đặt cọc</SelectItem>
-                <SelectItem value="rental_fee">Phí thuê</SelectItem>
-                <SelectItem value="additional_fee">Phí phát sinh</SelectItem>
-                {/* <SelectItem value="refund">Hoàn tiền</SelectItem> */}
-              </SelectContent>
-            </Select>
-
-            {/* Payment Method Filter */}
-            <Select
-              value={filters.payment_method || '--'}
-              onValueChange={(value) => handleFilterChange('payment_method', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Phương thức" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="--">Tất cả phương thức</SelectItem>
-                <SelectItem value="cash">Tiền mặt</SelectItem>
-                <SelectItem value="vnpay">VNPay</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Sort By */}
-            <Select
-              value={filters.sort || 'createdAt'}
-              onValueChange={(value) => handleFilterChange('sort', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sắp xếp theo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="createdAt">Ngày tạo</SelectItem>
-                <SelectItem value="updatedAt">Ngày cập nhật</SelectItem>
-                <SelectItem value="amount">Số tiền</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Order */}
-            <Select
-              value={filters.order || 'desc'}
-              onValueChange={(value) => handleFilterChange('order', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Thứ tự" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="asc">Tăng dần</SelectItem>
-                <SelectItem value="desc">Giảm dần</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Order Row */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium whitespace-nowrap">Thứ tự:</span>
+              <Select
+                value={filters.order || 'desc'}
+                onValueChange={(value) => handleFilterChange('order', value)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Thứ tự" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">⬆️ Tăng dần</SelectItem>
+                  <SelectItem value="desc">⬇️ Giảm dần</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
           </CardContent>
         </Card>
 
@@ -914,7 +941,7 @@ export function Payments() {
                     </div>
                     <div>
                       <label className="text-sm text-gray-500">Trạng thái</label>
-                      <Badge>{selectedPayment.rental_id.status}</Badge>
+                      <div className="mt-1">{getStatusBadge(selectedPayment.rental_id.status)}</div>
                     </div>
                     {selectedPayment.rental_id.actual_start_time && (
                       <div>
