@@ -370,6 +370,7 @@ const Booking: React.FC = () => {
       toast({
         title: "Thành công",
         description: `Đã xác nhận booking ${response.booking.code || 'N/A'}`,
+        variant: "success",
       });
     } catch (error: unknown) {
       toast({
@@ -419,6 +420,7 @@ const Booking: React.FC = () => {
       toast({
         title: "Thành công",
         description: `Đã hủy booking ${updatedBooking.code || 'N/A'}`,
+        variant: "success",
       });
     } catch (error: unknown) {
       let errorMessage = 'Không thể hủy booking';
@@ -557,6 +559,7 @@ const Booking: React.FC = () => {
       toast({
         title: "Thành công",
         description: response.message,
+        variant: "success",
       });
     } catch (error: unknown) {
       toast({

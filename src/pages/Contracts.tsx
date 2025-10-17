@@ -201,6 +201,7 @@ export function Contracts() {
       toast({
         title: "Thành công",
         description: response.message,
+        variant: "success",
       });
       
       // Reload contract detail
@@ -240,6 +241,7 @@ export function Contracts() {
       toast({
         title: "Thành công",
         description: response.message,
+        variant: "success",
       });
       
       // Reload contract detail
@@ -270,6 +272,7 @@ export function Contracts() {
       toast({
         title: "Thành công",
         description: `Đã tải xuống PDF contract ${contractCode}`,
+        variant: "success",
       });
     } catch (error) {
       console.error('Download PDF error:', error);
@@ -308,6 +311,7 @@ export function Contracts() {
       toast({
         title: "Thành công",
         description: `Đã hủy contract ${selectedContract.code}`,
+        variant: "success",
       });
 
       // Reload contracts list

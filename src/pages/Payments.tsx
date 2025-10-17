@@ -273,6 +273,7 @@ export function Payments() {
       toast({
         title: "Thành công",
         description: response.message || "Tạo payment thành công",
+        variant: "success",
       })
 
       // If there's QR data, show it
@@ -327,6 +328,7 @@ export function Payments() {
       toast({
         title: "Thành công",
         description: response.message || "Xác nhận thanh toán thành công",
+        variant: "success",
       })
 
       // If there's QR data, show it
@@ -392,6 +394,7 @@ export function Payments() {
       toast({
         title: "Thành công",
         description: response.message || "Hủy payment thành công",
+        variant: "success",
       })
 
       // Close cancel dialog and update payment details
@@ -441,6 +444,7 @@ export function Payments() {
       toast({
         title: "Thành công",
         description: response.message || "Cập nhật phương thức thanh toán thành công",
+        variant: "success",
       })
 
       // Close dialog

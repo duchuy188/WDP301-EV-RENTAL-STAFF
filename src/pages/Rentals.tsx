@@ -152,6 +152,7 @@ export function Rentals() {
       toast({
         title: "Thành công",
         description: response.message,
+        variant: "success",
       });
       
       setShowCreateContractDialog(false);
@@ -307,6 +308,7 @@ export function Rentals() {
       toast({
         title: "Thành công",
         description: response.message,
+        variant: "success",
       });
       
       // Reload rentals list
