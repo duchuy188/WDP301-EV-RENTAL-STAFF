@@ -27,15 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis
-} from '@/components/ui/pagination';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
   getStationBookings, 
@@ -62,10 +54,12 @@ const Booking: React.FC = () => {
   const [hasError, setHasError] = useState(false);
   
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 5,
+    total: 0,
+    pages: 0
+  });
   
   // Advanced filters
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -130,17 +124,21 @@ const Booking: React.FC = () => {
   const loadBookings = useCallback(async (params?: BookingListParams, page?: number) => {
     setIsLoading(true);
     try {
-      const pageToLoad = page || currentPage;
+      const pageToLoad = page || pagination.page;
       const response: BookingListResponse = await getStationBookings({
         page: pageToLoad,
-        limit: itemsPerPage,
+        limit: pagination.limit,
         ...params
       });
 
       setBookings(response.bookings);
       setFilteredBookings(response.bookings);
-      setTotalItems(response.pagination?.totalRecords || response.bookings.length);
-      setTotalPages(response.pagination?.total || Math.ceil((response.pagination?.totalRecords || response.bookings.length) / itemsPerPage));
+      setPagination({
+        page: response.pagination?.current || pageToLoad,
+        limit: pagination.limit,
+        total: response.pagination?.totalRecords || response.bookings.length,
+        pages: response.pagination?.total || Math.ceil((response.pagination?.totalRecords || response.bookings.length) / pagination.limit)
+      });
       
     } catch (error: unknown) {
       console.error('Error loading bookings:', error);
@@ -153,7 +151,7 @@ const Booking: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, currentPage, itemsPerPage]);
+  }, [toast, pagination.page, pagination.limit]);
 
   // Load data on component mount
   useEffect(() => {
@@ -596,24 +594,10 @@ const Booking: React.FC = () => {
     loadBookingDetail(bookingId);
   };
 
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    loadBookings(undefined, page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Handle items per page change
-  const handleItemsPerPageChange = (value: string) => {
-    const newItemsPerPage = parseInt(value);
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1);
-    loadBookings(undefined, 1);
-  };
 
   // Apply advanced filters
   const handleApplyFilters = () => {
-    setCurrentPage(1);
+    setPagination(prev => ({ ...prev, page: 1 }));
     loadBookings({
       status: selectedStatus !== 'all' ? selectedStatus : undefined,
       search: searchTerm || undefined,
@@ -631,7 +615,7 @@ const Booking: React.FC = () => {
     setDateType('booking');
     setSearchTerm('');
     setSelectedStatus('all');
-    setCurrentPage(1);
+    setPagination(prev => ({ ...prev, page: 1 }));
     loadBookings(undefined, 1);
     setShowAdvancedFilters(false);
   };
@@ -1059,112 +1043,44 @@ const Booking: React.FC = () => {
           </div>
               )}
 
-              {/* Pagination Controls */}
-              {!isLoading && filteredBookings.length > 0 && (
-                <div className="mt-8 space-y-4">
-                  {/* Pagination info and items per page selector */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
-                    <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                      Hiển thị <span className="font-bold text-blue-600">{((currentPage - 1) * itemsPerPage) + 1}</span> - <span className="font-bold text-blue-600">{Math.min(currentPage * itemsPerPage, totalItems)}</span> trong tổng số <span className="font-bold text-blue-600">{totalItems}</span> booking
+              {/* Pagination */}
+              {pagination.pages > 1 && (
+                <Card className="border-0 shadow-lg mt-8">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                          disabled={pagination.page === 1 || isLoading}
+                          className="border-2"
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Trước
+                        </Button>
+                        <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                          <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
+                            {pagination.page} / {pagination.pages}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                          disabled={pagination.page === pagination.pages || isLoading}
+                          className="border-2"
+                        >
+                          Sau
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="items-per-page" className="text-sm whitespace-nowrap font-medium">
-                        Số mục/trang:
-                      </Label>
-                      <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
-                        <SelectTrigger id="items-per-page" className="w-20 bg-white dark:bg-gray-800">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5</SelectItem>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="100">100</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Pagination buttons */}
-                  {totalPages > 1 && (
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious 
-                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                            className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                        
-                        {/* First page */}
-                        {currentPage > 2 && (
-                          <>
-                            <PaginationItem>
-                              <PaginationLink onClick={() => handlePageChange(1)} className="cursor-pointer">
-                                1
-                              </PaginationLink>
-                            </PaginationItem>
-                            {currentPage > 3 && (
-                              <PaginationItem>
-                                <PaginationEllipsis />
-                              </PaginationItem>
-                            )}
-                          </>
-                        )}
-                        
-                        {/* Previous page */}
-                        {currentPage > 1 && (
-                          <PaginationItem>
-                            <PaginationLink onClick={() => handlePageChange(currentPage - 1)} className="cursor-pointer">
-                              {currentPage - 1}
-                            </PaginationLink>
-                          </PaginationItem>
-                        )}
-                        
-                        {/* Current page */}
-                        <PaginationItem>
-                          <PaginationLink isActive className="cursor-default">
-                            {currentPage}
-                          </PaginationLink>
-                        </PaginationItem>
-                        
-                        {/* Next page */}
-                        {currentPage < totalPages && (
-                          <PaginationItem>
-                            <PaginationLink onClick={() => handlePageChange(currentPage + 1)} className="cursor-pointer">
-                              {currentPage + 1}
-                            </PaginationLink>
-                          </PaginationItem>
-                        )}
-                        
-                        {/* Last page */}
-                        {currentPage < totalPages - 1 && (
-                          <>
-                            {currentPage < totalPages - 2 && (
-                              <PaginationItem>
-                                <PaginationEllipsis />
-                              </PaginationItem>
-                            )}
-                            <PaginationItem>
-                              <PaginationLink onClick={() => handlePageChange(totalPages)} className="cursor-pointer">
-                                {totalPages}
-                              </PaginationLink>
-                            </PaginationItem>
-                          </>
-                        )}
-                        
-                        <PaginationItem>
-                          <PaginationNext 
-                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                            className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
           </Tabs>
@@ -2209,7 +2125,10 @@ const Booking: React.FC = () => {
                 {/* Status Filter Dropdown */}
                 <div className="space-y-2">
                   <Label>Lọc theo trạng thái đặt xe</Label>
-                  <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as Booking['status'] | 'all')}>
+                  <Select value={selectedStatus} onValueChange={(value) => {
+                    setSelectedStatus(value as Booking['status'] | 'all');
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Chọn trạng thái" />
                     </SelectTrigger>

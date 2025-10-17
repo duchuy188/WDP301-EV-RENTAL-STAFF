@@ -83,7 +83,7 @@ export function Contracts() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 12,
+    limit: 6,
     total: 0,
     pages: 0
   });
