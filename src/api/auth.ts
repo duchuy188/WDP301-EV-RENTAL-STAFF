@@ -199,3 +199,69 @@ export async function getProfile(): Promise<ProfileResponse> {
 
   return res.json();
 }
+
+// Update profile types
+export interface UpdateProfilePayload {
+  fullname?: string;
+  phone?: string;
+  address?: string;
+  avatar?: File;
+}
+
+export interface UpdateProfileResponse {
+  message: string;
+  profile: ProfileResponse;
+}
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<UpdateProfileResponse> {
+  const formData = new FormData();
+  
+  // Add fields to FormData if they exist
+  if (payload.fullname !== undefined) {
+    formData.append('fullname', payload.fullname);
+  }
+  if (payload.phone !== undefined) {
+    formData.append('phone', payload.phone);
+  }
+  if (payload.address !== undefined) {
+    formData.append('address', payload.address);
+  }
+  if (payload.avatar) {
+    formData.append('avatar', payload.avatar);
+  }
+
+  // Get auth headers but remove Content-Type to let browser set it for FormData
+  const { token } = getStoredTokens();
+  const headers: HeadersInit = {};
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(apiUrl('/api/auth/profile'), {
+    method: 'PUT',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Cập nhật thông tin thất bại';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}

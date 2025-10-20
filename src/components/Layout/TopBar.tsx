@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bell,
@@ -21,7 +21,7 @@ import { Switch } from '@/components/ui/switch'
 import { useTheme } from '@/context/ThemeContext'
 import { mockNotifications } from '@/data/mockData'
 import { useToast } from '@/hooks/use-toast'
-import { getProfile, ProfileResponse } from '@/api/auth'
+import { useProfile } from '@/contexts/ProfileContext'
 import { useNavigate } from 'react-router-dom'
 
 interface TopBarProps {
@@ -33,24 +33,7 @@ export function TopBar({ onLogout }: TopBarProps) {
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<ProfileResponse | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      try {
-        const data = await getProfile()
-        if (!mounted) return
-        setProfile(data)
-      } catch {
-        // silently ignore; keep mock UI appearance
-      }
-    }
-    load()
-    return () => {
-      mounted = false
-    }
-  }, [])
+  const { profile } = useProfile()
 
   const handleLogout = () => {
     toast({

@@ -21,10 +21,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { getProfile, ProfileResponse, ApiError, getStoredTokens, logout as apiLogout, clearStoredTokens } from '@/api/auth';
+import { updateProfile, UpdateProfilePayload, ApiError, getStoredTokens, logout as apiLogout, clearStoredTokens } from '@/api/auth';
 import { toast } from 'sonner';
 import { useToast } from '@/hooks/use-toast';
 import { useSidebar } from '@/context/SidebarContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -32,15 +33,17 @@ const Profile: React.FC = () => {
   const { collapsed } = useSidebar();
   const navigate = useNavigate();
   const { toast: showToast } = useToast();
+  const { profile, updateProfile: updateProfileContext, isLoading: profileLoading, error: profileError } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
     phone: '',
+    address: '',
   });
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -64,37 +67,53 @@ const Profile: React.FC = () => {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await getProfile();
-        if (!isMounted) return;
-        setProfile(data);
-        setFormData({
-          fullname: data.fullname || '',
-          email: data.email || '',
-          phone: data.phone || '',
-        });
-      } catch (err) {
-        const message = err instanceof ApiError ? err.message : 'Không thể tải hồ sơ';
-        if (!isMounted) return;
-        setError(message);
-        toast.error(message);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-    load();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (profile) {
+      setFormData({
+        fullname: profile.fullname || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+      });
+    }
+  }, [profile]);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success('Cập nhật hồ sơ thành công!');
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      const updatePayload: UpdateProfilePayload = {
+        fullname: formData.fullname,
+        phone: formData.phone,
+        address: formData.address,
+      };
+      
+      if (selectedAvatar) {
+        updatePayload.avatar = selectedAvatar;
+      }
+      
+      const response = await updateProfile(updatePayload);
+      
+      // Update global profile context
+      updateProfileContext(response.profile);
+      setFormData({
+        fullname: response.profile.fullname || '',
+        email: response.profile.email || '',
+        phone: response.profile.phone || '',
+        address: response.profile.address || '',
+      });
+      
+      // Clear avatar selection
+      setSelectedAvatar(null);
+      setAvatarPreview(null);
+      
+      setIsEditing(false);
+      toast.success(response.message || 'Cập nhật hồ sơ thành công!');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Cập nhật hồ sơ thất bại';
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -103,12 +122,27 @@ const Profile: React.FC = () => {
         fullname: profile.fullname || '',
         email: profile.email || '',
         phone: profile.phone || '',
+        address: profile.address || '',
       });
     }
+    setSelectedAvatar(null);
+    setAvatarPreview(null);
     setIsEditing(false);
   };
 
-  if (isLoading) {
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedAvatar(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  if (profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -116,11 +150,11 @@ const Profile: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (profileError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <p className="text-red-600 dark:text-red-400 mb-4">{profileError}</p>
           <button
             className="px-4 py-2 rounded-md bg-primary text-white"
             onClick={() => window.location.reload()}
@@ -201,10 +235,11 @@ const Profile: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={handleSave}
+                        disabled={isLoading}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <Check className="mr-2 h-4 w-4" />
-                        Lưu
+                        {isLoading ? 'Đang lưu...' : 'Lưu'}
                       </Button>
                     </div>
                   )}
@@ -215,15 +250,24 @@ const Profile: React.FC = () => {
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={profile?.avatar} alt={profile?.fullname || 'Avatar'} />
+                      <AvatarImage 
+                        src={avatarPreview || profile?.avatar} 
+                        alt={profile?.fullname || 'Avatar'} 
+                      />
                       <AvatarFallback className="text-lg">
                         {(profile?.fullname || 'U').charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     {isEditing && (
-                      <button className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white rounded-full p-2 transition-colors">
+                      <label className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white rounded-full p-2 transition-colors cursor-pointer">
                         <Camera className="h-4 w-4" />
-                      </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
+                        />
+                      </label>
                     )}
                   </div>
                   <div>
@@ -288,15 +332,22 @@ const Profile: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  {profile?.address && (
-                    <div className="space-y-2">
-                      <Label>Địa chỉ</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Địa chỉ</Label>
+                    {isEditing ? (
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Nhập địa chỉ của bạn"
+                      />
+                    ) : (
                       <div className="flex items-center space-x-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
                         <Calendar className="h-4 w-4 text-gray-400" />
-                        <span>{profile.address}</span>
+                        <span>{profile?.address || '—'}</span>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
