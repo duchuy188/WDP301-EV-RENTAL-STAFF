@@ -95,10 +95,17 @@ export async function logout(payload: LogoutPayload): Promise<void> {
 
 // Hàm lấy token từ localStorage với type safety
 export function getStoredTokens(): { token: string | null; refreshToken: string | null } {
-  return {
-    token: localStorage.getItem('token'),
-    refreshToken: localStorage.getItem('refreshToken')
-  };
+  // Support both legacy keys ('token') and current keys ('accessToken'), and both localStorage/sessionStorage
+  const accessTokenLocal = localStorage.getItem('accessToken');
+  const accessTokenSession = sessionStorage.getItem('accessToken');
+  const legacyToken = localStorage.getItem('token');
+  const token = accessTokenLocal || accessTokenSession || legacyToken;
+
+  const refreshTokenLocal = localStorage.getItem('refreshToken');
+  const refreshTokenSession = sessionStorage.getItem('refreshToken');
+  const refreshToken = refreshTokenLocal || refreshTokenSession || null;
+
+  return { token, refreshToken };
 }
 
 // Hàm lưu tokens vào localStorage
@@ -112,6 +119,10 @@ export function clearStoredTokens(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
+  // Also clear keys used elsewhere in the app
+  localStorage.removeItem('accessToken');
+  sessionStorage.removeItem('accessToken');
+  sessionStorage.removeItem('refreshToken');
 }
 
 // Hàm check xem user có đăng nhập không
@@ -145,4 +156,46 @@ export function getAuthHeaders(): HeadersInit {
   }
   
   return headers;
+}
+
+// Profile types based on backend response
+export interface ProfileResponse {
+  id: string;
+  fullname: string;
+  email: string;
+  role: string;
+  avatar: string;
+  phone: string;
+  address: string;
+}
+
+export async function getProfile(): Promise<ProfileResponse> {
+  const res = await fetch(apiUrl('/api/auth/profile'), {
+    method: 'GET',
+    headers: {
+      ...getAuthHeaders(),
+      Accept: 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Không thể tải hồ sơ người dùng';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
 }

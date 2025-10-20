@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ThemeProvider } from './context/ThemeContext'
 import { SidebarProvider } from './context/SidebarContext'
 import { Layout } from './components/Layout/Layout'
@@ -15,6 +15,7 @@ import { Fleet } from './pages/Fleet'
 import Booking from './pages/Booking'
 import { Rentals } from './pages/Rentals'
 import { Contracts } from './pages/Contracts'
+import Profile from './pages/Profile'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -77,6 +78,7 @@ function App() {
               <Route path="/bookings" element={<Layout onLogout={handleLogout}><Booking /></Layout>} />
               <Route path="/rentals" element={<Layout onLogout={handleLogout}><Rentals /></Layout>} />
               <Route path="/contracts" element={<Layout onLogout={handleLogout}><Contracts /></Layout>} />
+              <Route path="/profile" element={<Layout onLogout={handleLogout}><Profile /></Layout>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </motion.div>

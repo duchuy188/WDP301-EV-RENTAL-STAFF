@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bell,
@@ -6,7 +6,7 @@ import {
   Sun,
   User,
   LogOut,
-  Settings
+  
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,8 +19,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
 import { useTheme } from '@/context/ThemeContext'
-import { mockStaff, mockNotifications } from '@/data/mockData'
+import { mockNotifications } from '@/data/mockData'
 import { useToast } from '@/hooks/use-toast'
+import { getProfile, ProfileResponse } from '@/api/auth'
+import { useNavigate } from 'react-router-dom'
 
 interface TopBarProps {
   onLogout: () => void
@@ -30,6 +32,25 @@ export function TopBar({ onLogout }: TopBarProps) {
   const [showNotifications, setShowNotifications] = useState(false)
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState<ProfileResponse | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        const data = await getProfile()
+        if (!mounted) return
+        setProfile(data)
+      } catch {
+        // silently ignore; keep mock UI appearance
+      }
+    }
+    load()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const handleLogout = () => {
     toast({
@@ -94,29 +115,35 @@ export function TopBar({ onLogout }: TopBarProps) {
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <img
-                  className="h-8 w-8 rounded-full object-cover"
-                  src={mockStaff.avatar}
-                  alt={mockStaff.name}
-                />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-9 w-9 p-0 overflow-hidden rounded-full ring-1 ring-gray-300 dark:ring-gray-600 transition-colors"
+              >
+                {profile?.avatar ? (
+                  <img
+                    className="h-9 w-9 rounded-full object-cover"
+                    src={profile.avatar}
+                    alt={profile.fullname}
+                  />
+                ) : (
+                  <div className="h-9 w-9 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    {(profile?.fullname || 'U').charAt(0)}
+                  </div>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">{mockStaff.name}</p>
-                  <p className="text-xs text-gray-500">{mockStaff.email}</p>
+                  <p className="text-sm font-medium">{profile?.fullname || 'Người dùng'}</p>
+                  <p className="text-xs text-gray-500">{profile?.email || ''}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/profile')}>
                 <User className="mr-2 h-4 w-4" />
                 Hồ sơ
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                Cài đặt
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-red-600">
