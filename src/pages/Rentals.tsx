@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Car, 
   User, 
@@ -33,6 +34,7 @@ import { formatDateTime } from '@/lib/utils';
 
 export function Rentals() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'active' | 'pending_payment' | 'completed' | 'all'>('all');
@@ -1765,15 +1767,13 @@ export function Rentals() {
                               
                               {paymentUrl && payment.status === 'pending' && (
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                  <a
-                                    href={paymentUrl.paymentUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg transition-all shadow-md hover:shadow-lg"
+                                  <Button
+                                    onClick={() => navigate('/payments')}
+                                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 text-sm font-medium shadow-md hover:shadow-lg"
                                   >
                                     <DollarSign className="h-4 w-4 mr-2" />
                                     Thanh toán ngay {formatPrice(paymentUrl.amount)}
-                                  </a>
+                                  </Button>
                                   <p className="text-xs text-gray-500 mt-1 text-center">
                                     Mã đơn: {paymentUrl.orderId}
                                   </p>

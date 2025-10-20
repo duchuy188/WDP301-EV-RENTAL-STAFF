@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, XCircle } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, XCircle, Eye, Calendar, MapPin, Phone, Mail } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -8,16 +8,19 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, type Vehicle } from '@/api/vehicles'
+import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, getStaffVehicleById, type Vehicle, type VehicleDetail } from '@/api/vehicles'
 import { useToast } from '@/hooks/use-toast'
 
 export function Fleet() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
+  const [vehicleDetail, setVehicleDetail] = useState<VehicleDetail | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
   const [uploadedImages, setUploadedImages] = useState<File[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [showImageModal, setShowImageModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [submittingReport, setSubmittingReport] = useState(false)
   const [statistics, setStatistics] = useState({
     available: 0,
@@ -197,6 +200,26 @@ export function Fleet() {
   const handleImageClick = (imageUrl: string) => {
     setSelectedImage(imageUrl)
     setShowImageModal(true)
+  }
+
+  const handleViewDetail = async (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle)
+    setLoadingDetail(true)
+    setShowDetailModal(true)
+    
+    try {
+      const response = await getStaffVehicleById(vehicle._id)
+      setVehicleDetail(response.vehicle)
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || 'Không thể tải thông tin chi tiết xe'
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingDetail(false)
+    }
   }
 
   const getBatteryColor = (level: number) => {
@@ -486,7 +509,16 @@ export function Fleet() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 pt-2">
+                        <div className="grid grid-cols-3 gap-2 pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="hover:bg-green-50 hover:border-green-300 hover:text-green-700"
+                            onClick={() => handleViewDetail(vehicle)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Chi tiết
+                          </Button>
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-300">
@@ -704,6 +736,302 @@ export function Fleet() {
           </div>
 
 
+
+      {/* Vehicle Detail Modal */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              {loadingDetail ? 'Đang tải...' : `Chi tiết xe: ${selectedVehicle?.name}`}
+            </DialogTitle>
+            <DialogDescription>
+              Thông tin chi tiết và lịch sử xe
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetail ? (
+            <div className="flex items-center justify-center py-16">
+              <RefreshCw className="h-8 w-8 animate-spin text-blue-500 mr-3" />
+              <span className="text-lg text-gray-600">Đang tải thông tin chi tiết...</span>
+            </div>
+          ) : vehicleDetail ? (
+            <div className="space-y-6 py-4">
+              {/* Vehicle Images */}
+              {vehicleDetail.images && vehicleDetail.images.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Hình ảnh xe</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {vehicleDetail.images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image}
+                          alt={`${vehicleDetail.name} - ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => handleImageClick(image)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Thông tin cơ bản</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tên xe:</span>
+                      <span className="font-medium">{vehicleDetail.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Biển số:</span>
+                      <span className="font-medium">{vehicleDetail.license_plate}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Hãng:</span>
+                      <span className="font-medium">{vehicleDetail.brand}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Model:</span>
+                      <span className="font-medium">{vehicleDetail.model}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Năm sản xuất:</span>
+                      <span className="font-medium">{vehicleDetail.year}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Màu sắc:</span>
+                      <span className="font-medium">{vehicleDetail.color}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Loại xe:</span>
+                      <span className="font-medium">
+                        {vehicleDetail.type === 'scooter' ? 'Xe tay ga' : 'Xe máy'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Trạng thái:</span>
+                      {getStatusBadge(vehicleDetail.status)}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Thông tin kỹ thuật</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Dung lượng pin:</span>
+                      <span className="font-medium">{vehicleDetail.battery_capacity} kWh</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Mức pin hiện tại:</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold ${getBatteryColor(vehicleDetail.current_battery)}`}>
+                          {vehicleDetail.current_battery}%
+                        </span>
+                        <Progress value={vehicleDetail.current_battery} className="w-16 h-2" />
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tầm hoạt động tối đa:</span>
+                      <span className="font-medium">{vehicleDetail.max_range} km</span>
+                    </div>
+                    {vehicleDetail.current_mileage && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Số km hiện tại:</span>
+                        <span className="font-medium">{vehicleDetail.current_mileage.toLocaleString()} km</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tình trạng kỹ thuật:</span>
+                      <Badge variant="outline" className={
+                        vehicleDetail.technical_status === 'excellent' ? 'border-green-500 text-green-700' :
+                        vehicleDetail.technical_status === 'good' ? 'border-blue-500 text-blue-700' :
+                        vehicleDetail.technical_status === 'fair' ? 'border-yellow-500 text-yellow-700' :
+                        'border-red-500 text-red-700'
+                      }>
+                        {vehicleDetail.technical_status === 'excellent' ? 'Xuất sắc' :
+                         vehicleDetail.technical_status === 'good' ? 'Tốt' :
+                         vehicleDetail.technical_status === 'fair' ? 'Khá' : 'Kém'}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Có biển số:</span>
+                      <span className="font-medium">
+                        {vehicleDetail.has_license_plate ? 'Có' : 'Không'}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Pricing Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Thông tin giá cả</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Giá thuê/ngày:</span>
+                      <span className="font-bold text-green-600">
+                        {new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND',
+                        }).format(vehicleDetail.price_per_day)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tỷ lệ cọc:</span>
+                      <span className="font-medium">{vehicleDetail.deposit_percentage}%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Station Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Thông tin trạm
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Mã trạm:</span>
+                    <span className="font-medium">{vehicleDetail.station_id.code}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tên trạm:</span>
+                    <span className="font-medium">{vehicleDetail.station_id.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Địa chỉ:</span>
+                    <span className="font-medium">{vehicleDetail.station_id.address}</span>
+                  </div>
+                  {vehicleDetail.station_id.phone && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Số điện thoại:</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Phone className="h-4 w-4" />
+                        {vehicleDetail.station_id.phone}
+                      </span>
+                    </div>
+                  )}
+                  {vehicleDetail.station_id.email && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Mail className="h-4 w-4" />
+                        {vehicleDetail.station_id.email}
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Staff Information */}
+              {vehicleDetail.created_by && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Thông tin người tạo</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tên:</span>
+                      <span className="font-medium">{vehicleDetail.created_by.fullname}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-medium">{vehicleDetail.created_by.email}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Timestamps */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Thời gian
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {vehicleDetail.createdAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Ngày tạo:</span>
+                      <span className="font-medium">
+                        {(() => {
+                          try {
+                            // Parse format "dd/mm/yyyy hh:mm:ss" to Date
+                            const dateStr = vehicleDetail.createdAt;
+                            const [datePart] = dateStr.split(' ');
+                            const [day, month, year] = datePart.split('/');
+                            
+                            const date = new Date(
+                              parseInt(year), 
+                              parseInt(month) - 1, 
+                              parseInt(day)
+                            );
+                            
+                            return date.toLocaleDateString('vi-VN');
+                          } catch {
+                            return vehicleDetail.createdAt; // Fallback to original string
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  {vehicleDetail.updatedAt && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Cập nhật lần cuối:</span>
+                      <span className="font-medium">
+                        {(() => {
+                          try {
+                            // Parse format "dd/mm/yyyy hh:mm:ss" to Date
+                            const dateStr = vehicleDetail.updatedAt;
+                            const [datePart] = dateStr.split(' ');
+                            const [day, month, year] = datePart.split('/');
+                            
+                            const date = new Date(
+                              parseInt(year), 
+                              parseInt(month) - 1, 
+                              parseInt(day)
+                            );
+                            
+                            return date.toLocaleDateString('vi-VN');
+                          } catch {
+                            return vehicleDetail.updatedAt; // Fallback to original string
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Trạng thái hoạt động:</span>
+                    <Badge variant={vehicleDetail.is_active ? "default" : "destructive"}>
+                      {vehicleDetail.is_active ? 'Hoạt động' : 'Tạm dừng'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Không thể tải thông tin chi tiết xe</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>

@@ -3,8 +3,11 @@ import { ApiError } from './auth';
 // Types for Vehicle data
 export interface Station {
   _id: string;
+  code: string;
   name: string;
   address: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface Vehicle {
@@ -64,6 +67,27 @@ export interface Maintenance {
   createdAt: string;
   updatedAt: string;
   __v: number;
+}
+
+// Add new interfaces for the staff vehicle detail response
+export interface StaffInfo {
+  can_update: boolean;
+  can_change_status: boolean;
+  can_report_maintenance: boolean;
+  can_delete: boolean;
+}
+
+export interface VehicleDetail extends Omit<Vehicle, 'created_by'> {
+  created_by: {
+    _id: string;
+    fullname: string;
+    email: string;
+  };
+  staff_info: StaffInfo;
+}
+
+export interface VehicleDetailResponse {
+  vehicle: VehicleDetail;
 }
 
 // API configuration
@@ -266,6 +290,35 @@ export async function reportVehicleMaintenance(
     } catch {
       const text = await res.text().catch(() => '');
       errorMessage = text || errorMessage;
+    }
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}
+
+// API function to get vehicle details for staff
+export async function getStaffVehicleById(id: string): Promise<VehicleDetailResponse> {
+  const res = await fetch(apiUrl(`/api/vehicles/staff/${id}`), {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Lỗi khi lấy chi tiết xe';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
     }
     throw new ApiError(errorMessage, res.status);
   }
