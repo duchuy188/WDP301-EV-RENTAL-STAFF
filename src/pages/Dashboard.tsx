@@ -1,11 +1,10 @@
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
 import { Car, DollarSign, Users, Battery, TrendingUp, Clock } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { mockKPIData, mockChartData } from '@/data/mockData'
-import { getProfile, ProfileResponse } from '@/api/auth'
+import { useProfile } from '@/contexts/ProfileContext'
 
 const kpiCards = [
   {
@@ -47,24 +46,7 @@ const kpiCards = [
 ]
 
 export function Dashboard() {
-  const [profile, setProfile] = useState<ProfileResponse | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      try {
-        const data = await getProfile()
-        if (!mounted) return
-        setProfile(data)
-      } catch {
-        // ignore; keep mock metrics but no user name
-      }
-    }
-    load()
-    return () => {
-      mounted = false
-    }
-  }, [])
+  const { profile } = useProfile()
 
   return (
     <motion.div
