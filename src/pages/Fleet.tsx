@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, XCircle, Eye, Calendar, MapPin, Phone, Mail } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, Eye, Calendar, MapPin, Phone, Mail } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -26,6 +26,7 @@ export function Fleet() {
     available: 0,
     rented: 0,
     maintenance: 0,
+    reserved: 0,
     total: 0
   })
   const [pagination, setPagination] = useState({
@@ -35,7 +36,7 @@ export function Fleet() {
     pages: 0
   })
   const [filters, setFilters] = useState({
-    status: 'all' as 'all' | 'available' | 'rented' | 'maintenance',
+    status: 'all' as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved',
     color: '',
     type: 'all' as 'all' | 'scooter' | 'motorcycle'
   })
@@ -66,6 +67,7 @@ export function Fleet() {
         available: response.statistics.available,
         rented: response.statistics.rented,
         maintenance: response.statistics.maintenance || 0,
+        reserved: response.statistics.reserved || 0,
         total: response.pagination.total
       })
       setPagination({
@@ -84,6 +86,7 @@ export function Fleet() {
           title: "Lỗi xác thực",
           description: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
           variant: "destructive",
+          duration: 3000,
         })
         // Optionally redirect to login
         setTimeout(() => {
@@ -94,6 +97,7 @@ export function Fleet() {
           title: "Lỗi",
           description: errorMessage,
           variant: "destructive",
+          duration: 3000,
         })
       }
       setVehicles([])
@@ -129,7 +133,8 @@ export function Fleet() {
       
       toast({
         title: "Cập nhật thành công ✅",
-        description: response.message || "Mức pin xe đã được cập nhật"
+        description: response.message || "Mức pin xe đã được cập nhật",
+        duration: 3000,
       })
     } catch (error: unknown) {
       const errorMessage = (error as Error)?.message || 'Không thể cập nhật mức pin xe'
@@ -161,7 +166,8 @@ export function Fleet() {
       
       toast({
         title: "Báo sự cố thành công ⚠️",
-        description: response.message || "Sự cố đã được ghi nhận và chuyển đến bộ phận kỹ thuật"
+        description: response.message || "Sự cố đã được ghi nhận và chuyển đến bộ phận kỹ thuật",
+        duration: 3000,
       })
       setSelectedVehicle(null)
     } catch (error: unknown) {
@@ -179,6 +185,7 @@ export function Fleet() {
         title: "Không thể báo cáo sự cố",
         description: friendlyMessage,
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setSubmittingReport(false)
@@ -236,6 +243,8 @@ export function Fleet() {
         return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Có sẵn</Badge>
       case 'rented':
         return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">Đang thuê</Badge>
+      case 'reserved':
+        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Đang đặt trước</Badge>
       case 'maintenance':
         return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Bảo trì</Badge>
       default:
@@ -273,7 +282,7 @@ export function Fleet() {
       <div className="space-y-6">
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -320,6 +329,25 @@ export function Fleet() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Đang đặt trước
+              </CardTitle>
+              <Calendar className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-yellow-600">{statistics.reserved}</div>
+              <p className="text-xs text-gray-500 mt-1">Xe đã được đặt trước</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                 Cần bảo trì
               </CardTitle>
               <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -334,7 +362,7 @@ export function Fleet() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.6 }}
         >
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -358,7 +386,7 @@ export function Fleet() {
             <div className="flex items-center gap-2 flex-1">
               <span className="text-sm font-medium whitespace-nowrap">Lọc theo:</span>
               <Select value={filters.status} onValueChange={(value) => {
-                setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' }))
+                setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved' }))
                 setPagination(prev => ({ ...prev, page: 1 }))
               }}>
                 <SelectTrigger className="w-[150px] border-2 focus:border-blue-500">
@@ -368,6 +396,7 @@ export function Fleet() {
                   <SelectItem value="all">📋 Tất cả</SelectItem>
                   <SelectItem value="available">✅ Có sẵn</SelectItem>
                   <SelectItem value="rented">🛵 Đang thuê</SelectItem>
+                  <SelectItem value="reserved">📅 Đang đặt trước</SelectItem>
                   <SelectItem value="maintenance">🔧 Bảo trì</SelectItem>
                 </SelectContent>
               </Select>
@@ -433,6 +462,7 @@ export function Fleet() {
                     <div className={`h-2 ${
                       vehicle.status === 'available' ? 'bg-gradient-to-r from-green-500 to-green-600' :
                       vehicle.status === 'rented' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                      vehicle.status === 'reserved' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
                       vehicle.status === 'maintenance' ? 'bg-gradient-to-r from-red-500 to-red-600' :
                       'bg-gradient-to-r from-gray-500 to-gray-600'
                     }`} />
@@ -555,6 +585,7 @@ export function Fleet() {
                                         title: "Lỗi",
                                         description: "Mức pin phải từ 0 đến 100%",
                                         variant: "destructive",
+                                        duration: 3000,
                                       })
                                     }
                                   }}
@@ -567,7 +598,16 @@ export function Fleet() {
                           </Dialog>
 
 
-                          <Dialog>
+                          <Dialog 
+                            onOpenChange={(open) => {
+                              if (!submittingReport || !open) {
+                                // Allow opening, but prevent closing when submitting
+                                if (!open && submittingReport) {
+                                  return;
+                                }
+                              }
+                            }}
+                          >
                             <DialogTrigger asChild>
                               <Button 
                                 variant="outline" 
@@ -579,7 +619,15 @@ export function Fleet() {
                                 Báo sự cố
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogContent 
+                              className="max-w-2xl max-h-[90vh] overflow-y-auto"
+                              onInteractOutside={(e) => {
+                                if (submittingReport) e.preventDefault();
+                              }}
+                              onEscapeKeyDown={(e) => {
+                                if (submittingReport) e.preventDefault();
+                              }}
+                            >
                               <DialogHeader>
                                 <DialogTitle>Báo sự cố: {selectedVehicle?.name}</DialogTitle>
                                 <DialogDescription>
@@ -659,6 +707,7 @@ export function Fleet() {
                                         title: "Lỗi",
                                         description: "Vui lòng nhập mô tả sự cố",
                                         variant: "destructive",
+                                        duration: 3000,
                                       });
                                       return;
                                     }
@@ -1037,14 +1086,6 @@ export function Fleet() {
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
           <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white"
-              onClick={() => setShowImageModal(false)}
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
             {selectedImage && (
               <img 
                 src={selectedImage} 

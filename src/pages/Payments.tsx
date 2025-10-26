@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { useLocation } from 'react-router-dom'
 import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode, ArrowLeftRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 export function Payments() {
+  const location = useLocation()
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -99,7 +101,8 @@ export function Payments() {
       toast({
         title: "Lỗi",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setLoading(false)
@@ -110,6 +113,18 @@ export function Payments() {
   useEffect(() => {
     fetchPayments()
   }, [fetchPayments])
+
+  // Check if navigated from Rentals with QR data
+  useEffect(() => {
+    if (location.state && 'showQr' in location.state && location.state.showQr && location.state.qrData) {
+      // Show QR dialog with the payment info
+      setQrData(location.state.qrData as QRData)
+      setShowQrDialog(true)
+      
+      // Clear the state to prevent showing again on refresh
+      window.history.replaceState({}, document.title)
+    }
+  }, [location])
 
   // Fetch bookings for dropdown
   const fetchBookings = useCallback(async () => {
@@ -125,7 +140,8 @@ export function Payments() {
       toast({
         title: "Cảnh báo",
         description: "Không thể tải danh sách booking",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setLoadingBookings(false)
@@ -153,7 +169,8 @@ export function Payments() {
       toast({
         title: "Cảnh báo",
         description: "Không thể tải danh sách rental",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setLoadingRentals(false)
@@ -203,7 +220,8 @@ export function Payments() {
       toast({
         title: "Cảnh báo",
         description: "Không thể tải chi tiết đầy đủ, hiển thị thông tin cơ bản",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setLoading(false)
@@ -231,7 +249,8 @@ export function Payments() {
         toast({
           title: "Lỗi",
           description: "Vui lòng nhập Booking ID",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 3000,
         })
         return
       }
@@ -240,7 +259,8 @@ export function Payments() {
         toast({
           title: "Lỗi",
           description: "Vui lòng nhập số tiền cho phí phát sinh",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 3000,
         })
         return
       }
@@ -249,7 +269,8 @@ export function Payments() {
         toast({
           title: "Lỗi",
           description: "Vui lòng nhập Rental ID cho phí phát sinh",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 3000,
         })
         return
       }
@@ -274,6 +295,7 @@ export function Payments() {
         title: "Thành công",
         description: response.message || "Tạo payment thành công",
         variant: "success",
+        duration: 3000,
       })
 
       // If there's QR data, show it
@@ -293,7 +315,8 @@ export function Payments() {
     toast({
         title: "Lỗi",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setCreating(false)
@@ -329,6 +352,7 @@ export function Payments() {
         title: "Thành công",
         description: response.message || "Xác nhận thanh toán thành công",
         variant: "success",
+        duration: 3000,
       })
 
       // If there's QR data, show it
@@ -353,7 +377,8 @@ export function Payments() {
       toast({
         title: "Lỗi",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setConfirming(false)
@@ -381,7 +406,8 @@ export function Payments() {
       toast({
         title: "Lỗi",
         description: "Vui lòng nhập lý do hủy",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
       return
     }
@@ -395,6 +421,7 @@ export function Payments() {
         title: "Thành công",
         description: response.message || "Hủy payment thành công",
         variant: "success",
+        duration: 3000,
       })
 
       // Close cancel dialog and update payment details
@@ -413,7 +440,8 @@ export function Payments() {
       toast({
         title: "Lỗi",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setCancelling(false)
@@ -445,6 +473,7 @@ export function Payments() {
         title: "Thành công",
         description: response.message || "Cập nhật phương thức thanh toán thành công",
         variant: "success",
+        duration: 3000,
       })
 
       // Close dialog
@@ -482,7 +511,8 @@ export function Payments() {
       toast({
         title: "Lỗi",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setUpdatingMethod(false)
@@ -1057,8 +1087,23 @@ export function Payments() {
       </Dialog>
 
       {/* Create Payment Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={createDialogOpen} 
+        onOpenChange={(open) => {
+          if (!creating) {
+            setCreateDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => {
+            if (creating) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (creating) e.preventDefault();
+          }}
+        >
                       <DialogHeader>
             <DialogTitle>Tạo payment mới</DialogTitle>
                         <DialogDescription>
@@ -1302,8 +1347,23 @@ export function Payments() {
       </Dialog>
 
       {/* Confirm Payment Dialog */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog 
+        open={confirmDialogOpen} 
+        onOpenChange={(open) => {
+          if (!confirming) {
+            setConfirmDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-md"
+          onInteractOutside={(e) => {
+            if (confirming) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (confirming) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Xác nhận thanh toán</DialogTitle>
             <DialogDescription>
@@ -1359,8 +1419,23 @@ export function Payments() {
       </Dialog>
 
       {/* Cancel Payment Dialog */}
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog 
+        open={cancelDialogOpen} 
+        onOpenChange={(open) => {
+          if (!cancelling) {
+            setCancelDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-md"
+          onInteractOutside={(e) => {
+            if (cancelling) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (cancelling) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Hủy payment</DialogTitle>
             <DialogDescription>
@@ -1407,8 +1482,23 @@ export function Payments() {
       </Dialog>
 
       {/* Update Payment Method Dialog */}
-      <Dialog open={updateMethodDialogOpen} onOpenChange={setUpdateMethodDialogOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog 
+        open={updateMethodDialogOpen} 
+        onOpenChange={(open) => {
+          if (!updatingMethod) {
+            setUpdateMethodDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-md"
+          onInteractOutside={(e) => {
+            if (updatingMethod) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (updatingMethod) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ArrowLeftRight className="h-5 w-5 text-blue-500" />

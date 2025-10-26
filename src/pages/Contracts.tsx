@@ -104,7 +104,6 @@ export function Contracts() {
     pending: 0,
     signed: 0,
     cancelled: 0,
-    expired: 0,
     total: 0
   });
 
@@ -133,13 +132,11 @@ export function Contracts() {
       const pending = response.data.contracts.filter(c => c.status === 'pending').length;
       const signed = response.data.contracts.filter(c => c.status === 'signed').length;
       const cancelled = response.data.contracts.filter(c => c.status === 'cancelled').length;
-      const expired = response.data.contracts.filter(c => c.status === 'expired').length;
       
       setStats({
         pending,
         signed,
         cancelled,
-        expired,
         total: response.data.pagination.total
       });
     } catch (error: unknown) {
@@ -150,6 +147,7 @@ export function Contracts() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setLoading(false);
@@ -173,6 +171,7 @@ export function Contracts() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
       setShowDetailDialog(false);
     } finally {
@@ -202,6 +201,7 @@ export function Contracts() {
         title: "Thành công",
         description: response.message,
         variant: "success",
+        duration: 3000,
       });
       
       // Reload contract detail
@@ -219,6 +219,7 @@ export function Contracts() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setSigningContract(false);
@@ -242,6 +243,7 @@ export function Contracts() {
         title: "Thành công",
         description: response.message,
         variant: "success",
+        duration: 3000,
       });
       
       // Reload contract detail
@@ -259,6 +261,7 @@ export function Contracts() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setSigningCustomerContract(false);
@@ -273,6 +276,7 @@ export function Contracts() {
         title: "Thành công",
         description: `Đã tải xuống PDF contract ${contractCode}`,
         variant: "success",
+        duration: 3000,
       });
     } catch (error) {
       console.error('Download PDF error:', error);
@@ -280,6 +284,7 @@ export function Contracts() {
         title: "Lỗi",
         description: (error as Error)?.message || "Không thể tải xuống PDF",
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setDownloadingPdfId(null);
@@ -300,6 +305,7 @@ export function Contracts() {
         title: "Lỗi",
         description: "Vui lòng nhập lý do hủy contract",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -312,6 +318,7 @@ export function Contracts() {
         title: "Thành công",
         description: `Đã hủy contract ${selectedContract.code}`,
         variant: "success",
+        duration: 3000,
       });
 
       // Reload contracts list
@@ -327,6 +334,7 @@ export function Contracts() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setCancellingContract(false);
@@ -398,7 +406,7 @@ export function Contracts() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -461,24 +469,6 @@ export function Contracts() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Hết hạn
-              </CardTitle>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                 Tổng cộng
               </CardTitle>
               <FileText className="h-4 w-4 text-gray-600" />
@@ -511,7 +501,6 @@ export function Contracts() {
                     <SelectItem value="pending">⏳ Chờ ký</SelectItem>
                     <SelectItem value="signed">✅ Đã ký</SelectItem>
                     <SelectItem value="cancelled">❌ Đã hủy</SelectItem>
-                    <SelectItem value="expired">⏰ Hết hạn</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1242,7 +1231,7 @@ export function Contracts() {
                 )}
                 
                 {/* Cancel Button */}
-                {selectedContract.status !== 'cancelled' && (
+                {selectedContract.status !== 'cancelled' && selectedContract.status !== 'signed' && (
                   <Button
                     onClick={() => handleOpenCancelDialog(selectedContract)}
                     className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
@@ -1260,8 +1249,23 @@ export function Contracts() {
       </Dialog>
 
       {/* Sign Contract Dialog - Staff */}
-      <Dialog open={showSignDialog} onOpenChange={setShowSignDialog}>
-        <DialogContent className="max-w-2xl">
+      <Dialog 
+        open={showSignDialog} 
+        onOpenChange={(open) => {
+          if (!signingContract) {
+            setShowSignDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (signingContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (signingContract) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-2xl">✍️ Ký Contract - Staff</DialogTitle>
             <DialogDescription>
@@ -1326,8 +1330,23 @@ export function Contracts() {
       </Dialog>
 
       {/* Sign Contract Dialog - Customer */}
-      <Dialog open={showSignCustomerDialog} onOpenChange={setShowSignCustomerDialog}>
-        <DialogContent className="max-w-2xl">
+      <Dialog 
+        open={showSignCustomerDialog} 
+        onOpenChange={(open) => {
+          if (!signingCustomerContract) {
+            setShowSignCustomerDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (signingCustomerContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (signingCustomerContract) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-2xl">✍️ Chữ ký Khách hàng</DialogTitle>
             <DialogDescription>
@@ -1393,8 +1412,23 @@ export function Contracts() {
       </Dialog>
 
       {/* Cancel Contract Dialog */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent className="max-w-2xl">
+      <Dialog 
+        open={showCancelDialog} 
+        onOpenChange={(open) => {
+          if (!cancellingContract) {
+            setShowCancelDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (cancellingContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (cancellingContract) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <Ban className="h-6 w-6 text-red-500" />

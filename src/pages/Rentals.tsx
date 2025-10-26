@@ -126,6 +126,7 @@ export function Rentals() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setLoading(false);
@@ -155,6 +156,7 @@ export function Rentals() {
         title: "Thành công",
         description: response.message,
         variant: "success",
+        duration: 3000,
       });
       
       setShowCreateContractDialog(false);
@@ -173,6 +175,7 @@ export function Rentals() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setCreatingContract(false);
@@ -192,6 +195,7 @@ export function Rentals() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
       setShowDetailDialog(false);
     } finally {
@@ -229,6 +233,7 @@ export function Rentals() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
       setShowCheckoutDialog(false);
     } finally {
@@ -243,6 +248,7 @@ export function Rentals() {
         title: "Cảnh báo",
         description: "Chỉ được upload tối đa 10 ảnh",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -262,6 +268,7 @@ export function Rentals() {
         title: "Lỗi",
         description: "Vui lòng nhập đầy đủ thông tin bắt buộc",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -311,6 +318,7 @@ export function Rentals() {
         title: "Thành công",
         description: response.message,
         variant: "success",
+        duration: 3000,
       });
       
       // Reload rentals list
@@ -322,6 +330,7 @@ export function Rentals() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setCheckoutSubmitting(false);
@@ -1122,14 +1131,6 @@ export function Rentals() {
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
           <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white"
-              onClick={() => setShowImageModal(false)}
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
             {selectedImage && (
               <img 
                 src={selectedImage} 
@@ -1142,8 +1143,23 @@ export function Rentals() {
       </Dialog>
 
       {/* Create Contract Dialog */}
-      <Dialog open={showCreateContractDialog} onOpenChange={setShowCreateContractDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={showCreateContractDialog} 
+        onOpenChange={(open) => {
+          if (!creatingContract) {
+            setShowCreateContractDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => {
+            if (creatingContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (creatingContract) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-2xl">📝 Tạo Contract từ Rental</DialogTitle>
             <DialogDescription>
@@ -1247,8 +1263,23 @@ export function Rentals() {
       </Dialog>
 
       {/* Checkout Dialog */}
-      <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <Dialog 
+        open={showCheckoutDialog} 
+        onOpenChange={(open) => {
+          if (!checkoutSubmitting) {
+            setShowCheckoutDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-3xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => {
+            if (checkoutSubmitting) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (checkoutSubmitting) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-2xl">🚗 Thông tin trả xe / Checkout</DialogTitle>
             <DialogDescription>
@@ -1768,7 +1799,27 @@ export function Rentals() {
                               {paymentUrl && payment.status === 'pending' && (
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                                   <Button
-                                    onClick={() => navigate('/payments')}
+                                    onClick={() => navigate('/payments', { 
+                                      state: { 
+                                        paymentId: payment.id,
+                                        showQr: true,
+                                        qrData: {
+                                          qrData: paymentUrl.paymentUrl,
+                                          qrImageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(paymentUrl.paymentUrl)}`,
+                                          qrText: `Mã giao dịch: ${paymentUrl.orderId}\nSố tiền: ${formatPrice(paymentUrl.amount)}\nQuét mã QR hoặc truy cập link để thanh toán VNPay`,
+                                          vnpayData: {
+                                            paymentUrl: paymentUrl.paymentUrl,
+                                            orderId: paymentUrl.orderId,
+                                            txnRef: payment.id,
+                                            orderInfo: `Thanh toán ${payment.description}`,
+                                            amount: paymentUrl.amount,
+                                            createDate: new Date().toISOString(),
+                                            expireDate: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                                            params: {}
+                                          }
+                                        }
+                                      }
+                                    })}
                                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 text-sm font-medium shadow-md hover:shadow-lg"
                                   >
                                     <DollarSign className="h-4 w-4 mr-2" />

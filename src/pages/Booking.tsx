@@ -44,6 +44,7 @@ import {
   type WalkInBookingRequest,
   type WalkInBookingResponse 
 } from '@/api/booking';
+import { getStaffVehicleById, getStaffVehicles, type Vehicle } from '@/api/vehicles';
 
 const Booking: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -73,12 +74,16 @@ const Booking: React.FC = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmResult, setConfirmResult] = useState<ConfirmBookingResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [isLoadingVehicleData, setIsLoadingVehicleData] = useState(false);
   
   // Walk-in booking dialog state
   const [isWalkInDialogOpen, setIsWalkInDialogOpen] = useState(false);
   const [isCreatingWalkIn, setIsCreatingWalkIn] = useState(false);
   const [walkInResult, setWalkInResult] = useState<WalkInBookingResponse | null>(null);
   const [showWalkInResult, setShowWalkInResult] = useState(false);
+  const [availableVehicles, setAvailableVehicles] = useState<Vehicle[]>([]);
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   
   // Booking detail dialog state
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -120,6 +125,27 @@ const Booking: React.FC = () => {
   
   const { toast } = useToast();
 
+  // Helper function to parse error message
+  const parseErrorMessage = (error: unknown, defaultMessage: string = 'Đã xảy ra lỗi'): string => {
+    if (!error) return defaultMessage;
+    
+    if (typeof error === 'string') return error;
+    
+    if (error && typeof error === 'object' && 'message' in error) {
+      const msg = (error as Error).message;
+      
+      // Try to parse JSON if it's a JSON string
+      try {
+        const parsed = JSON.parse(msg);
+        return parsed.message || msg || defaultMessage;
+      } catch {
+        return msg || defaultMessage;
+      }
+    }
+    
+    return defaultMessage;
+  };
+
   // Load bookings data
   const loadBookings = useCallback(async (params?: BookingListParams, page?: number) => {
     setIsLoading(true);
@@ -144,9 +170,10 @@ const Booking: React.FC = () => {
       console.error('Error loading bookings:', error);
       setHasError(true);
       toast({
-        title: "Lỗi",
-        description: (error as Error).message || "Lỗi khi tải danh sách booking",
+        title: " Lỗi",
+        description: parseErrorMessage(error, 'Lỗi khi tải danh sách booking'),
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsLoading(false);
@@ -293,13 +320,49 @@ const Booking: React.FC = () => {
     setSelectedFiles([]);
   };
 
-  // Open confirm dialog
-  const openConfirmDialog = (bookingId: string) => {
+  // Open confirm dialog and fetch vehicle data
+  const openConfirmDialog = async (bookingId: string) => {
     setConfirmingBookingId(bookingId);
     resetConfirmForm();
     setIsConfirmDialogOpen(true);
     setShowResult(false);
     setConfirmResult(null);
+    
+    // Find the booking to get vehicle_id
+    const booking = bookings.find(b => b._id === bookingId);
+    
+    if (booking && booking.vehicle_id) {
+      // Get vehicle ID - handle both string and object types
+      const vehicleId = typeof booking.vehicle_id === 'string' 
+        ? booking.vehicle_id 
+        : booking.vehicle_id._id;
+      
+      if (vehicleId) {
+        setIsLoadingVehicleData(true);
+        try {
+          // Fetch vehicle data using STAFF endpoint
+          const vehicleResponse = await getStaffVehicleById(vehicleId);
+          const vehicleData = vehicleResponse.vehicle;
+          
+          // Update vehicle condition with real data from vehicle
+          setVehicleCondition(prev => ({
+            ...prev,
+            battery_level: vehicleData.current_battery || 0,
+            mileage: vehicleData.current_mileage || 0,
+          }));
+        } catch (error) {
+          console.error('Error fetching vehicle data:', error);
+          toast({
+            title: "⚠️ Cảnh báo",
+            description: "Không thể tải thông tin xe. Vui lòng nhập thủ công.",
+            variant: "destructive",
+            duration: 3000,
+          });
+        } finally {
+          setIsLoadingVehicleData(false);
+        }
+      }
+    }
   };
 
   // Handle file selection
@@ -310,6 +373,7 @@ const Booking: React.FC = () => {
         title: "Cảnh báo",
         description: "Chỉ được chọn tối đa 5 ảnh",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -333,6 +397,7 @@ const Booking: React.FC = () => {
         title: "Lỗi",
         description: "Vui lòng tải lên ít nhất 1 ảnh xe trước bàn giao",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -342,6 +407,7 @@ const Booking: React.FC = () => {
         title: "Lỗi", 
         description: "Vui lòng nhập ghi chú của nhân viên",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -369,12 +435,14 @@ const Booking: React.FC = () => {
         title: "Thành công",
         description: `Đã xác nhận booking ${response.booking.code || 'N/A'}`,
         variant: "success",
+        duration: 3000,
       });
     } catch (error: unknown) {
       toast({
-        title: "Lỗi",
-        description: (error as Error).message,
+        title: " Lỗi",
+        description: parseErrorMessage(error, 'Không thể xác nhận booking'),
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsConfirming(false);
@@ -393,6 +461,7 @@ const Booking: React.FC = () => {
         title: "Lỗi",
         description: "Vui lòng nhập lý do hủy",
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -419,20 +488,14 @@ const Booking: React.FC = () => {
         title: "Thành công",
         description: `Đã hủy booking ${updatedBooking.code || 'N/A'}`,
         variant: "success",
+        duration: 3000,
       });
     } catch (error: unknown) {
-      let errorMessage = 'Không thể hủy booking';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
       toast({
-        title: "Lỗi",
-        description: errorMessage,
+        title: " Lỗi",
+        description: parseErrorMessage(error, 'Không thể hủy booking'),
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsCanceling(false);
@@ -457,12 +520,61 @@ const Booking: React.FC = () => {
     });
   };
 
+  // Load available vehicles for walk-in booking
+  const loadAvailableVehicles = async () => {
+    setIsLoadingVehicles(true);
+    try {
+      const response = await getStaffVehicles({
+        page: 1,
+        limit: 100,
+        status: 'available'
+      });
+      
+      // Filter to only include vehicles with status 'available' (không bao gồm reserved, rented, maintenance)
+      const availableOnly = response.vehicles.filter(v => v.status === 'available');
+      setAvailableVehicles(availableOnly);
+      
+      if (availableOnly.length === 0) {
+        toast({
+          title: "ℹ️ Thông báo",
+          description: "Hiện tại không có xe nào sẵn sàng cho thuê.",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading vehicles:', error);
+      toast({
+        title: "⚠️ Cảnh báo",
+        description: "Không thể tải danh sách xe. Vui lòng thử lại.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoadingVehicles(false);
+    }
+  };
+
+  // Handle vehicle selection for walk-in booking
+  const handleVehicleSelect = (vehicleId: string) => {
+    setSelectedVehicleId(vehicleId);
+    const selectedVehicle = availableVehicles.find(v => v._id === vehicleId);
+    if (selectedVehicle) {
+      setWalkInFormData(prev => ({
+        ...prev,
+        model: selectedVehicle.model,
+        color: selectedVehicle.color
+      }));
+    }
+  };
+
   // Open walk-in dialog
   const openWalkInDialog = () => {
     resetWalkInForm();
+    setSelectedVehicleId('');
     setIsWalkInDialogOpen(true);
     setShowWalkInResult(false);
     setWalkInResult(null);
+    loadAvailableVehicles();
   };
 
   // Handle walk-in form change
@@ -492,8 +604,7 @@ const Booking: React.FC = () => {
     if (!walkInFormData.customer_name.trim()) return 'Vui lòng nhập tên khách hàng';
     if (!walkInFormData.customer_phone.trim()) return 'Vui lòng nhập số điện thoại';
     if (!walkInFormData.customer_email.trim()) return 'Vui lòng nhập email';
-    if (!walkInFormData.model.trim()) return 'Vui lòng nhập model xe';
-    if (!walkInFormData.color.trim()) return 'Vui lòng nhập màu xe';
+    if (!selectedVehicleId) return 'Vui lòng chọn xe';
     if (!walkInFormData.start_date) return 'Vui lòng chọn ngày bắt đầu';
     if (!walkInFormData.end_date) return 'Vui lòng chọn ngày kết thúc';
     if (!walkInFormData.pickup_time) return 'Vui lòng chọn giờ nhận xe';
@@ -540,6 +651,7 @@ const Booking: React.FC = () => {
         title: "Lỗi",
         description: validationError,
         variant: "destructive",
+        duration: 3000,
       });
       return;
     }
@@ -558,12 +670,14 @@ const Booking: React.FC = () => {
         title: "Thành công",
         description: response.message,
         variant: "success",
+        duration: 3000,
       });
     } catch (error: unknown) {
       toast({
-        title: "Lỗi",
-        description: (error as Error).message || "Không thể tạo booking walk-in",
+        title: " Lỗi",
+        description: parseErrorMessage(error, 'Không thể tạo booking walk-in'),
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsCreatingWalkIn(false);
@@ -580,9 +694,10 @@ const Booking: React.FC = () => {
       
     } catch (error: unknown) {
       toast({
-        title: "Lỗi",
-        description: (error as Error).message || "Không thể tải chi tiết booking",
+        title: " Lỗi",
+        description: parseErrorMessage(error, 'Không thể tải chi tiết booking'),
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsLoadingDetail(false);
@@ -1087,8 +1202,30 @@ const Booking: React.FC = () => {
           </motion.div>
 
           {/* Confirm Booking Dialog */}
-          <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <Dialog 
+            open={isConfirmDialogOpen} 
+            onOpenChange={(open) => {
+              // Prevent closing dialog while confirming
+              if (!isConfirming) {
+                setIsConfirmDialogOpen(open);
+              }
+            }}
+          >
+            <DialogContent 
+              className="max-w-4xl max-h-[90vh] overflow-y-auto"
+              onInteractOutside={(e) => {
+                // Prevent closing when clicking outside during confirmation
+                if (isConfirming) {
+                  e.preventDefault();
+                }
+              }}
+              onEscapeKeyDown={(e) => {
+                // Prevent closing with ESC key during confirmation
+                if (isConfirming) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <DialogHeader>
                 <DialogTitle>
                   {showResult ? 'Kết quả xác nhận booking' : 'Xác nhận bàn giao xe'}
@@ -1097,70 +1234,108 @@ const Booking: React.FC = () => {
               
               {!showResult ? (
                 // Form for confirmation
-                <div className="space-y-6 py-4">
+                <div className="space-y-6 py-4 relative">
+                  {/* Loading Overlay */}
+                  {isConfirming && (
+                    <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-lg">
+                      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl flex flex-col items-center gap-3">
+                        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+                        <p className="text-lg font-semibold">Đang xử lý xác nhận...</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Vui lòng không đóng cửa sổ</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Vehicle Condition Section */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Tình trạng xe trước bàn giao</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Tình trạng xe trước bàn giao</h3>
+                      {isLoadingVehicleData && (
+                        <div className="flex items-center gap-2 text-sm text-blue-600">
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          <span>Đang tải dữ liệu xe...</span>
+                        </div>
+                      )}
+                    </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="battery_level">Mức pin (%)</Label>
+                        <Label htmlFor="battery_level">
+                          Mức pin (%) 
+                          <span className="text-xs text-green-600 ml-2"></span>
+                        </Label>
                         <Input
                           id="battery_level"
                           type="number"
-                          min="0"
-                          max="100"
                           value={vehicleCondition.battery_level || ''}
-                          onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
-                            ...prev,
-                            battery_level: parseInt(e.target.value) || 0
-                          }))}
-                          placeholder="Nhập mức pin"
+                          readOnly
+                          disabled
+                          placeholder={isLoadingVehicleData ? "Đang tải..." : "Mức pin"}
+                          className="bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                       
                       <div>
-                        <Label htmlFor="mileage">Số km đã đi</Label>
+                        <Label htmlFor="mileage">
+                          Số km đã đi
+                          <span className="text-xs text-green-600 ml-2"></span>
+                        </Label>
                         <Input
                           id="mileage"
                           type="number"
-                          min="0"
                           value={vehicleCondition.mileage || ''}
-                          onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
-                            ...prev,
-                            mileage: parseInt(e.target.value) || 0
-                          }))}
-                          placeholder="Nhập số km"
+                          readOnly
+                          disabled
+                          placeholder={isLoadingVehicleData ? "Đang tải..." : "Số km"}
+                          className="bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="exterior_condition">Tình trạng ngoại thất</Label>
-                      <Textarea
-                        id="exterior_condition"
-                        value={vehicleCondition.exterior_condition || ''}
-                        onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
-                          ...prev,
-                          exterior_condition: e.target.value
-                        }))}
-                        placeholder="Mô tả tình trạng ngoại thất xe"
-                        rows={3}
-                      />
-                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="exterior_condition">Tình trạng ngoại thất</Label>
+                        <Select 
+                          value={vehicleCondition.exterior_condition || 'good'} 
+                          onValueChange={(value) => setVehicleCondition((prev: VehicleCondition) => ({
+                            ...prev,
+                            exterior_condition: value
+                          }))}
+                          disabled={isConfirming}
+                        >
+                          <SelectTrigger id="exterior_condition" disabled={isConfirming}>
+                            <SelectValue placeholder="Chọn tình trạng" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="excellent">✨ Xuất sắc</SelectItem>
+                            <SelectItem value="good">✅ Tốt</SelectItem>
+                            <SelectItem value="fair">⚠️ Khá</SelectItem>
+                            <SelectItem value="poor">❌ Kém</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <div>
-                      <Label htmlFor="interior_condition">Tình trạng nội thất</Label>
-                      <Textarea
-                        id="interior_condition"
-                        value={vehicleCondition.interior_condition || ''}
-                        onChange={(e) => setVehicleCondition((prev: VehicleCondition) => ({
-                          ...prev,
-                          interior_condition: e.target.value
-                        }))}
-                        placeholder="Mô tả tình trạng nội thất xe"
-                        rows={3}
-                      />
+                      <div>
+                        <Label htmlFor="interior_condition">Tình trạng nội thất</Label>
+                        <Select 
+                          value={vehicleCondition.interior_condition || 'good'} 
+                          onValueChange={(value) => setVehicleCondition((prev: VehicleCondition) => ({
+                            ...prev,
+                            interior_condition: value
+                          }))}
+                          disabled={isConfirming}
+                        >
+                          <SelectTrigger id="interior_condition" disabled={isConfirming}>
+                            <SelectValue placeholder="Chọn tình trạng" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="excellent">✨ Xuất sắc</SelectItem>
+                            <SelectItem value="good">✅ Tốt</SelectItem>
+                            <SelectItem value="fair">⚠️ Khá</SelectItem>
+                            <SelectItem value="poor">❌ Kém</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <div>
@@ -1174,6 +1349,7 @@ const Booking: React.FC = () => {
                         }))}
                         placeholder="Ví dụ: Xe sạch sẽ, không có vết xước"
                         rows={2}
+                        disabled={isConfirming}
                       />
                     </div>
                   </div>
@@ -1188,6 +1364,7 @@ const Booking: React.FC = () => {
                       placeholder="Nhập ghi chú về quá trình bàn giao xe"
                       rows={4}
                       required
+                      disabled={isConfirming}
                     />
                   </div>
 
@@ -1201,6 +1378,7 @@ const Booking: React.FC = () => {
                       accept="image/*"
                       onChange={handleFileSelect}
                       className="mt-2"
+                      disabled={isConfirming}
                     />
                     {selectedFiles.length > 0 && (
                       <div className="mt-2 flex gap-2 flex-wrap">
@@ -1334,22 +1512,6 @@ const Booking: React.FC = () => {
                         </div>
                       </div>
                     )}
-
-                    {/* Close Button */}
-                    <div className="flex justify-end pt-4">
-                      <Button 
-                        onClick={() => {
-                          setIsConfirmDialogOpen(false);
-                          setShowResult(false);
-                          setConfirmResult(null);
-                          setConfirmingBookingId(null);
-                          resetConfirmForm();
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        Đóng
-                      </Button>
-                    </div>
                   </div>
                 )
               )}
@@ -1418,27 +1580,56 @@ const Booking: React.FC = () => {
                       Thông tin xe
                     </h3>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="model">Model xe *</Label>
-                        <Input
-                          id="model"
-                          value={walkInFormData.model}
-                          onChange={(e) => handleWalkInFormChange('model', e.target.value)}
-                          placeholder="Honda Lead"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="color">Màu sắc *</Label>
-                        <Input
-                          id="color"
-                          value={walkInFormData.color}
-                          onChange={(e) => handleWalkInFormChange('color', e.target.value)}
-                          placeholder="Đen"
-                        />
-                      </div>
+                    {/* Vehicle Selector */}
+                    <div>
+                      <Label htmlFor="vehicle_select">Chọn xe *</Label>
+                      {isLoadingVehicles ? (
+                        <div className="flex items-center gap-2 p-3 border rounded-md bg-gray-50 dark:bg-gray-800">
+                          <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Đang tải danh sách xe...</span>
+                        </div>
+                      ) : (
+                        <Select value={selectedVehicleId} onValueChange={handleVehicleSelect}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="-- Chọn xe có sẵn --" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableVehicles.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                Không có xe có sẵn
+                              </div>
+                            ) : (
+                              availableVehicles.map((vehicle) => (
+                                <SelectItem key={vehicle._id} value={vehicle._id}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{vehicle.brand} {vehicle.model}</span>
+                                    <span className="text-gray-500">•</span>
+                                    <span className="text-sm">{vehicle.color}</span>
+                                    <span className="text-gray-500">•</span>
+                                    <span className="text-xs text-gray-500">{vehicle.license_plate}</span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
+
+                    {/* Display selected vehicle info */}
+                    {selectedVehicleId && (
+                      <div className="grid grid-cols-2 gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <div>
+                          <Label className="text-xs text-gray-500 dark:text-gray-400">Model xe</Label>
+                          <p className="font-medium mt-1">{walkInFormData.model}</p>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-xs text-gray-500 dark:text-gray-400">Màu sắc</Label>
+                          <p className="font-medium mt-1">{walkInFormData.color}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Rental Period */}
@@ -1649,7 +1840,7 @@ const Booking: React.FC = () => {
 
           {/* Booking Detail Dialog */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" hideCloseButton>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Car className="h-5 w-5" />
@@ -2054,15 +2245,6 @@ const Booking: React.FC = () => {
                         </Button>
                       </>
                     )}
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsDetailDialogOpen(false);
-                        setSelectedBookingDetail(null);
-                      }}
-                    >
-                      Đóng
-                    </Button>
                   </div>
                 </div>
               ) : (

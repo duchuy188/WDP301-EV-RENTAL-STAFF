@@ -26,6 +26,20 @@ export function Customers() {
   const [customerToReject, setCustomerToReject] = useState<string | null>(null)
   const [uploadingFor, setUploadingFor] = useState<string | null>(null)
   const [uploadType, setUploadType] = useState<'front' | 'back' | 'license' | 'license-front' | 'license-back' | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  
+  // Selected files (not yet uploaded) - thêm state để lưu file đã chọn
+  const [selectedFiles, setSelectedFiles] = useState<{
+    front: File | null
+    back: File | null
+    'license-front': File | null
+    'license-back': File | null
+  }>({
+    front: null,
+    back: null,
+    'license-front': null,
+    'license-back': null
+  })
 
   // Pagination for KYC Pending (client-side) - hiển thị 6 cards mỗi trang
   const [pendingPage, setPendingPage] = useState(1)
@@ -92,12 +106,71 @@ export function Customers() {
     toast({
       title: "✅ Đã chuyển tab",
       description: "Đã chuyển sang tab KYC Đang chờ duyệt với User ID đã chọn",
+      duration: 3000,
     })
   }
 
   const handleImageClick = (imageUrl: string) => {
     setSelectedImage(imageUrl)
     setShowImageModal(true)
+  }
+
+  // Handle file selection (chỉ lưu file, chưa upload)
+  const handleFileSelect = (file: File, type: 'front' | 'back' | 'license-front' | 'license-back') => {
+    if (!selectedUserIdForUpload) {
+      setActiveTab('not-submitted');
+      toast({
+        title: "⚠️ Chưa chọn user",
+        description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi chọn tài liệu",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    setSelectedFiles(prev => ({
+      ...prev,
+      [type]: file
+    }));
+    
+    toast({
+      title: "✅ Đã chọn file",
+      description: "Bấm nút 'Upload ảnh' để tải lên",
+      duration: 3000,
+    });
+  }
+
+  // Handle upload with selected file
+  const handleUploadSelectedFile = async (type: 'front' | 'back' | 'license-front' | 'license-back') => {
+    const file = selectedFiles[type];
+    
+    if (!file) {
+      toast({
+        title: "⚠️ Chưa chọn file",
+        description: "Vui lòng chọn file trước khi upload",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    if (!selectedUserIdForUpload) {
+      toast({
+        title: "⚠️ Chưa chọn user",
+        description: "Vui lòng chọn user trước khi upload",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    await handleFileUpload(file, selectedUserIdForUpload, type);
+    
+    // Clear selected file after successful upload
+    setSelectedFiles(prev => ({
+      ...prev,
+      [type]: null
+    }));
   }
 
   // Load completed KYC requests
@@ -124,6 +197,7 @@ export function Customers() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setCompletedLoading(false)
@@ -159,6 +233,7 @@ export function Customers() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setNotSubmittedLoading(false)
@@ -311,6 +386,7 @@ export function Customers() {
   }
 
   const handleVerifyCustomer = async (customerId: string, isApproved: boolean, reason?: string) => {
+    setIsVerifying(true);
     try {
       // Find the customer to get userId
       const customer = kycUsers.find(user => user._id === customerId);
@@ -319,6 +395,7 @@ export function Customers() {
           title: "Lỗi",
           description: "Không tìm thấy thông tin khách hàng",
           variant: "destructive",
+          duration: 3000,
         });
         return;
       }
@@ -334,7 +411,8 @@ export function Customers() {
         title: isApproved ? "Xác thực thành công ✅" : "Đã từ chối xác thực ❌",
         description: response.message || (isApproved 
           ? "Khách hàng đã được xác thực và có thể thuê xe"
-          : "Khách hàng cần cung cấp lại tài liệu")
+          : "Khách hàng cần cung cấp lại tài liệu"),
+        duration: 3000,
       })
     } catch (error) {
       console.error('Update KYC status error:', error)
@@ -342,7 +420,10 @@ export function Customers() {
         title: "Lỗi",
         description: "Không thể cập nhật trạng thái KYC. Vui lòng thử lại.",
         variant: "destructive",
+        duration: 3000,
       })
+    } finally {
+      setIsVerifying(false);
     }
   }
 
@@ -389,6 +470,7 @@ export function Customers() {
       toast({
         title: "Upload thành công ✅",
         description: response.message,
+        duration: 3000,
       })
 
       // Refresh the KYC list to get updated data
@@ -399,6 +481,7 @@ export function Customers() {
         title: "Lỗi upload",
         description: "Không thể tải lên tài liệu. Vui lòng thử lại.",
         variant: "destructive",
+        duration: 3000,
       })
     } finally {
       setUploadingFor(null)
@@ -407,37 +490,96 @@ export function Customers() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quản lý KYC</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Quản lý xác thực và theo dõi trạng thái KYC của khách hàng
-          </p>
+    <>
+      {/* Global Blocking Overlay - Block tất cả interaction bao gồm sidebar */}
+      {(uploadingFor !== null || isVerifying) && (
+        <div 
+          className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-[9999] flex items-center justify-center cursor-not-allowed"
+          style={{ 
+            pointerEvents: 'all'
+          }}
+        >
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl flex flex-col items-center gap-4 max-w-md mx-4">
+            <RefreshCw className="h-12 w-12 animate-spin text-blue-600" />
+            <p className="text-xl font-bold text-gray-900 dark:text-white">
+              {uploadingFor !== null ? 'Đang upload ảnh...' : 'Đang xử lý...'}
+            </p>
+            {uploadingFor !== null && uploadType && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                {uploadType === 'front' ? '🪪 CCCD mặt trước' :
+                 uploadType === 'back' ? '🪪 CCCD mặt sau' :
+                 uploadType === 'license-front' ? '🏍️ GPLX mặt trước' :
+                 uploadType === 'license-back' ? '🏍️ GPLX mặt sau' : ''}
+              </p>
+            )}
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+              Vui lòng không đóng cửa sổ hoặc chuyển trang
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+      
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quản lý KYC</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Quản lý xác thực và theo dõi trạng thái KYC của khách hàng
+            </p>
+          </div>
+        </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          // Block tab switching khi đang upload hoặc verify
+          if (uploadingFor === null && !isVerifying) {
+            setActiveTab(value);
+          } else {
+            toast({
+              title: "⚠️ Đang xử lý",
+              description: uploadingFor !== null 
+                ? "Vui lòng đợi quá trình upload hoàn tất" 
+                : "Vui lòng đợi quá trình xác thực hoàn tất",
+              variant: "destructive",
+              duration: 3000,
+            });
+          }
+        }} 
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="pending" 
+            className="flex items-center gap-2"
+            disabled={uploadingFor !== null || isVerifying}
+          >
             <UserCheck className="h-4 w-4" />
             KYC Đang chờ duyệt
             <Badge variant="secondary" className="ml-1">
               {filteredUsers.length}/{totalCount}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="completed" 
+            className="flex items-center gap-2"
+            disabled={uploadingFor !== null || isVerifying}
+          >
             <CheckCircle className="h-4 w-4" />
             KYC Đã duyệt
             <Badge variant="default" className="ml-1">
               {completedStats.approved}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="not-submitted" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="not-submitted" 
+            className="flex items-center gap-2"
+            disabled={uploadingFor !== null || isVerifying}
+          >
             <UserX className="h-4 w-4" />
             Chưa submit KYC
             <Badge variant="destructive" className="ml-1">
@@ -452,7 +594,7 @@ export function Customers() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Xác thực KYC</h2>
             <Button 
               onClick={loadPendingKyc}
-              disabled={isLoading}
+              disabled={isLoading || uploadingFor !== null || isVerifying}
               className="flex items-center gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -558,125 +700,253 @@ export function Customers() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* CCCD Front */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🪪 CCCD</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
-                    <Input 
-                      type="file" 
-                      accept="image/*" 
-                      className="max-w-xs mx-auto"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (selectedUserIdForUpload) {
-                            handleFileUpload(file, selectedUserIdForUpload, 'front');
-                          } else {
-                            setActiveTab('not-submitted');
-                            toast({
-                              title: "⚠️ Chưa chọn user",
-                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                      disabled={uploadingFor !== null}
-                    />
-                    {uploadingFor && uploadType === 'front' && (
-                      <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
+                    {selectedFiles.front ? (
+                      // Preview ảnh đã chọn
+                      <div className="space-y-3">
+                        <img 
+                          src={URL.createObjectURL(selectedFiles.front)} 
+                          alt="CCCD mặt trước preview" 
+                          className="w-full h-32 object-cover rounded-lg border-2 border-blue-400"
+                        />
+                        <p className="text-sm font-medium text-blue-600">✅ Đã chọn file</p>
+                        <p className="text-xs text-gray-500 truncate">{selectedFiles.front.name}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUploadSelectedFile('front')}
+                            disabled={uploadingFor !== null}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          >
+                            {uploadingFor && uploadType === 'front' ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                Đang upload...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-3 w-3 mr-1" />
+                                Upload ảnh
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedFiles(prev => ({ ...prev, front: null }))}
+                            disabled={uploadingFor !== null}
+                          >
+                            Hủy
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Chọn file
+                      <>
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🪪 CCCD</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          className="max-w-xs mx-auto"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleFileSelect(file, 'front');
+                            }
+                          }}
+                          disabled={uploadingFor !== null}
+                        />
+                      </>
                     )}
                   </div>
 
                   {/* CCCD Back */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🪪 CCCD</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
-                    <Input 
-                      type="file" 
-                      accept="image/*" 
-                      className="max-w-xs mx-auto"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (selectedUserIdForUpload) {
-                            handleFileUpload(file, selectedUserIdForUpload, 'back');
-                          } else {
-                            setActiveTab('not-submitted');
-                            toast({
-                              title: "⚠️ Chưa chọn user",
-                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                      disabled={uploadingFor !== null}
-                    />
-                    {uploadingFor && uploadType === 'back' && (
-                      <p className="text-sm text-blue-600 mt-2">Đang tải lên...</p>
+                    {selectedFiles.back ? (
+                      // Preview ảnh đã chọn
+                      <div className="space-y-3">
+                        <img 
+                          src={URL.createObjectURL(selectedFiles.back)} 
+                          alt="CCCD mặt sau preview" 
+                          className="w-full h-32 object-cover rounded-lg border-2 border-blue-400"
+                        />
+                        <p className="text-sm font-medium text-blue-600">✅ Đã chọn file</p>
+                        <p className="text-xs text-gray-500 truncate">{selectedFiles.back.name}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUploadSelectedFile('back')}
+                            disabled={uploadingFor !== null}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          >
+                            {uploadingFor && uploadType === 'back' ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                Đang upload...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-3 w-3 mr-1" />
+                                Upload ảnh
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedFiles(prev => ({ ...prev, back: null }))}
+                            disabled={uploadingFor !== null}
+                          >
+                            Hủy
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Chọn file
+                      <>
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🪪 CCCD</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          className="max-w-xs mx-auto"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleFileSelect(file, 'back');
+                            }
+                          }}
+                          disabled={uploadingFor !== null}
+                        />
+                      </>
                     )}
                   </div>
 
                   {/* License Front */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🏍️ GPLX</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
-                    <Input 
-                      type="file" 
-                      accept="image/*" 
-                      className="max-w-xs mx-auto"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (selectedUserIdForUpload) {
-                            handleFileUpload(file, selectedUserIdForUpload, 'license-front');
-                          } else {
-                            setActiveTab('not-submitted');
-                            toast({
-                              title: "⚠️ Chưa chọn user",
-                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                      disabled={uploadingFor !== null}
-                    />
-                    {uploadingFor && uploadType === 'license-front' && (
-                      <p className="text-sm text-purple-600 mt-2">Đang tải lên...</p>
+                    {selectedFiles['license-front'] ? (
+                      // Preview ảnh đã chọn
+                      <div className="space-y-3">
+                        <img 
+                          src={URL.createObjectURL(selectedFiles['license-front'])} 
+                          alt="GPLX mặt trước preview" 
+                          className="w-full h-32 object-cover rounded-lg border-2 border-purple-400"
+                        />
+                        <p className="text-sm font-medium text-purple-600">✅ Đã chọn file</p>
+                        <p className="text-xs text-gray-500 truncate">{selectedFiles['license-front'].name}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUploadSelectedFile('license-front')}
+                            disabled={uploadingFor !== null}
+                            className="flex-1 bg-purple-600 hover:bg-purple-700"
+                          >
+                            {uploadingFor && uploadType === 'license-front' ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                Đang upload...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-3 w-3 mr-1" />
+                                Upload ảnh
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedFiles(prev => ({ ...prev, 'license-front': null }))}
+                            disabled={uploadingFor !== null}
+                          >
+                            Hủy
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Chọn file
+                      <>
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🏍️ GPLX</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt trước</p>
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          className="max-w-xs mx-auto"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleFileSelect(file, 'license-front');
+                            }
+                          }}
+                          disabled={uploadingFor !== null}
+                        />
+                      </>
                     )}
                   </div>
 
                   {/* License Back */}
                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🏍️ GPLX</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
-                    <Input 
-                      type="file" 
-                      accept="image/*" 
-                      className="max-w-xs mx-auto"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (selectedUserIdForUpload) {
-                            handleFileUpload(file, selectedUserIdForUpload, 'license-back');
-                          } else {
-                            setActiveTab('not-submitted');
-                            toast({
-                              title: "⚠️ Chưa chọn user",
-                              description: "Vui lòng chọn user từ tab 'Chưa submit KYC' trước khi upload tài liệu",
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                      disabled={uploadingFor !== null}
-                    />
-                    {uploadingFor && uploadType === 'license-back' && (
-                      <p className="text-sm text-purple-600 mt-2">Đang tải lên...</p>
+                    {selectedFiles['license-back'] ? (
+                      // Preview ảnh đã chọn
+                      <div className="space-y-3">
+                        <img 
+                          src={URL.createObjectURL(selectedFiles['license-back'])} 
+                          alt="GPLX mặt sau preview" 
+                          className="w-full h-32 object-cover rounded-lg border-2 border-purple-400"
+                        />
+                        <p className="text-sm font-medium text-purple-600">✅ Đã chọn file</p>
+                        <p className="text-xs text-gray-500 truncate">{selectedFiles['license-back'].name}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUploadSelectedFile('license-back')}
+                            disabled={uploadingFor !== null}
+                            className="flex-1 bg-purple-600 hover:bg-purple-700"
+                          >
+                            {uploadingFor && uploadType === 'license-back' ? (
+                              <>
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                Đang upload...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-3 w-3 mr-1" />
+                                Upload ảnh
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedFiles(prev => ({ ...prev, 'license-back': null }))}
+                            disabled={uploadingFor !== null}
+                          >
+                            Hủy
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Chọn file
+                      <>
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400 mb-1 font-semibold">🏍️ GPLX</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">Mặt sau</p>
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          className="max-w-xs mx-auto"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleFileSelect(file, 'license-back');
+                            }
+                          }}
+                          disabled={uploadingFor !== null}
+                        />
+                      </>
                     )}
                   </div>
                 </div>
@@ -1048,14 +1318,25 @@ export function Customers() {
                                 <Button
                                   onClick={() => handleVerifyCustomer(selectedCustomer._id, true)}
                                   className="flex-1 bg-gradient-to-r from-green-800 to-green-600 hover:from-green-700 hover:to-green-500"
+                                  disabled={isVerifying}
                                 >
-                                  <UserCheck className="h-4 w-4 mr-2" />
-                                  Duyệt KYC
+                                  {isVerifying ? (
+                                    <>
+                                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                      Đang xử lý...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="h-4 w-4 mr-2" />
+                                      Duyệt KYC
+                                    </>
+                                  )}
                                 </Button>
                                 <Button
                                   onClick={() => handleRejectClick(selectedCustomer._id)}
                                   variant="destructive"
                                   className="flex-1"
+                                  disabled={isVerifying}
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   Từ chối
@@ -1071,14 +1352,25 @@ export function Customers() {
                           onClick={() => handleVerifyCustomer(customer._id, true)}
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
+                          disabled={isVerifying}
                         >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Duyệt
+                          {isVerifying ? (
+                            <>
+                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                              Đang xử lý...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Duyệt
+                            </>
+                          )}
                         </Button>
                         <Button
                           onClick={() => handleRejectClick(customer._id)}
                           size="sm"
                           variant="destructive"
+                          disabled={isVerifying}
                         >
                           <XCircle className="h-3 w-3 mr-1" />
                           Từ chối
@@ -1159,7 +1451,7 @@ export function Customers() {
               </div>
               <Button 
                 onClick={loadUsersNotSubmittedKyc}
-                disabled={notSubmittedLoading}
+                disabled={notSubmittedLoading || uploadingFor !== null || isVerifying}
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${notSubmittedLoading ? 'animate-spin' : ''}`} />
@@ -1510,7 +1802,7 @@ export function Customers() {
               </div>
               <Button 
                 onClick={loadCompletedKyc}
-                disabled={completedLoading}
+                disabled={completedLoading || uploadingFor !== null || isVerifying}
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${completedLoading ? 'animate-spin' : ''}`} />
@@ -2051,15 +2343,49 @@ export function Customers() {
       </Dialog>
 
       {/* Rejection Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent className="max-w-md">
+      <Dialog 
+        open={showRejectDialog} 
+        onOpenChange={(open) => {
+          // Prevent closing when verifying
+          if (!isVerifying) {
+            setShowRejectDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-md"
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking outside during verification
+            if (isVerifying) {
+              e.preventDefault();
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            // Prevent closing with ESC key during verification
+            if (isVerifying) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Từ chối xác thực KYC</DialogTitle>
             <DialogDescription>
               Vui lòng nhập lý do từ chối để khách hàng biết cách khắc phục
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          
+          <div className="space-y-4 py-4 relative">
+            {/* Loading Overlay */}
+            {isVerifying && (
+              <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-lg">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl flex flex-col items-center gap-3">
+                  <RefreshCw className="h-8 w-8 animate-spin text-red-600" />
+                  <p className="text-lg font-semibold">Đang xử lý từ chối...</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Vui lòng không đóng cửa sổ</p>
+                </div>
+              </div>
+            )}
+            
             <div>
               <label className="text-sm font-medium mb-2 block">Lý do từ chối:</label>
               <Textarea
@@ -2068,9 +2394,11 @@ export function Customers() {
                 onChange={(e) => setRejectionReason(e.target.value)}
                 rows={4}
                 className="resize-none"
+                disabled={isVerifying}
               />
             </div>
           </div>
+          
           <div className="flex justify-end space-x-2">
             <Button 
               variant="outline" 
@@ -2079,15 +2407,23 @@ export function Customers() {
                 setRejectionReason('')
                 setCustomerToReject(null)
               }}
+              disabled={isVerifying}
             >
               Hủy
             </Button>
             <Button 
               variant="destructive" 
               onClick={handleRejectConfirm}
-              disabled={!rejectionReason.trim()}
+              disabled={!rejectionReason.trim() || isVerifying}
             >
-              Xác nhận từ chối
+              {isVerifying ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                'Xác nhận từ chối'
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -2097,14 +2433,6 @@ export function Customers() {
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
           <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white"
-              onClick={() => setShowImageModal(false)}
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
             {selectedImage && (
               <img 
                 src={selectedImage} 
@@ -2310,5 +2638,6 @@ export function Customers() {
         </DialogContent>
       </Dialog>
     </motion.div>
+    </>
   )
 }

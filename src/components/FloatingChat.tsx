@@ -51,11 +51,67 @@ const FloatingChat: React.FC = () => {
   const [conversations, setConversations] = useState<chatbotApi.Conversation[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Draggable position state
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, isTyping]);
+
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isOpen) return; // Don't drag when chat is open
+    e.preventDefault();
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Mark as moved if position changed significantly (> 5px)
+    if (Math.abs(newX - position.x) > 5 || Math.abs(newY - position.y) > 5) {
+      setHasMoved(true);
+    }
+    
+    // Constrain to viewport
+    const maxX = window.innerWidth - 64; // 64px = button width
+    const maxY = window.innerHeight - 64;
+    
+    setPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    });
+  }, [isDragging, dragStart, position.x, position.y]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add/remove mouse event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const addWelcomeMessage = useCallback(() => {
     setChatMessages([{
@@ -502,15 +558,30 @@ const FloatingChat: React.FC = () => {
       <AnimatePresence>
         {!isOpen && (
           <motion.div
+            ref={dragRef}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999]"
+            whileHover={{ scale: isDragging ? 1 : 1.1 }}
+            whileTap={{ scale: isDragging ? 1 : 0.9 }}
+            style={{
+              position: 'fixed',
+              right: position.x === 0 ? '1rem' : 'auto',
+              bottom: position.y === 0 ? '1rem' : 'auto',
+              left: position.x !== 0 ? `${position.x}px` : 'auto',
+              top: position.y !== 0 ? `${position.y}px` : 'auto',
+              cursor: isDragging ? 'grabbing' : 'grab'
+            }}
+            className="z-[9999]"
+            onMouseDown={handleMouseDown}
           >
             <Button
-              onClick={toggleChat}
+              onClick={() => {
+                // Only toggle chat if not dragged
+                if (!hasMoved) {
+                  toggleChat();
+                }
+              }}
               className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
               size="icon"
             >
@@ -520,7 +591,7 @@ const FloatingChat: React.FC = () => {
               </div>
             </Button>
             {/* Notification dot */}
-            <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-3.5 w-3.5 sm:h-4 sm:w-4 bg-red-500 rounded-full flex items-center justify-center">
+            <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-3.5 w-3.5 sm:h-4 sm:w-4 bg-red-500 rounded-full flex items-center justify-center pointer-events-none">
               <span className="text-[10px] sm:text-xs text-white font-bold">1</span>
             </div>
           </motion.div>
@@ -752,6 +823,7 @@ const FloatingChat: React.FC = () => {
                                 <Button
                                   key={index}
                                   onClick={() => handleSuggestionClick(suggestion)}
+                                  disabled={isTyping}
                                   variant="outline"
                                   size="sm"
                                   className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3 border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -771,12 +843,13 @@ const FloatingChat: React.FC = () => {
                                 value={chatInput}
                                 onChange={(e) => setChatInput(e.target.value)}
                                 placeholder="Nhập tin nhắn..."
+                                disabled={isTyping}
                                 className="flex-1 text-xs sm:text-sm h-9 sm:h-10"
                               />
                               <Button 
                                 type="submit" 
                                 size="sm" 
-                                disabled={!chatInput.trim()}
+                                disabled={!chatInput.trim() || isTyping}
                                 className="bg-green-600 hover:bg-green-700 h-9 w-9 sm:h-10 sm:w-10 p-0"
                                 title="Gửi"
                               >

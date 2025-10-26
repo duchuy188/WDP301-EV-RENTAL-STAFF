@@ -25,7 +25,7 @@ export interface Vehicle {
   current_mileage?: number;
   price_per_day: number;
   deposit_percentage: number;
-  status: 'available' | 'rented' | 'maintenance';
+  status: 'available' | 'rented' | 'maintenance' | 'reserved';
   technical_status: 'excellent' | 'good' | 'fair' | 'poor';
   images: string[];
   station_id: Station;
@@ -42,6 +42,7 @@ export interface VehiclesResponse {
     available: number;
     rented: number;
     maintenance?: number;
+    reserved?: number;
   };
   pagination: {
     total: number;
@@ -119,7 +120,7 @@ function getAuthHeaders(): HeadersInit {
 export async function getStaffVehicles(params: {
   page?: number;
   limit?: number;
-  status?: 'available' | 'rented' | 'maintenance';
+  status?: 'available' | 'rented' | 'maintenance' | 'reserved';
   color?: string;
   type?: 'scooter' | 'motorcycle';
 } = {}): Promise<VehiclesResponse> {

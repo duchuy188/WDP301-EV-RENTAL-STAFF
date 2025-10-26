@@ -99,7 +99,8 @@ export function SignaturePad({ onSave, onCancel }: SignaturePadProps) {
         </p>
         <canvas
           ref={canvasRef}
-          className="w-full h-48 border border-gray-200 dark:border-gray-700 rounded cursor-crosshair bg-white"
+          className="w-full h-48 border border-gray-200 dark:border-gray-700 rounded bg-white"
+          style={{ cursor: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'28\' height=\'28\' viewBox=\'0 0 28 28\'><defs><linearGradient id=\'g1\' x1=\'0%25\' y1=\'0%25\' x2=\'100%25\' y2=\'0%25\'><stop offset=\'0%25\' style=\'stop-color:%23FFD700\'/><stop offset=\'100%25\' style=\'stop-color:%23FFA500\'/></linearGradient><linearGradient id=\'g2\' x1=\'0%25\' y1=\'0%25\' x2=\'100%25\' y2=\'0%25\'><stop offset=\'0%25\' style=\'stop-color:%231a1a1a\'/><stop offset=\'100%25\' style=\'stop-color:%23000000\'/></linearGradient></defs><path d=\'M3 27L8 22L26 4L24 2L6 20L1 25L3 27Z\' fill=\'url(%23g1)\' stroke=\'%23B8860B\' stroke-width=\'0.5\'/><rect x=\'8\' y=\'20\' width=\'18\' height=\'3\' rx=\'1\' transform=\'rotate(-45 8 20)\' fill=\'url(%23g2)\' stroke=\'%23333\' stroke-width=\'0.5\'/><circle cx=\'2\' cy=\'26\' r=\'1.2\' fill=\'%23000\'/></svg>") 2 27, auto' }}
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
