@@ -469,6 +469,13 @@ const Booking: React.FC = () => {
     setIsCanceling(true);
     try {
       const updatedBooking = await cancelBooking(cancelingBookingId, cancelReason.trim());
+      
+      // Verify updatedBooking has required fields
+      if (!updatedBooking || !updatedBooking._id) {
+        console.error('Invalid booking data received:', updatedBooking);
+        throw new Error('Dữ liệu booking không hợp lệ');
+      }
+      
       setBookings(prev => 
         prev.map(booking => 
           booking._id === cancelingBookingId ? updatedBooking : booking
@@ -486,7 +493,7 @@ const Booking: React.FC = () => {
       
       toast({
         title: "Thành công",
-        description: `Đã hủy booking ${updatedBooking.code || 'N/A'}`,
+        description: `Đã hủy booking ${updatedBooking.code || updatedBooking._id}`,
         variant: "success",
         duration: 3000,
       });
@@ -1235,16 +1242,6 @@ const Booking: React.FC = () => {
               {!showResult ? (
                 // Form for confirmation
                 <div className="space-y-6 py-4 relative">
-                  {/* Loading Overlay */}
-                  {isConfirming && (
-                    <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-lg">
-                      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl flex flex-col items-center gap-3">
-                        <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
-                        <p className="text-lg font-semibold">Đang xử lý xác nhận...</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Vui lòng không đóng cửa sổ</p>
-                      </div>
-                    </div>
-                  )}
                   
                   {/* Vehicle Condition Section */}
                   <div className="space-y-4">

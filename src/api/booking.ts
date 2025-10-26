@@ -335,7 +335,9 @@ export async function cancelBooking(bookingId: string, reason: string): Promise<
     throw new ApiError(errorMessage, res.status);
   }
 
-  return res.json();
+  const data = await res.json();
+  // API có thể trả về { message, booking } hoặc chỉ booking object
+  return data.booking || data;
 }
 
 // Types for walk-in booking

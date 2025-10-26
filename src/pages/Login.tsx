@@ -103,7 +103,7 @@ export function Login({ onLogin }: LoginProps) {
           >
             <div className="mb-8">
               <img
-                src="https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=800"
+                src="https://images2.thanhnien.vn/528068263637045248/2023/9/27/xe-dien-honda-16958259610121276943340.png"
                 alt="EV Station"
                 className="w-full max-w-md rounded-2xl shadow-2xl mx-auto"
               />
