@@ -44,7 +44,7 @@ export interface Rental {
   vehicle_condition_after: VehicleCondition;
   images_before: string[];
   images_after: string[];
-  status: 'active' | 'pending_payment' | 'completed';
+  status: 'active' | 'pending_payment' | 'pending_deposit' | 'completed';
   late_fee: number;
   damage_fee: number;
   other_fees: number;
@@ -112,7 +112,7 @@ export interface RentalDetail {
   vehicle_condition_after: VehicleCondition;
   images_before: string[];
   images_after: string[];
-  status: 'active' | 'pending_payment' | 'completed';
+  status: 'active' | 'pending_payment' | 'pending_deposit' | 'completed';
   late_fee: number;
   damage_fee: number;
   other_fees: number;
@@ -284,7 +284,7 @@ function getAuthHeaders(): HeadersInit {
 
 // API function to get staff rentals
 export async function getStaffRentals(params: {
-  status?: 'active' | 'pending_payment' | 'completed';
+  status?: 'active' | 'pending_payment' | 'pending_deposit' | 'completed';
   page?: number;
   limit?: number;
 } = {}): Promise<RentalsResponse> {

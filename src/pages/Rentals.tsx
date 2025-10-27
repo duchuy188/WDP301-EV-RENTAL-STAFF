@@ -37,7 +37,7 @@ export function Rentals() {
   const navigate = useNavigate();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [loading, setLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'active' | 'pending_payment' | 'completed' | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'pending_payment' | 'pending_deposit' | 'completed' | 'all'>('all');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 6,
@@ -109,7 +109,7 @@ export function Rentals() {
       // Calculate stats from current data
       // Note: In production, these should come from a separate API endpoint
       const active = response.data.rentals.filter(r => r.status === 'active').length;
-      const pending = response.data.rentals.filter(r => r.status === 'pending_payment').length;
+      const pending = response.data.rentals.filter(r => r.status === 'pending_payment' || r.status === 'pending_deposit').length;
       const completed = response.data.rentals.filter(r => r.status === 'completed').length;
       
       setStats({
@@ -361,6 +361,13 @@ export function Rentals() {
             Chờ thanh toán
           </Badge>
         );
+      case 'pending_deposit':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Chờ thanh toán cọc
+          </Badge>
+        );
       case 'completed':
         return (
           <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
@@ -537,7 +544,7 @@ export function Rentals() {
             <div className="flex items-center gap-2 flex-1">
               <span className="text-sm font-medium whitespace-nowrap">Lọc theo trạng thái:</span>
               <Select value={statusFilter} onValueChange={(value) => {
-                setStatusFilter(value as 'active' | 'pending_payment' | 'completed' | 'all');
+                setStatusFilter(value as 'active' | 'pending_payment' | 'pending_deposit' | 'completed' | 'all');
                 setPagination(prev => ({ ...prev, page: 1 }));
               }}>
                 <SelectTrigger className="w-[200px] border-2 focus:border-blue-500">
@@ -547,6 +554,7 @@ export function Rentals() {
                   <SelectItem value="all">📋 Tất cả</SelectItem>
                   <SelectItem value="active">🚗 Đang thuê</SelectItem>
                   <SelectItem value="pending_payment">💰 Chờ thanh toán</SelectItem>
+                  <SelectItem value="pending_deposit">💰 Chờ thanh toán cọc</SelectItem>
                   <SelectItem value="completed">✅ Hoàn thành</SelectItem>
                 </SelectContent>
               </Select>
