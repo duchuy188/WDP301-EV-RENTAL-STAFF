@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, 
@@ -16,7 +16,11 @@ import {
   X,
   UserPlus,
   Eye,
-  MapPin
+  MapPin,
+  QrCode,
+  Upload,
+  Camera,
+  Keyboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,6 +39,7 @@ import {
   confirmBooking, 
   cancelBooking,
   createWalkInBooking,
+  scanQRCode,
   type Booking, 
   type BookingListResponse, 
   type BookingListParams,
@@ -42,7 +47,8 @@ import {
   type VehicleCondition,
   type ConfirmBookingResponse,
   type WalkInBookingRequest,
-  type WalkInBookingResponse 
+  type WalkInBookingResponse,
+  type ScanQRResponse 
 } from '@/api/booking';
 import { getStaffVehicleById, getStaffVehicles, type Vehicle } from '@/api/vehicles';
 
@@ -95,6 +101,18 @@ const Booking: React.FC = () => {
   const [cancelingBookingId, setCancelingBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [isCanceling, setIsCanceling] = useState(false);
+  
+  // QR Scanner dialog state
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [qrCodeManual, setQrCodeManual] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanQRResponse | null>(null);
+  const [showScanResult, setShowScanResult] = useState(false);
+  const [qrImagePreview, setQrImagePreview] = useState<string | null>(null);
+  const [scanMethod, setScanMethod] = useState<'camera' | 'upload' | 'manual'>('camera');
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const scannerRef = useRef<{ stop: () => Promise<void>; clear?: () => void } | null>(null);
+  const qrReaderRef = useRef<HTMLDivElement>(null);
   
   // Walk-in form data
   const [walkInFormData, setWalkInFormData] = useState<WalkInBookingRequest>({
@@ -711,6 +729,236 @@ const Booking: React.FC = () => {
     }
   };
 
+  // Handle QR code image upload
+  const handleQRImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng chọn file hình ảnh",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const imageDataUrl = event.target?.result as string;
+      setQrImagePreview(imageDataUrl);
+
+      // Decode QR code from image
+      try {
+        const image = new Image();
+        image.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+
+          canvas.width = image.width;
+          canvas.height = image.height;
+          ctx.drawImage(image, 0, 0);
+
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // Import jsQR dynamically
+          const jsQR = (await import('jsqr')).default;
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+          if (code) {
+            setQrCodeManual(code.data);
+            toast({
+              title: "Thành công",
+              description: `Đã đọc được mã QR: ${code.data}`,
+              variant: "success",
+              duration: 3000,
+            });
+          } else {
+            toast({
+              title: "Lỗi",
+              description: "Không thể đọc mã QR từ hình ảnh. Vui lòng thử lại hoặc nhập thủ công.",
+              variant: "destructive",
+              duration: 3000,
+            });
+          }
+        };
+        image.src = imageDataUrl;
+      } catch (error) {
+        console.error('Error decoding QR code:', error);
+        toast({
+          title: "Lỗi",
+          description: "Không thể đọc mã QR từ hình ảnh",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle scan QR code
+  const handleScanQR = async () => {
+    if (!qrCodeManual.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập mã QR hoặc upload hình ảnh",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setIsScanning(true);
+    try {
+      const response = await scanQRCode(qrCodeManual.trim());
+      setScanResult(response);
+      setShowScanResult(true);
+      
+      // Reload bookings to update the list
+      await loadBookings();
+      
+      toast({
+        title: "✅ Thành công",
+        description: response.message,
+        variant: "success",
+        duration: 3000,
+      });
+    } catch (error: unknown) {
+      toast({
+        title: " Lỗi",
+        description: parseErrorMessage(error, 'Không thể quét mã QR'),
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Stop camera scanner
+  const stopCameraScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        // Try to stop the scanner
+        await scannerRef.current.stop();
+      } catch (err: unknown) {
+        // Ignore "scanner is not running" errors - this is normal
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (!errorMessage.includes('not running') && !errorMessage.includes('paused')) {
+          console.error('Error stopping camera:', err);
+        }
+      } finally {
+        // Always cleanup
+        try {
+          scannerRef.current.clear?.();
+        } catch {
+          // Ignore clear errors
+        }
+        scannerRef.current = null;
+        setIsCameraActive(false);
+        
+        // Clear the DOM element
+        if (qrReaderRef.current) {
+          qrReaderRef.current.innerHTML = '';
+        }
+      }
+    } else {
+      // If no scanner ref but state says active, reset state
+      setIsCameraActive(false);
+    }
+  }, []);
+
+  // Start camera scanner
+  const startCameraScanner = useCallback(async () => {
+    if (!qrReaderRef.current) return;
+    
+    // Don't start if already active
+    if (isCameraActive || scannerRef.current) {
+      // Silently return, camera is already running
+      return;
+    }
+
+    try {
+      setIsCameraActive(true);
+      const { Html5Qrcode } = await import('html5-qrcode');
+
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      scannerRef.current = html5QrCode;
+
+      const qrCodeSuccessCallback = async (decodedText: string) => {
+        console.log('QR Code detected:', decodedText);
+        setQrCodeManual(decodedText);
+        
+        // Stop scanner after detection
+        await stopCameraScanner();
+        
+        // Show success toast
+        toast({
+          title: "✅ Đã phát hiện mã QR",
+          description: `Mã: ${decodedText} - Nhấn "Xác nhận & Check-in" để tiếp tục`,
+          variant: "success",
+          duration: 3000,
+        });
+      };
+
+      const config = { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+      };
+
+      await html5QrCode.start(
+        { facingMode: "environment" }, // Use back camera on mobile
+        config,
+        qrCodeSuccessCallback,
+        undefined
+      );
+    } catch (err) {
+      console.error('Error starting camera:', err);
+      setIsCameraActive(false);
+      scannerRef.current = null;
+      toast({
+        title: " Lỗi",
+        description: "Không thể khởi động camera. Vui lòng cho phép quyền truy cập camera.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  }, [isCameraActive, stopCameraScanner, toast]);
+
+  // Effect to cleanup camera when dialog closes or scan method changes
+  useEffect(() => {
+    // Stop camera when switching away from camera tab or closing dialog
+    if (!isQRScannerOpen || scanMethod !== 'camera' || showScanResult) {
+      stopCameraScanner();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      stopCameraScanner();
+    };
+  }, [isQRScannerOpen, scanMethod, showScanResult, stopCameraScanner]);
+
+  // Reset QR scanner
+  const resetQRScanner = () => {
+    setQrCodeManual('');
+    setQrImagePreview(null);
+    setScanResult(null);
+    setShowScanResult(false);
+    setScanMethod('camera');
+    stopCameraScanner();
+  };
+
+  // Open QR scanner dialog
+  const openQRScanner = () => {
+    resetQRScanner();
+    setIsQRScannerOpen(true);
+  };
+
   // Open booking detail dialog
   const openDetailDialog = (bookingId: string) => {
     loadBookingDetail(bookingId);
@@ -805,6 +1053,14 @@ const Booking: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button 
+                onClick={openQRScanner}
+                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                size="lg"
+              >
+                <QrCode className="h-5 w-5" />
+                <span className="font-semibold">Quét QR</span>
+              </Button>
               <Button 
                 onClick={openWalkInDialog}
                 className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
@@ -2428,6 +2684,423 @@ const Booking: React.FC = () => {
                   </Button>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* QR Scanner Dialog */}
+          <Dialog open={isQRScannerOpen} onOpenChange={(open) => {
+            setIsQRScannerOpen(open);
+            if (!open) {
+              stopCameraScanner();
+            }
+          }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <QrCode className="h-6 w-6 text-green-600" />
+                  {showScanResult ? 'Kết quả quét QR' : 'Quét mã QR'}
+                </DialogTitle>
+              </DialogHeader>
+              
+              {!showScanResult ? (
+                // QR Scanner Form
+                <div className="space-y-6 py-4">
+                  {/* Scan Method Tabs */}
+                  <Tabs value={scanMethod} onValueChange={(value) => setScanMethod(value as 'camera' | 'upload' | 'manual')}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="camera" className="flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Camera
+                      </TabsTrigger>
+                      <TabsTrigger value="upload" className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload
+                      </TabsTrigger>
+                      <TabsTrigger value="manual" className="flex items-center gap-2">
+                        <Keyboard className="h-4 w-4" />
+                        Thủ công
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Camera Scan Tab */}
+                    <TabsContent value="camera" className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            Nhấn "Bật camera" và hướng vào mã QR trên điện thoại của khách hàng
+                          </p>
+                        </div>
+
+                        {/* Camera Preview */}
+                        <div className="relative">
+                          <div 
+                            id="qr-reader" 
+                            ref={qrReaderRef}
+                            className={`border-2 rounded-lg overflow-hidden ${
+                              isCameraActive 
+                                ? 'border-green-500 bg-black' 
+                                : 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800'
+                            }`}
+                            style={{ width: '100%', minHeight: '300px' }}
+                          >
+                            {!isCameraActive && (
+                              <div className="flex flex-col items-center justify-center h-full py-12">
+                                <Camera className="h-16 w-16 text-gray-400 mb-4" />
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                  Camera chưa được khởi động
+                                </p>
+                                <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
+                                  Nhấn nút "Bật camera" bên dưới
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {isCameraActive && (
+                            <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2 shadow-lg">
+                              <span className="animate-pulse h-2 w-2 bg-white rounded-full"></span>
+                              Camera đang hoạt động
+                            </div>
+                          )}
+                        </div>
+
+                        {qrCodeManual && (
+                          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
+                            <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+                              ✅ Đã phát hiện mã QR:
+                            </p>
+                            <p className="text-lg font-mono font-bold text-green-600">
+                              {qrCodeManual}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          {!isCameraActive ? (
+                            <Button
+                              variant="outline"
+                              onClick={startCameraScanner}
+                              className="flex-1 border-green-500 text-green-600 hover:bg-green-50"
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Bật camera
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              onClick={stopCameraScanner}
+                              className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Tắt camera
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Upload Image Tab */}
+                    <TabsContent value="upload" className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="text-center mb-4">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Tải lên hình chụp màn hình mã QR từ khách hàng
+                          </p>
+                        </div>
+
+                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleQRImageUpload}
+                            className="hidden"
+                            id="qr-image-upload"
+                            disabled={isScanning}
+                          />
+                          <label 
+                            htmlFor="qr-image-upload" 
+                            className="cursor-pointer flex flex-col items-center gap-3"
+                          >
+                            <div className="p-4 bg-blue-100 dark:bg-blue-900/20 rounded-full">
+                              <Upload className="h-12 w-12 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-lg font-medium text-gray-900 dark:text-white">
+                                Chọn hình ảnh chứa mã QR
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Hỗ trợ JPG, PNG, GIF
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* QR Image Preview */}
+                        {qrImagePreview && (
+                          <div className="mt-4">
+                            <Label className="mb-2 block">Hình ảnh đã tải lên:</Label>
+                            <div className="relative inline-block">
+                              <img 
+                                src={qrImagePreview} 
+                                alt="QR Code Preview" 
+                                className="max-w-xs max-h-64 object-contain rounded-lg border-2 border-blue-500"
+                              />
+                              <button
+                                onClick={() => {
+                                  setQrImagePreview(null);
+                                  setQrCodeManual('');
+                                }}
+                                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                disabled={isScanning}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {qrCodeManual && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                              ✅ Đã đọc được mã QR:
+                            </p>
+                            <p className="text-lg font-mono font-bold text-blue-600">
+                              {qrCodeManual}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* Manual Input Tab */}
+                    <TabsContent value="manual" className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="text-center mb-4">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Nhập mã QR mà khách hàng cung cấp
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="qr-manual" className="text-lg font-medium mb-2 block">
+                            Mã QR
+                          </Label>
+                          <Input
+                            id="qr-manual"
+                            placeholder="Ví dụ: BKFVBHRS"
+                            value={qrCodeManual}
+                            onChange={(e) => setQrCodeManual(e.target.value.toUpperCase())}
+                            className="text-lg font-mono tracking-wider text-center"
+                            disabled={isScanning}
+                          />
+                        </div>
+
+                        {qrCodeManual && (
+                          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                              Mã đã nhập:
+                            </p>
+                            <p className="text-xl font-mono font-bold text-gray-900 dark:text-white text-center">
+                              {qrCodeManual}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsQRScannerOpen(false);
+                        stopCameraScanner();
+                      }}
+                      disabled={isScanning}
+                    >
+                      Hủy
+                    </Button>
+                    <Button 
+                      onClick={handleScanQR}
+                      disabled={isScanning || !qrCodeManual.trim()}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isScanning ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Xác nhận & Check-in
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Scan Result Display
+                scanResult && (
+                  <div className="space-y-6 py-4">
+                    {/* Success Header */}
+                    <div className="text-center">
+                      <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full mb-4">
+                        {scanResult.booking.isCheckedIn ? (
+                          <CheckCircle className="h-12 w-12 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-12 w-12 text-yellow-600" />
+                        )}
+                      </div>
+                      <h2 className={`text-2xl font-bold mb-2 ${scanResult.booking.isCheckedIn ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {scanResult.message}
+                      </h2>
+                      {scanResult.booking.isCheckedIn && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Khách hàng đã được check-in thành công
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Booking Information */}
+                    <div className="space-y-4">
+                      {/* Basic Info */}
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <Car className="h-5 w-5 text-blue-600" />
+                          Thông tin Booking
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Mã booking:</span>
+                            <p className="font-bold text-lg text-blue-600">{scanResult.booking.code}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Trạng thái:</span>
+                            <Badge variant="secondary" className="mt-1 font-semibold text-green-600">
+                              {getStatusText(scanResult.booking.status as Booking['status'])}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Customer Info */}
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <User className="h-5 w-5 text-orange-600" />
+                          Khách hàng
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Họ tên:</span>
+                            <span className="font-medium">{scanResult.booking.user.fullname}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                            <span className="font-medium">{scanResult.booking.user.email}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Số điện thoại:</span>
+                            <span className="font-medium">{scanResult.booking.user.phone}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Vehicle Info */}
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <Car className="h-5 w-5 text-green-600" />
+                          Xe thuê
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500 dark:text-gray-400">Biển số:</span>
+                            <span className="font-bold text-lg text-green-600">{scanResult.booking.vehicle.license_plate}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Tên xe:</span>
+                            <span className="font-medium">{scanResult.booking.vehicle.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Hãng:</span>
+                            <span className="font-medium">{scanResult.booking.vehicle.brand} {scanResult.booking.vehicle.model}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Màu sắc:</span>
+                            <span className="font-medium">{scanResult.booking.vehicle.color}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Station Info */}
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <MapPin className="h-5 w-5 text-purple-600" />
+                          Trạm
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Tên trạm:</span>
+                            <span className="font-medium">{scanResult.booking.station.name}</span>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-gray-500 dark:text-gray-400">Địa chỉ:</span>
+                            <span className="font-medium text-right">{scanResult.booking.station.address}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Số điện thoại:</span>
+                            <span className="font-medium">{scanResult.booking.station.phone}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Rental Period */}
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-blue-600" />
+                          Thời gian thuê
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Ngày bắt đầu:</span>
+                            <span className="font-medium">{formatDate(scanResult.booking.start_date)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Ngày kết thúc:</span>
+                            <span className="font-medium">{formatDate(scanResult.booking.end_date)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Giờ nhận xe:</span>
+                            <span className="font-medium">{scanResult.booking.pickup_time}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Giờ trả xe:</span>
+                            <span className="font-medium">{scanResult.booking.return_time}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* QR Info */}
+                      <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border">
+                        <h3 className="text-lg font-semibold mb-3">Thông tin QR</h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Hết hạn:</span>
+                            <span className="font-medium">{formatDate(scanResult.booking.qr_expires_at)}</span>
+                          </div>
+                          {scanResult.booking.qr_used_at && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Đã sử dụng:</span>
+                              <span className="font-medium text-green-600">{formatDate(scanResult.booking.qr_used_at)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
             </DialogContent>
           </Dialog>
       </motion.div>

@@ -403,3 +403,74 @@ export async function createWalkInBooking(
 
   return res.json();
 }
+
+// Types for scan QR API
+export interface ScanQRRequest {
+  qr_code: string;
+}
+
+export interface ScanQRResponse {
+  message: string;
+  booking: {
+    _id: string;
+    code: string;
+    user: {
+      _id: string;
+      fullname: string;
+      email: string;
+      phone: string;
+    };
+    vehicle: {
+      _id: string;
+      license_plate: string;
+      name: string;
+      brand: string;
+      model: string;
+      color: string;
+    };
+    station: {
+      _id: string;
+      name: string;
+      address: string;
+      phone: string;
+    };
+    start_date: string;
+    end_date: string;
+    pickup_time: string;
+    return_time: string;
+    status: string;
+    qr_expires_at: string;
+    qr_used_at?: string;
+    isCheckedIn: boolean;
+  };
+}
+
+// API function to scan QR code
+export async function scanQRCode(qrCode: string): Promise<ScanQRResponse> {
+  const res = await fetch(apiUrl('/api/bookings/scan-qr'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ qr_code: qrCode }),
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Lỗi khi quét mã QR';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}

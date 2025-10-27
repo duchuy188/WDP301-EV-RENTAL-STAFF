@@ -525,7 +525,7 @@ export function Payments() {
   // Helper functions for display
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      pending: 'secondary',
+      pending: 'outline',
       completed: 'default',
       cancelled: 'destructive',
       active: 'default',
@@ -546,8 +546,13 @@ export function Payments() {
       checked_out: 'Đã trả xe',
     }
     
+    const customClasses: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800',
+      cancelled: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
+    }
+    
     return (
-      <Badge variant={variants[status] || 'outline'}>
+      <Badge variant={variants[status] || 'outline'} className={customClasses[status]}>
         {labels[status] || status}
       </Badge>
     )
