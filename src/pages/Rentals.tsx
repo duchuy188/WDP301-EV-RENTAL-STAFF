@@ -867,7 +867,7 @@ export function Rentals() {
                         <Gauge className="h-3 w-3" />
                         Km:
                       </span>
-                      <span className="font-medium">{selectedRental.vehicle_condition_before.mileage || 'N/A'}</span>
+                      <span className="font-medium">{selectedRental.vehicle_condition_before.mileage || 0}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
@@ -905,7 +905,7 @@ export function Rentals() {
                           <Gauge className="h-3 w-3" />
                           Km:
                         </span>
-                        <span className="font-medium">{selectedRental.vehicle_condition_after.mileage || 'N/A'}</span>
+                        <span className="font-medium">{selectedRental.vehicle_condition_after.mileage || 0}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
@@ -1266,7 +1266,8 @@ export function Rentals() {
       <Dialog 
         open={showCheckoutDialog} 
         onOpenChange={(open) => {
-          if (!checkoutSubmitting) {
+          // Chỉ cho phép đóng khi không đang loading, không đang submit, hoặc đã có kết quả
+          if (!checkoutLoading && !checkoutSubmitting) {
             setShowCheckoutDialog(open);
           }
         }}
@@ -1274,10 +1275,12 @@ export function Rentals() {
         <DialogContent 
           className="max-w-3xl max-h-[90vh] overflow-y-auto"
           onInteractOutside={(e) => {
-            if (checkoutSubmitting) e.preventDefault();
+            // Ngăn đóng khi đang loading hoặc đang submit
+            if (checkoutLoading || checkoutSubmitting) e.preventDefault();
           }}
           onEscapeKeyDown={(e) => {
-            if (checkoutSubmitting) e.preventDefault();
+            // Ngăn đóng khi đang loading hoặc đang submit
+            if (checkoutLoading || checkoutSubmitting) e.preventDefault();
           }}
         >
           <DialogHeader>
@@ -1394,7 +1397,7 @@ export function Rentals() {
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Gauge className="h-6 w-6 text-gray-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Km</p>
-                    <p className="font-bold text-lg">{checkoutInfo.rental.vehicle_condition_before.mileage || 'N/A'}</p>
+                    <p className="font-bold text-lg">{checkoutInfo.rental.vehicle_condition_before.mileage || 0}</p>
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Battery className="h-6 w-6 text-green-600 mb-2" />
@@ -1495,6 +1498,7 @@ export function Rentals() {
                       <Input
                         id="mileage"
                         type="number"
+                        min="0"
                         placeholder="VD: 1050"
                         value={mileage}
                         onChange={(e) => setMileage(e.target.value)}
@@ -1689,14 +1693,14 @@ export function Rentals() {
                     <Button
                       variant="outline"
                       onClick={() => setShowCheckoutDialog(false)}
-                      disabled={checkoutSubmitting}
+                      disabled={checkoutLoading || checkoutSubmitting}
                       className="px-8"
                     >
                       Hủy
                     </Button>
                     <Button
                       onClick={handleSubmitCheckout}
-                      disabled={checkoutSubmitting || !mileage || !batteryLevel}
+                      disabled={checkoutLoading || checkoutSubmitting || !mileage || !batteryLevel}
                       className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 shadow-lg"
                     >
                       {checkoutSubmitting ? (

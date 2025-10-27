@@ -44,7 +44,6 @@ export function Payments() {
 
   // Confirm payment form state
   const [confirmFormData, setConfirmFormData] = useState<ConfirmPaymentRequest>({
-    transaction_id: '',
     notes: '',
   })
   
@@ -334,7 +333,6 @@ export function Payments() {
   // Reset confirm form
   const resetConfirmForm = () => {
     setConfirmFormData({
-      transaction_id: '',
       notes: '',
     })
   }
@@ -1371,17 +1369,6 @@ export function Payments() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Transaction ID */}
-            <div className="space-y-2">
-              <Label htmlFor="transaction_id">Mã giao dịch (không bắt buộc)</Label>
-              <Input
-                id="transaction_id"
-                placeholder="VD: TXN123456789"
-                value={confirmFormData.transaction_id}
-                onChange={(e) => setConfirmFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
-              />
-            </div>
-
             {/* Notes */}
             <div className="space-y-2">
               <Label htmlFor="confirm_notes">Ghi chú (không bắt buộc)</Label>
