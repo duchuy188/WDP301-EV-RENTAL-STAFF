@@ -564,6 +564,7 @@ export function Payments() {
       rental_fee: 'Phí thuê',
       additional_fee: 'Phí phát sinh',
       refund: 'Hoàn tiền',
+      holding_fee: 'Phí giữ chỗ',
     }
     
     return (
@@ -682,7 +683,8 @@ export function Payments() {
                     <SelectItem value="deposit">💰 Đặt cọc</SelectItem>
                     <SelectItem value="rental_fee">🏠 Phí thuê</SelectItem>
                     <SelectItem value="additional_fee">➕ Phí phát sinh</SelectItem>
-                    {/* <SelectItem value="refund">Hoàn tiền</SelectItem> */}
+                    <SelectItem value="holding_fee">🔒 Phí giữ chỗ</SelectItem>
+                    <SelectItem value="refund">↩️ Hoàn tiền</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -793,13 +795,13 @@ export function Payments() {
                           {payment.code}
                         </TableCell>
                         <TableCell>
-                          {typeof payment.user_id === 'object' ? (
+                          {typeof payment.user_id === 'object' && payment.user_id ? (
                             <div>
-                              <div className="font-medium">{payment.user_id.fullname}</div>
-                              <div className="text-sm text-gray-500">{payment.user_id.phone}</div>
+                              <div className="font-medium">{payment.user_id.fullname || 'N/A'}</div>
+                              <div className="text-sm text-gray-500">{payment.user_id.phone || ''}</div>
                             </div>
                           ) : (
-                            payment.user_id
+                            payment.user_id || 'N/A'
                           )}
                         </TableCell>
                         <TableCell>
@@ -918,21 +920,21 @@ export function Payments() {
                       </div>
                       
               {/* Customer Info */}
-              {typeof selectedPayment.user_id === 'object' && (
+              {typeof selectedPayment.user_id === 'object' && selectedPayment.user_id && (
                 <div className="border-t pt-4">
                   <h3 className="font-semibold mb-2">Thông tin khách hàng</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                       <label className="text-sm text-gray-500">Tên khách hàng</label>
-                      <p>{selectedPayment.user_id.fullname}</p>
+                      <p>{selectedPayment.user_id.fullname || 'N/A'}</p>
                         </div>
                         <div>
                       <label className="text-sm text-gray-500">Email</label>
-                      <p>{selectedPayment.user_id.email}</p>
+                      <p>{selectedPayment.user_id.email || 'N/A'}</p>
                         </div>
                     <div>
                       <label className="text-sm text-gray-500">Số điện thoại</label>
-                      <p>{selectedPayment.user_id.phone}</p>
+                      <p>{selectedPayment.user_id.phone || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -945,11 +947,11 @@ export function Payments() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm text-gray-500">Mã booking</label>
-                      <p className="font-mono">{selectedPayment.booking_id.code}</p>
+                      <p className="font-mono">{selectedPayment.booking_id.code || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="text-sm text-gray-500">Thời gian thuê</label>
-                      <p>{new Date(selectedPayment.booking_id.start_date).toLocaleDateString('vi-VN')} - {new Date(selectedPayment.booking_id.end_date).toLocaleDateString('vi-VN')}</p>
+                      <p>{selectedPayment.booking_id.start_date ? new Date(selectedPayment.booking_id.start_date).toLocaleDateString('vi-VN') : 'N/A'} - {selectedPayment.booking_id.end_date ? new Date(selectedPayment.booking_id.end_date).toLocaleDateString('vi-VN') : 'N/A'}</p>
                     </div>
                     {selectedPayment.booking_id.total_price !== undefined && (
                   <div>
@@ -974,11 +976,11 @@ export function Payments() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm text-gray-500">Mã rental</label>
-                      <p className="font-mono">{selectedPayment.rental_id.code}</p>
+                      <p className="font-mono">{selectedPayment.rental_id.code || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="text-sm text-gray-500">Trạng thái</label>
-                      <div className="mt-1">{getStatusBadge(selectedPayment.rental_id.status)}</div>
+                      <div className="mt-1">{getStatusBadge(selectedPayment.rental_id.status || 'pending')}</div>
                     </div>
                     {selectedPayment.rental_id.actual_start_time && (
                       <div>
@@ -1138,8 +1140,8 @@ export function Payments() {
                           <div className="flex flex-col">
                             <span className="font-medium">{booking.code}</span>
                             <span className="text-xs text-gray-500">
-                              {typeof booking.user_id === 'object' ? booking.user_id.fullname : ''} - 
-                              {typeof booking.vehicle_id === 'object' ? ` ${booking.vehicle_id.name}` : ''}
+                              {typeof booking.user_id === 'object' && booking.user_id ? booking.user_id.fullname : ''} - 
+                              {typeof booking.vehicle_id === 'object' && booking.vehicle_id ? ` ${booking.vehicle_id.name}` : ''}
                             </span>
                           </div>
                         </SelectItem>
@@ -1167,7 +1169,8 @@ export function Payments() {
                   <SelectItem value="deposit">Đặt cọc</SelectItem>
                   <SelectItem value="rental_fee">Phí thuê</SelectItem>
                   <SelectItem value="additional_fee">Phí phát sinh</SelectItem>
-                  {/* <SelectItem value="refund">Hoàn tiền</SelectItem> */}
+                  <SelectItem value="holding_fee">Phí giữ chỗ</SelectItem>
+                  <SelectItem value="refund">Hoàn tiền</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1225,7 +1228,7 @@ export function Payments() {
                               <div className="flex flex-col">
                                 <span className="font-medium">{rental.code}</span>
                                 <span className="text-xs text-gray-500">
-                                  {rental.user_id.fullname} - {rental.vehicle_id.name} ({rental.vehicle_id.license_plate})
+                                  {rental.user_id?.fullname || 'N/A'} - {rental.vehicle_id?.name || 'N/A'} ({rental.vehicle_id?.license_plate || 'N/A'})
                                 </span>
                               </div>
                             </SelectItem>

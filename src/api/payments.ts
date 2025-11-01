@@ -36,7 +36,7 @@ export interface Payment {
   code: string;
   amount: number;
   payment_method: 'cash' | 'qr_code' | 'bank_transfer' | 'vnpay';
-  payment_type: 'deposit' | 'rental_fee' | 'additional_fee' | 'refund';
+  payment_type: 'deposit' | 'rental_fee' | 'additional_fee' | 'refund' | 'holding_fee';
   status: 'pending' | 'completed' | 'cancelled';
   reason?: string;
   transaction_id?: string;
@@ -65,7 +65,7 @@ export interface PaymentListParams {
   page?: number;
   limit?: number;
   status?: 'pending' | 'completed' | 'cancelled';
-  payment_type?: 'deposit' | 'rental_fee' | 'additional_fee' | 'refund';
+  payment_type?: 'deposit' | 'rental_fee' | 'additional_fee' | 'refund' | 'holding_fee';
   payment_method?: 'cash' | 'qr_code' | 'bank_transfer' | 'vnpay';
   search?: string;
   sort?: 'createdAt' | 'updatedAt' | 'amount';
@@ -211,7 +211,7 @@ export async function getPaymentDetails(paymentId: string): Promise<{ message: s
 // Types for create payment
 export interface CreatePaymentRequest {
   booking_id: string;
-  payment_type: 'deposit' | 'rental_fee' | 'additional_fee' | 'refund';
+  payment_type: 'deposit' | 'rental_fee' | 'additional_fee' | 'refund' | 'holding_fee';
   payment_method: 'cash' | 'qr_code' | 'bank_transfer' | 'vnpay';
   rental_id?: string;
   amount?: number;

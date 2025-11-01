@@ -282,7 +282,7 @@ export function Rentals() {
       
       if (hasFeesEntered) {
         // Use checkout-fees endpoint
-        response = await checkoutFees(checkoutInfo.rental.id, {
+        response = await checkoutFees(checkoutInfo.rental?.id || '', {
           photos,
           mileage: parseInt(mileage),
           battery_level: parseInt(batteryLevel),
@@ -298,7 +298,7 @@ export function Rentals() {
         });
       } else {
         // Use checkout-normal endpoint
-        response = await checkoutNormal(checkoutInfo.rental.id, {
+        response = await checkoutNormal(checkoutInfo.rental?.id || '', {
           photos,
           mileage: parseInt(mileage),
           battery_level: parseInt(batteryLevel),
@@ -623,9 +623,9 @@ export function Rentals() {
                         <User className="h-4 w-4 text-gray-500" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {rental.user_id.fullname}
+                            {rental.user_id?.fullname || 'N/A'}
                           </p>
-                          <p className="text-xs text-gray-500">{rental.user_id.phone}</p>
+                          <p className="text-xs text-gray-500">{rental.user_id?.phone || ''}</p>
                         </div>
                       </div>
 
@@ -633,9 +633,9 @@ export function Rentals() {
                         <Car className="h-4 w-4 text-gray-500" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {rental.vehicle_id.license_plate}
+                            {rental.vehicle_id?.license_plate || 'N/A'}
                           </p>
-                          <p className="text-xs text-gray-500">{rental.vehicle_id.name}</p>
+                          <p className="text-xs text-gray-500">{rental.vehicle_id?.name || ''}</p>
                         </div>
                       </div>
 
@@ -748,23 +748,23 @@ export function Rentals() {
                   <Calendar className="h-4 w-4" />
                   Thông tin Booking
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex flex-col">
                     <span className="text-gray-600 dark:text-gray-400 text-xs mb-1">Ngày bắt đầu:</span>
                     <span className="font-semibold text-blue-900 dark:text-blue-300">
-                      {new Date(selectedRental.booking_id.start_date).toLocaleDateString('vi-VN')}
+                      {selectedRental.booking_id?.start_date ? new Date(selectedRental.booking_id.start_date).toLocaleDateString('vi-VN') : 'N/A'}
                     </span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-gray-600 dark:text-gray-400 text-xs mb-1">Ngày kết thúc:</span>
                     <span className="font-semibold text-blue-900 dark:text-blue-300">
-                      {new Date(selectedRental.booking_id.end_date).toLocaleDateString('vi-VN')}
+                      {selectedRental.booking_id?.end_date ? new Date(selectedRental.booking_id.end_date).toLocaleDateString('vi-VN') : 'N/A'}
                     </span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-gray-600 dark:text-gray-400 text-xs mb-1">Tổng giá booking:</span>
                     <span className="font-bold text-lg text-green-600 dark:text-green-400">
-                      {formatPrice(selectedRental.booking_id.total_price)}
+                      {formatPrice(selectedRental.booking_id?.total_price || 0)}
                     </span>
                   </div>
                 </div>
@@ -781,15 +781,15 @@ export function Rentals() {
                   <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Họ tên:</span>
-                      <span className="col-span-2 font-medium">{selectedRental.user_id.fullname}</span>
+                      <span className="col-span-2 font-medium">{selectedRental.user_id?.fullname || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                      <span className="col-span-2 font-medium text-xs break-all">{selectedRental.user_id.email}</span>
+                      <span className="col-span-2 font-medium text-xs break-all">{selectedRental.user_id?.email || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Điện thoại:</span>
-                      <span className="col-span-2 font-medium">{selectedRental.user_id.phone}</span>
+                      <span className="col-span-2 font-medium">{selectedRental.user_id?.phone || 'N/A'}</span>
                     </div>
                   </div>
                 </Card>
@@ -803,22 +803,22 @@ export function Rentals() {
                   <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Biển số:</span>
-                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id.license_plate}</span>
+                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id?.license_plate || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Tên xe:</span>
-                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id.name}</span>
+                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id?.name || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Model:</span>
-                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id.model}</span>
+                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id?.model || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                         <Battery className="h-3 w-3" />
                         Dung lượng pin:
                       </span>
-                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id.battery_capacity} kWh</span>
+                      <span className="col-span-2 font-medium">{selectedRental.vehicle_id?.battery_capacity || 'N/A'} kWh</span>
                     </div>
                   </div>
                 </Card>
@@ -833,11 +833,11 @@ export function Rentals() {
                 <div className="space-y-2 text-sm">
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-gray-600 dark:text-gray-400">Trạm:</span>
-                    <span className="col-span-2 font-medium">{selectedRental.station_id.name}</span>
+                    <span className="col-span-2 font-medium">{selectedRental.station_id?.name || 'N/A'}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-gray-600 dark:text-gray-400">Địa chỉ:</span>
-                    <span className="col-span-2 font-medium text-xs">{selectedRental.station_id.address}</span>
+                    <span className="col-span-2 font-medium text-xs">{selectedRental.station_id?.address || 'N/A'}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-gray-600 dark:text-gray-400">Bắt đầu:</span>
@@ -1189,15 +1189,15 @@ export function Rentals() {
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
-                    <p className="font-semibold">{selectedRental.user_id.fullname}</p>
+                    <p className="font-semibold">{selectedRental.user_id?.fullname || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
-                    <p className="font-semibold">{selectedRental.vehicle_id.license_plate}</p>
+                    <p className="font-semibold">{selectedRental.vehicle_id?.license_plate || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Trạm:</p>
-                    <p className="font-semibold text-xs">{selectedRental.station_id.name}</p>
+                    <p className="font-semibold text-xs">{selectedRental.station_id?.name || 'N/A'}</p>
                   </div>
                 </div>
               </Card>
@@ -1314,16 +1314,16 @@ export function Rentals() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Rental:</p>
-                    <p className="font-bold text-green-700 dark:text-green-300">{checkoutInfo.rental.code}</p>
+                    <p className="font-bold text-green-700 dark:text-green-300">{checkoutInfo.rental?.code || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời gian bắt đầu:</p>
-                    <p className="font-semibold">{formatDateTime(checkoutInfo.rental.actual_start_time)}</p>
+                    <p className="font-semibold">{checkoutInfo.rental?.actual_start_time ? formatDateTime(checkoutInfo.rental.actual_start_time) : 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời lượng:</p>
                     <p className="font-bold text-lg text-blue-600">
-                      {checkoutInfo.rental.rental_duration_hours} giờ
+                      {checkoutInfo.rental?.rental_duration_hours || 0} giờ
                     </p>
                   </div>
                 </div>
@@ -1339,15 +1339,15 @@ export function Rentals() {
                   <div className="space-y-2 text-sm">
                     <div>
                       <p className="text-gray-600 dark:text-gray-400 text-xs">Họ tên:</p>
-                      <p className="font-semibold">{checkoutInfo.customer.fullname}</p>
+                      <p className="font-semibold">{checkoutInfo.customer?.fullname || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600 dark:text-gray-400 text-xs">Email:</p>
-                      <p className="font-medium text-xs break-all">{checkoutInfo.customer.email}</p>
+                      <p className="font-medium text-xs break-all">{checkoutInfo.customer?.email || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600 dark:text-gray-400 text-xs">Điện thoại:</p>
-                      <p className="font-semibold">{checkoutInfo.customer.phone}</p>
+                      <p className="font-semibold">{checkoutInfo.customer?.phone || 'N/A'}</p>
                     </div>
                   </div>
                 </Card>
@@ -1360,17 +1360,17 @@ export function Rentals() {
                   <div className="space-y-2 text-sm">
                     <div>
                       <p className="text-gray-600 dark:text-gray-400 text-xs">Biển số:</p>
-                      <p className="font-bold text-lg">{checkoutInfo.vehicle.license_plate}</p>
+                      <p className="font-bold text-lg">{checkoutInfo.vehicle?.license_plate || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600 dark:text-gray-400 text-xs">Tên xe:</p>
-                      <p className="font-semibold">{checkoutInfo.vehicle.name}</p>
+                      <p className="font-semibold">{checkoutInfo.vehicle?.name || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600 dark:text-gray-400 text-xs">Dung lượng pin:</p>
                       <p className="font-medium flex items-center gap-1">
                         <Battery className="h-3 w-3" />
-                        {checkoutInfo.vehicle.battery_capacity} kWh
+                        {checkoutInfo.vehicle?.battery_capacity || 'N/A'} kWh
                       </p>
                     </div>
                   </div>
@@ -1386,12 +1386,12 @@ export function Rentals() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Trạm:</p>
-                    <p className="font-semibold">{checkoutInfo.station.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">{checkoutInfo.station.address}</p>
+                    <p className="font-semibold">{checkoutInfo.station?.name || 'N/A'}</p>
+                    <p className="text-xs text-gray-500 mt-1">{checkoutInfo.station?.address || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Staff nhận xe:</p>
-                    <p className="font-semibold">{checkoutInfo.pickup_staff.fullname}</p>
+                    <p className="font-semibold">{checkoutInfo.pickup_staff?.fullname || 'N/A'}</p>
                   </div>
                 </div>
               </Card>
@@ -1405,27 +1405,27 @@ export function Rentals() {
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Gauge className="h-6 w-6 text-gray-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Km</p>
-                    <p className="font-bold text-lg">{checkoutInfo.rental.vehicle_condition_before.mileage || 0}</p>
+                    <p className="font-bold text-lg">{checkoutInfo.rental?.vehicle_condition_before?.mileage || 0}</p>
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Battery className="h-6 w-6 text-green-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Pin</p>
                     <p className="font-bold text-lg text-green-600">
-                      {checkoutInfo.rental.vehicle_condition_before.battery_level ? `${checkoutInfo.rental.vehicle_condition_before.battery_level}%` : 'N/A'}
+                      {checkoutInfo.rental?.vehicle_condition_before?.battery_level ? `${checkoutInfo.rental.vehicle_condition_before.battery_level}%` : 'N/A'}
                     </p>
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Car className="h-6 w-6 text-blue-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Ngoại thất</p>
-                    {getConditionBadge(checkoutInfo.rental.vehicle_condition_before.exterior_condition)}
+                    {getConditionBadge(checkoutInfo.rental?.vehicle_condition_before?.exterior_condition || null)}
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Car className="h-6 w-6 text-purple-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Nội thất</p>
-                    {getConditionBadge(checkoutInfo.rental.vehicle_condition_before.interior_condition)}
+                    {getConditionBadge(checkoutInfo.rental?.vehicle_condition_before?.interior_condition || null)}
                   </div>
                 </div>
-                {checkoutInfo.rental.vehicle_condition_before.notes && (
+                {checkoutInfo.rental?.vehicle_condition_before?.notes && (
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Ghi chú khi nhận xe:</p>
                     <p className="text-sm">{checkoutInfo.rental.vehicle_condition_before.notes}</p>
@@ -1434,7 +1434,7 @@ export function Rentals() {
               </Card>
 
               {/* Images Before */}
-              {checkoutInfo.rental.images_before.length > 0 && (
+              {checkoutInfo.rental?.images_before && checkoutInfo.rental.images_before.length > 0 && (
                 <Card className="p-4">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <ImageIcon className="h-4 w-4" />

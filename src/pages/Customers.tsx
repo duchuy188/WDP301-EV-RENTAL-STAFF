@@ -192,12 +192,14 @@ export function Customers() {
     } catch (error: unknown) {
       console.error('Completed KYC API Error:', error)
       setCompletedKycUsers([])
-      const errorMessage = (error as Error)?.message || 'Lỗi khi tải danh sách KYC đã duyệt'
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tải danh sách KYC đã duyệt'
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setCompletedLoading(false)
@@ -228,12 +230,14 @@ export function Customers() {
     } catch (error: unknown) {
       console.error('Users Not Submitted KYC API Error:', error)
       setNotSubmittedUsers([])
-      const errorMessage = (error as Error)?.message || 'Lỗi khi tải danh sách users chưa submit KYC'
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tải danh sách users chưa submit KYC'
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setNotSubmittedLoading(false)
@@ -266,12 +270,15 @@ export function Customers() {
       setKycUsers([])
       setFilteredUsers([])
       setTotalCount(0)
-      const errorMessage = (error as Error)?.message || 'Lỗi khi tải danh sách KYC'
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tải danh sách KYC'
       if (!errorMessage.includes('304')) {
         toast({
           title: "Lỗi",
           description: errorMessage,
           variant: "destructive",
+          duration: 5000,
         })
       }
     } finally {
@@ -414,13 +421,16 @@ export function Customers() {
           : "Khách hàng cần cung cấp lại tài liệu"),
         duration: 3000,
       })
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Update KYC status error:', error)
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể cập nhật trạng thái KYC. Vui lòng thử lại."
       toast({
         title: "Lỗi",
-        description: "Không thể cập nhật trạng thái KYC. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setIsVerifying(false);
@@ -475,13 +485,16 @@ export function Customers() {
 
       // Refresh the KYC list to get updated data
       loadPendingKyc()
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Upload error:', error)
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải lên tài liệu. Vui lòng thử lại."
       toast({
         title: "Lỗi upload",
-        description: "Không thể tải lên tài liệu. Vui lòng thử lại.",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setUploadingFor(null)
@@ -660,7 +673,7 @@ export function Customers() {
                         <p className="font-semibold text-sm text-blue-900 dark:text-blue-100">
                           {(() => {
                             const selectedUser = notSubmittedUsers.find(user => user.id === selectedUserIdForUpload);
-                            return selectedUser ? selectedUser.fullname || selectedUser.email : selectedUserIdForUpload;
+                            return selectedUser ? (selectedUser.fullname || selectedUser.email || 'N/A') : selectedUserIdForUpload;
                           })()}
                         </p>
                       </div>
@@ -1004,11 +1017,11 @@ export function Customers() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-                            {customer.fullname ? customer.fullname.charAt(0).toUpperCase() : '?'}
+                            {(customer.fullname || customer.identityName || customer.email)?.charAt(0).toUpperCase() || '?'}
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{customer.fullname || 'N/A'}</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{customer.email || 'N/A'}</p>
+                            <h3 className="font-semibold text-gray-900 dark:text-white">{customer.fullname || customer.identityName || customer.email || 'N/A'}</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{customer.email || ''}</p>
                           </div>
                         </div>
                         <motion.div
@@ -1241,10 +1254,8 @@ export function Customers() {
                                   <Card className="p-3">
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-sm font-medium">CCCD mặt trước</span>
-                                      {selectedCustomer.identityCardFrontUploaded ? (
+                                      {selectedCustomer.identityCardFrontUploaded && (
                                         <CheckCircle className="h-4 w-4 text-green-600" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-red-600" />
                                       )}
                                     </div>
                                     {selectedCustomer.identityCardFrontImage && (
@@ -1259,10 +1270,8 @@ export function Customers() {
                                   <Card className="p-3">
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-sm font-medium">CCCD mặt sau</span>
-                                      {selectedCustomer.identityCardBackUploaded ? (
+                                      {selectedCustomer.identityCardBackUploaded && (
                                         <CheckCircle className="h-4 w-4 text-green-600" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-red-600" />
                                       )}
                                     </div>
                                     {selectedCustomer.identityCardBackImage && (
@@ -1277,10 +1286,8 @@ export function Customers() {
                                   <Card className="p-3">
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-sm font-medium">GPLX mặt trước</span>
-                                      {selectedCustomer.licenseFrontUploaded ? (
+                                      {selectedCustomer.licenseFrontUploaded && (
                                         <CheckCircle className="h-4 w-4 text-green-600" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-red-600" />
                                       )}
                                     </div>
                                     {selectedCustomer.licenseImage && (
@@ -1295,10 +1302,8 @@ export function Customers() {
                                   <Card className="p-3">
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-sm font-medium">GPLX mặt sau</span>
-                                      {selectedCustomer.licenseBackUploaded ? (
+                                      {selectedCustomer.licenseBackUploaded && (
                                         <CheckCircle className="h-4 w-4 text-green-600" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-red-600" />
                                       )}
                                     </div>
                                     {selectedCustomer.licenseBackImage && (
@@ -1605,17 +1610,17 @@ export function Customers() {
                         <CardContent className="p-6">
                           {/* User Info Header */}
                           <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-3">
                               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg ${
                                 user.kycStatus === 'rejected' 
                                   ? 'bg-gradient-to-br from-red-400 to-red-600' 
                                   : 'bg-gradient-to-br from-yellow-400 to-orange-600'
                               }`}>
-                                {user.fullname ? user.fullname.charAt(0).toUpperCase() : '?'}
+                                {(user.fullname || user.email)?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div className="flex-1">
-                                <h3 className="font-bold text-gray-900 dark:text-white">{user.fullname || 'N/A'}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 break-all">{user.email}</p>
+                                <h3 className="font-bold text-gray-900 dark:text-white">{user.fullname || user.email || 'N/A'}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 break-all">{user.email || ''}</p>
                               </div>
                             </div>
                           </div>
@@ -1984,8 +1989,8 @@ export function Customers() {
                                 {kyc.identityName ? kyc.identityName.charAt(0).toUpperCase() : '?'}
                               </div>
                               <div className="flex-1">
-                                <h3 className="font-bold text-gray-900 dark:text-white">{kyc.identityName || 'N/A'}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 break-all">{kyc.userId?.email || 'N/A'}</p>
+                                <h3 className="font-bold text-gray-900 dark:text-white">{kyc.identityName || kyc.userId?.email || 'N/A'}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 break-all">{kyc.userId?.email || ''}</p>
                               </div>
                             </div>
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
@@ -2180,11 +2185,11 @@ export function Customers() {
                     ? 'bg-gradient-to-br from-red-400 to-red-600' 
                     : 'bg-gradient-to-br from-blue-400 to-purple-600'
                 }`}>
-                  {selectedUserForUpload.fullname ? selectedUserForUpload.fullname.charAt(0).toUpperCase() : '?'}
+                  {(selectedUserForUpload.fullname || selectedUserForUpload.email)?.charAt(0).toUpperCase() || '?'}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{selectedUserForUpload.fullname}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedUserForUpload.email}</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{selectedUserForUpload.fullname || selectedUserForUpload.email || 'N/A'}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{selectedUserForUpload.email || ''}</p>
                   <Badge 
                     variant={selectedUserForUpload.kycStatus === 'rejected' ? 'destructive' : 'secondary'}
                     className="mt-2"
@@ -2242,10 +2247,8 @@ export function Customers() {
                         : 'bg-gray-50 border-gray-300 dark:bg-gray-800 dark:border-gray-700'
                     }`}>
                       <div className="flex items-center gap-2 mb-2">
-                        {selectedUserForUpload.kycInfo.identityUploaded ? (
+                        {selectedUserForUpload.kycInfo.identityUploaded && (
                           <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-gray-400" />
                         )}
                         <span className="font-semibold">CCCD</span>
                       </div>
@@ -2260,10 +2263,8 @@ export function Customers() {
                         : 'bg-gray-50 border-gray-300 dark:bg-gray-800 dark:border-gray-700'
                     }`}>
                       <div className="flex items-center gap-2 mb-2">
-                        {selectedUserForUpload.kycInfo.licenseUploaded ? (
+                        {selectedUserForUpload.kycInfo.licenseUploaded && (
                           <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-gray-400" />
                         )}
                         <span className="font-semibold">GPLX</span>
                       </div>
@@ -2559,15 +2560,13 @@ export function Customers() {
               <div>
                 <h4 className="font-medium mb-3">Tài liệu đã xác thực</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">CCCD mặt trước</span>
-                      {selectedCustomer.identityCardFrontImage ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                    </div>
+                                  <Card className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">CCCD mặt trước</span>
+                                      {selectedCustomer.identityCardFrontImage && (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      )}
+                                    </div>
                     {selectedCustomer.identityCardFrontImage && (
                       <img 
                         src={selectedCustomer.identityCardFrontImage} 
@@ -2577,15 +2576,13 @@ export function Customers() {
                       />
                     )}
                   </Card>
-                  <Card className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">CCCD mặt sau</span>
-                      {selectedCustomer.identityCardBackImage ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                    </div>
+                                  <Card className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">CCCD mặt sau</span>
+                                      {selectedCustomer.identityCardBackImage && (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      )}
+                                    </div>
                     {selectedCustomer.identityCardBackImage && (
                       <img 
                         src={selectedCustomer.identityCardBackImage} 
@@ -2595,15 +2592,13 @@ export function Customers() {
                       />
                     )}
                   </Card>
-                  <Card className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">GPLX mặt trước</span>
-                      {selectedCustomer.licenseImage ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                    </div>
+                                  <Card className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">GPLX mặt trước</span>
+                                      {selectedCustomer.licenseImage && (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      )}
+                                    </div>
                     {selectedCustomer.licenseImage && (
                       <img 
                         src={selectedCustomer.licenseImage} 
@@ -2613,15 +2608,13 @@ export function Customers() {
                       />
                     )}
                   </Card>
-                  <Card className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">GPLX mặt sau</span>
-                      {selectedCustomer.licenseBackImage ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                    </div>
+                                  <Card className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium">GPLX mặt sau</span>
+                                      {selectedCustomer.licenseBackImage && (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      )}
+                                    </div>
                     {selectedCustomer.licenseBackImage && (
                       <img 
                         src={selectedCustomer.licenseBackImage} 

@@ -636,9 +636,9 @@ export function Contracts() {
                         <User className="h-4 w-4 text-gray-500" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {contract.customer.fullname}
+                            {contract.customer?.fullname || 'N/A'}
                           </p>
-                          <p className="text-xs text-gray-500">{contract.customer.phone}</p>
+                          <p className="text-xs text-gray-500">{contract.customer?.phone || ''}</p>
                         </div>
                       </div>
 
@@ -646,9 +646,9 @@ export function Contracts() {
                         <Car className="h-4 w-4 text-gray-500" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {contract.vehicle.license_plate}
+                            {contract.vehicle?.license_plate || 'N/A'}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">{contract.vehicle.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{contract.vehicle?.name || ''}</p>
                         </div>
                       </div>
 
@@ -665,7 +665,7 @@ export function Contracts() {
                         <MapPin className="h-4 w-4 text-gray-500" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                            {contract.station.name}
+                            {contract.station?.name || 'N/A'}
                           </p>
                         </div>
                       </div>
@@ -797,7 +797,7 @@ export function Contracts() {
                   {selectedContract.title}
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Template: {selectedContract.template.name}
+                  Template: {selectedContract.template?.name || 'N/A'}
                 </p>
               </Card>
 
@@ -812,15 +812,15 @@ export function Contracts() {
                   <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Họ tên:</span>
-                      <span className="col-span-2 font-medium">{selectedContract.customer.fullname}</span>
+                      <span className="col-span-2 font-medium">{selectedContract.customer?.fullname || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                      <span className="col-span-2 font-medium text-xs break-all">{selectedContract.customer.email}</span>
+                      <span className="col-span-2 font-medium text-xs break-all">{selectedContract.customer?.email || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Điện thoại:</span>
-                      <span className="col-span-2 font-medium">{selectedContract.customer.phone}</span>
+                      <span className="col-span-2 font-medium">{selectedContract.customer?.phone || 'N/A'}</span>
                     </div>
                   </div>
                 </Card>
@@ -834,19 +834,19 @@ export function Contracts() {
                   <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Biển số:</span>
-                      <span className="col-span-2 font-medium">{selectedContract.vehicle.license_plate}</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.license_plate || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Tên xe:</span>
-                      <span className="col-span-2 font-medium">{selectedContract.vehicle.name}</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.name || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Model:</span>
-                      <span className="col-span-2 font-medium">{selectedContract.vehicle.model}</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.model || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-gray-600 dark:text-gray-400">Màu xe:</span>
-                      <span className="col-span-2 font-medium">{selectedContract.vehicle.color}</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.color || 'N/A'}</span>
                     </div>
                   </div>
                 </Card>
@@ -861,11 +861,11 @@ export function Contracts() {
                 <div className="space-y-2 text-sm">
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-gray-600 dark:text-gray-400">Trạm:</span>
-                    <span className="col-span-2 font-medium">{selectedContract.station.name}</span>
+                    <span className="col-span-2 font-medium">{selectedContract.station?.name || 'N/A'}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-gray-600 dark:text-gray-400">Địa chỉ:</span>
-                    <span className="col-span-2 font-medium text-xs">{selectedContract.station.address}</span>
+                    <span className="col-span-2 font-medium text-xs">{selectedContract.station?.address || 'N/A'}</span>
                   </div>
                 </div>
               </Card>
@@ -1127,11 +1127,11 @@ export function Contracts() {
                         
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Người ký:</span>
-                          <span className="font-medium">{selectedContract.customer.fullname || 'N/A'}</span>
+                          <span className="font-medium">{selectedContract.customer?.fullname || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                          <span className="font-medium text-xs">{selectedContract.customer.email || 'N/A'}</span>
+                          <span className="font-medium text-xs">{selectedContract.customer?.email || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>
@@ -1179,7 +1179,7 @@ export function Contracts() {
                     Rental liên quan
                   </h4>
                   <p className="text-sm">
-                    Mã Rental: <span className="font-bold">{selectedContract.rental.code}</span>
+                    Mã Rental: <span className="font-bold">{selectedContract.rental?.code || 'N/A'}</span>
                   </p>
                 </Card>
               )}
@@ -1284,11 +1284,11 @@ export function Contracts() {
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
-                    <p className="font-semibold">{selectedContract.customer.fullname}</p>
+                    <p className="font-semibold">{selectedContract.customer?.fullname || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
-                    <p className="font-semibold">{selectedContract.vehicle.license_plate}</p>
+                    <p className="font-semibold">{selectedContract.vehicle?.license_plate || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời hạn:</p>
@@ -1365,11 +1365,11 @@ export function Contracts() {
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
-                    <p className="font-semibold">{selectedContract.customer.fullname}</p>
+                    <p className="font-semibold">{selectedContract.customer?.fullname || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
-                    <p className="font-semibold">{selectedContract.vehicle.license_plate}</p>
+                    <p className="font-semibold">{selectedContract.vehicle?.license_plate || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời hạn:</p>
@@ -1450,11 +1450,11 @@ export function Contracts() {
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Khách hàng:</span>
-                    <p className="font-semibold">{selectedContract.customer.fullname}</p>
+                    <p className="font-semibold">{selectedContract.customer?.fullname || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Xe:</span>
-                    <p className="font-semibold">{selectedContract.vehicle.name}</p>
+                    <p className="font-semibold">{selectedContract.vehicle?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
