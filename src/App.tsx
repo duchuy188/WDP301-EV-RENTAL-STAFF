@@ -8,7 +8,6 @@ import { Layout } from './components/Layout/Layout'
 import { Toaster } from './components/ui/toaster'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
-import { Vehicles } from './pages/Vehicles'
 import { Customers } from './pages/Customers'
 import { Payments } from './pages/Payments'
 import { PaymentSuccess } from './pages/PaymentSuccess'
@@ -73,7 +72,6 @@ function App() {
                 
                 {/* Routes with Layout */}
                 <Route path="/" element={<Layout onLogout={handleLogout}><Dashboard /></Layout>} />
-                <Route path="/vehicles" element={<Layout onLogout={handleLogout}><Vehicles /></Layout>} />
                 <Route path="/customers" element={<Layout onLogout={handleLogout}><Customers /></Layout>} />
                 <Route path="/payments" element={<Layout onLogout={handleLogout}><Payments /></Layout>} />
                 <Route path="/fleet" element={<Layout onLogout={handleLogout}><Fleet /></Layout>} />

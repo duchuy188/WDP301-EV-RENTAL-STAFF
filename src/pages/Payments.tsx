@@ -94,14 +94,16 @@ export function Payments() {
       const response = await getPayments(params)
       setPayments(response.payments)
       setPagination(response.pagination)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching payments:', error)
-      const errorMessage = error instanceof Error ? error.message : "Không thể tải danh sách payments"
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải danh sách payments"
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setLoading(false)
@@ -134,13 +136,16 @@ export function Payments() {
         status: 'confirmed' // Only show confirmed bookings for payment creation
       })
       setBookings(response.bookings)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching bookings:', error)
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải danh sách booking"
       toast({
         title: "Cảnh báo",
-        description: "Không thể tải danh sách booking",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setLoadingBookings(false)
@@ -163,13 +168,16 @@ export function Payments() {
         status: 'active' // Only show active rentals
       })
       setRentals(response.data.rentals)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching rentals:', error)
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải danh sách rental"
       toast({
         title: "Cảnh báo",
-        description: "Không thể tải danh sách rental",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setLoadingRentals(false)
@@ -211,16 +219,19 @@ export function Payments() {
       const response = await getPaymentDetails(payment._id)
       setSelectedPayment(response.payment)
       setDetailsOpen(true)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching payment details:', error)
       // Fallback to use payment from list
       setSelectedPayment(payment)
       setDetailsOpen(true)
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải chi tiết đầy đủ, hiển thị thông tin cơ bản"
       toast({
         title: "Cảnh báo",
-        description: "Không thể tải chi tiết đầy đủ, hiển thị thông tin cơ bản",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setLoading(false)
@@ -308,14 +319,16 @@ export function Payments() {
       resetForm()
       fetchPayments()
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating payment:', error)
-      const errorMessage = error instanceof Error ? error.message : "Không thể tạo payment"
-    toast({
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tạo payment"
+      toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setCreating(false)
@@ -369,14 +382,16 @@ export function Payments() {
       // Refresh list
       fetchPayments()
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error confirming payment:', error)
-      const errorMessage = error instanceof Error ? error.message : "Không thể xác nhận payment"
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể xác nhận payment"
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setConfirming(false)
@@ -432,14 +447,16 @@ export function Payments() {
       // Refresh list
       fetchPayments()
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error cancelling payment:', error)
-      const errorMessage = error instanceof Error ? error.message : "Không thể hủy payment"
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể hủy payment"
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setCancelling(false)
@@ -503,14 +520,16 @@ export function Payments() {
         setShowQrDialog(true)
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating payment method:', error)
-      const errorMessage = error instanceof Error ? error.message : "Không thể cập nhật phương thức thanh toán"
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể cập nhật phương thức thanh toán"
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setUpdatingMethod(false)

@@ -142,12 +142,14 @@ export function Contracts() {
     } catch (error: unknown) {
       console.error('Contracts API Error:', error);
       setContracts([]);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi tải danh sách contracts';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tải danh sách contracts';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setLoading(false);
@@ -166,12 +168,14 @@ export function Contracts() {
       setSelectedContract(response.data.contract);
     } catch (error: unknown) {
       console.error('Contract Detail API Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi lấy chi tiết contract';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi lấy chi tiết contract';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
       setShowDetailDialog(false);
     } finally {
@@ -214,12 +218,14 @@ export function Contracts() {
       setShowSignDialog(false);
     } catch (error: unknown) {
       console.error('Sign Contract Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi ký contract';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi ký contract';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setSigningContract(false);
@@ -256,12 +262,14 @@ export function Contracts() {
       setShowSignCustomerDialog(false);
     } catch (error: unknown) {
       console.error('Sign Contract (Customer) Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi ký contract cho khách hàng';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi ký contract cho khách hàng';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setSigningCustomerContract(false);
@@ -278,13 +286,16 @@ export function Contracts() {
         variant: "success",
         duration: 3000,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Download PDF error:', error);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải xuống PDF";
       toast({
         title: "Lỗi",
-        description: (error as Error)?.message || "Không thể tải xuống PDF",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setDownloadingPdfId(null);
@@ -329,12 +340,14 @@ export function Contracts() {
       setCancelReason('');
     } catch (error: unknown) {
       console.error('Cancel Contract Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi hủy contract';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi hủy contract';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setCancellingContract(false);

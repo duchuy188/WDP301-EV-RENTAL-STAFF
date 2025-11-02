@@ -4,8 +4,8 @@ import { ApiError } from './auth';
 export interface VehicleCondition {
   mileage: number | null;
   battery_level: number | null;
-  exterior_condition: 'excellent' | 'good' | 'fair' | 'poor' | null;
-  interior_condition: 'excellent' | 'good' | 'fair' | 'poor' | null;
+  exterior_condition: 'excellent' | 'good' | 'fair' | 'poor' | null; // Tình trạng ngoại hình (dàn áo)
+  interior_condition: 'excellent' | 'good' | 'fair' | 'poor' | null; // Tình trạng kỹ thuật (mô tơ – điện)
   notes: string;
 }
 

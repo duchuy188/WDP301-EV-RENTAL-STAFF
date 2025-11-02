@@ -149,6 +149,10 @@ const Booking: React.FC = () => {
     
     if (typeof error === 'string') return error;
     
+    // Try to get error from API response first (Axios error structure)
+    const apiError = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message;
+    if (apiError) return apiError;
+    
     if (error && typeof error === 'object' && 'message' in error) {
       const msg = (error as Error).message;
       
@@ -188,10 +192,10 @@ const Booking: React.FC = () => {
       console.error('Error loading bookings:', error);
       setHasError(true);
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: parseErrorMessage(error, 'Lỗi khi tải danh sách booking'),
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -457,10 +461,10 @@ const Booking: React.FC = () => {
       });
     } catch (error: unknown) {
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: parseErrorMessage(error, 'Không thể xác nhận booking'),
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsConfirming(false);
@@ -517,10 +521,10 @@ const Booking: React.FC = () => {
       });
     } catch (error: unknown) {
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: parseErrorMessage(error, 'Không thể hủy booking'),
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsCanceling(false);
@@ -699,10 +703,10 @@ const Booking: React.FC = () => {
       });
     } catch (error: unknown) {
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: parseErrorMessage(error, 'Không thể tạo booking walk-in'),
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsCreatingWalkIn(false);
@@ -719,10 +723,10 @@ const Booking: React.FC = () => {
       
     } catch (error: unknown) {
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: parseErrorMessage(error, 'Không thể tải chi tiết booking'),
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsLoadingDetail(false);
@@ -829,10 +833,10 @@ const Booking: React.FC = () => {
       });
     } catch (error: unknown) {
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: parseErrorMessage(error, 'Không thể quét mã QR'),
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsScanning(false);
@@ -922,10 +926,10 @@ const Booking: React.FC = () => {
       setIsCameraActive(false);
       scannerRef.current = null;
       toast({
-        title: " Lỗi",
+        title: "Lỗi",
         description: "Không thể khởi động camera. Vui lòng cho phép quyền truy cập camera.",
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     }
   }, [isCameraActive, stopCameraScanner, toast]);
@@ -1547,7 +1551,7 @@ const Booking: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="exterior_condition">Tình trạng ngoại thất</Label>
+                        <Label htmlFor="exterior_condition">Tình trạng ngoại hình (dàn áo)</Label>
                         <Select 
                           value={vehicleCondition.exterior_condition || 'good'} 
                           onValueChange={(value) => setVehicleCondition((prev: VehicleCondition) => ({
@@ -1569,7 +1573,7 @@ const Booking: React.FC = () => {
                       </div>
 
                       <div>
-                        <Label htmlFor="interior_condition">Tình trạng nội thất</Label>
+                        <Label htmlFor="interior_condition">Tình trạng kỹ thuật (mô tơ – điện)</Label>
                         <Select 
                           value={vehicleCondition.interior_condition || 'good'} 
                           onValueChange={(value) => setVehicleCondition((prev: VehicleCondition) => ({

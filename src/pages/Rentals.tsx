@@ -121,12 +121,14 @@ export function Rentals() {
     } catch (error: unknown) {
       console.error('Rentals API Error:', error);
       setRentals([]);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi tải danh sách rentals';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tải danh sách rentals';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setLoading(false);
@@ -170,12 +172,14 @@ export function Rentals() {
       loadRentals();
     } catch (error: unknown) {
       console.error('Create Contract Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi tạo contract';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tạo contract';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setCreatingContract(false);
@@ -190,12 +194,14 @@ export function Rentals() {
       setSelectedRental(response.data);
     } catch (error: unknown) {
       console.error('Rental Detail API Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi lấy chi tiết rental';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi lấy chi tiết rental';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
       setShowDetailDialog(false);
     } finally {
@@ -228,12 +234,14 @@ export function Rentals() {
       setCheckoutInfo(response.data);
     } catch (error: unknown) {
       console.error('Checkout Info API Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi lấy thông tin checkout';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi lấy thông tin checkout';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
       setShowCheckoutDialog(false);
     } finally {
@@ -325,12 +333,14 @@ export function Rentals() {
       loadRentals();
     } catch (error: unknown) {
       console.error('Checkout API Error:', error);
-      const errorMessage = (error as Error)?.message || 'Lỗi khi thực hiện checkout';
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi thực hiện checkout';
       toast({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setCheckoutSubmitting(false);
@@ -885,11 +895,11 @@ export function Rentals() {
                       <span className="font-medium">{selectedRental.vehicle_condition_before.battery_level ? `${selectedRental.vehicle_condition_before.battery_level}%` : 'N/A'}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Ngoại thất:</span>
+                      <span className="text-gray-600 dark:text-gray-400">Ngoại hình (dàn áo):</span>
                       {getConditionBadge(selectedRental.vehicle_condition_before.exterior_condition)}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Nội thất:</span>
+                      <span className="text-gray-600 dark:text-gray-400">Kỹ thuật (mô tơ – điện):</span>
                       {getConditionBadge(selectedRental.vehicle_condition_before.interior_condition)}
                     </div>
                     {selectedRental.vehicle_condition_before.notes && (
@@ -923,11 +933,11 @@ export function Rentals() {
                         <span className="font-medium">{selectedRental.vehicle_condition_after.battery_level ? `${selectedRental.vehicle_condition_after.battery_level}%` : 'N/A'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Ngoại thất:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Ngoại hình (dàn áo):</span>
                         {getConditionBadge(selectedRental.vehicle_condition_after.exterior_condition)}
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Nội thất:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Kỹ thuật (mô tơ – điện):</span>
                         {getConditionBadge(selectedRental.vehicle_condition_after.interior_condition)}
                       </div>
                       {selectedRental.vehicle_condition_after.notes && (
@@ -1416,12 +1426,12 @@ export function Rentals() {
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Car className="h-6 w-6 text-blue-600 mb-2" />
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Ngoại thất</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Ngoại hình (dàn áo)</p>
                     {getConditionBadge(checkoutInfo.rental?.vehicle_condition_before?.exterior_condition || null)}
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <Car className="h-6 w-6 text-purple-600 mb-2" />
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Nội thất</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Kỹ thuật (mô tơ – điện)</p>
                     {getConditionBadge(checkoutInfo.rental?.vehicle_condition_before?.interior_condition || null)}
                   </div>
                 </div>
@@ -1534,30 +1544,30 @@ export function Rentals() {
                   {/* Conditions */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Tình trạng ngoại thất *</Label>
+                      <Label>Tình trạng ngoại hình (dàn áo) *</Label>
                       <Select value={exteriorCondition} onValueChange={setExteriorCondition}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="excellent">Xuất sắc</SelectItem>
-                          <SelectItem value="good">Tốt</SelectItem>
-                          <SelectItem value="fair">Khá</SelectItem>
-                          <SelectItem value="poor">Kém</SelectItem>
+                          <SelectItem value="excellent">✨Xuất sắc</SelectItem>
+                          <SelectItem value="good">✅Tốt</SelectItem>
+                          <SelectItem value="fair">⚠️Khá</SelectItem>
+                          <SelectItem value="poor">❌Kém</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Tình trạng nội thất *</Label>
+                      <Label>Tình trạng kỹ thuật (mô tơ – điện) *</Label>
                       <Select value={interiorCondition} onValueChange={setInteriorCondition}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="excellent">Xuất sắc</SelectItem>
-                          <SelectItem value="good">Tốt</SelectItem>
-                          <SelectItem value="fair">Khá</SelectItem>
-                          <SelectItem value="poor">Kém</SelectItem>
+                          <SelectItem value="excellent">✨Xuất sắc</SelectItem>
+                          <SelectItem value="good">✅Tốt</SelectItem>
+                          <SelectItem value="fair">⚠️Khá</SelectItem>
+                          <SelectItem value="poor">❌Kém</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

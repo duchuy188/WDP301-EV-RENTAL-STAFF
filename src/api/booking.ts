@@ -213,8 +213,8 @@ export async function updateBookingStatus(
 export interface VehicleCondition {
   mileage?: number; // Số km đã đi (theo API spec)
   battery_level?: number; // Mức pin (%)
-  exterior_condition?: string; // Tình trạng ngoại thất
-  interior_condition?: string; // Tình trạng nội thất
+  exterior_condition?: string; // Tình trạng ngoại hình (dàn áo)
+  interior_condition?: string; // Tình trạng kỹ thuật (mô tơ – điện)
   notes?: string; // Ghi chú về tình trạng xe
 }
 
