@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -100,6 +101,7 @@ const Booking: React.FC = () => {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [cancelingBookingId, setCancelingBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [shouldRefund, setShouldRefund] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
   
   // QR Scanner dialog state
@@ -474,6 +476,7 @@ const Booking: React.FC = () => {
   const openCancelDialog = (bookingId: string) => {
     setCancelingBookingId(bookingId);
     setCancelReason('');
+    setShouldRefund(false);
     setIsCancelDialogOpen(true);
   };
 
@@ -490,35 +493,50 @@ const Booking: React.FC = () => {
 
     setIsCanceling(true);
     try {
-      const updatedBooking = await cancelBooking(cancelingBookingId, cancelReason.trim());
+      const response = await cancelBooking(
+        cancelingBookingId, 
+        cancelReason.trim(),
+        shouldRefund
+      );
       
-      // Verify updatedBooking has required fields
-      if (!updatedBooking || !updatedBooking._id) {
-        console.error('Invalid booking data received:', updatedBooking);
+      // Verify response has required fields
+      if (!response || !response.booking || !response.booking._id) {
+        console.error('Invalid booking data received:', response);
         throw new Error('Dữ liệu booking không hợp lệ');
       }
       
       setBookings(prev => 
         prev.map(booking => 
-          booking._id === cancelingBookingId ? updatedBooking : booking
+          booking._id === cancelingBookingId ? response.booking : booking
         )
       );
       
       // Update booking detail if it's the same booking
       if (selectedBookingDetail?._id === cancelingBookingId) {
-        setSelectedBookingDetail(updatedBooking);
+        setSelectedBookingDetail(response.booking);
+      }
+      
+      // Show refund info in toast if available
+      if (response.refund_info) {
+        toast({
+          title: "✅ Hủy booking thành công",
+          description: response.refund_info.message,
+          variant: "success",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Thành công",
+          description: response.message || `Đã hủy booking ${response.booking.code || response.booking._id}`,
+          variant: "success",
+          duration: 3000,
+        });
       }
       
       setIsCancelDialogOpen(false);
       setCancelingBookingId(null);
       setCancelReason('');
-      
-      toast({
-        title: "Thành công",
-        description: `Đã hủy booking ${updatedBooking.code || updatedBooking._id}`,
-        variant: "success",
-        duration: 3000,
-      });
+      setShouldRefund(false);
     } catch (error: unknown) {
       toast({
         title: "Lỗi",
@@ -2645,6 +2663,27 @@ const Booking: React.FC = () => {
                   </p>
                 </div>
                 
+                {/* Refund checkbox - only show for online bookings with paid holding fee */}
+                {(() => {
+                  const bookingToCancel = bookings.find(b => b._id === cancelingBookingId);
+                  return bookingToCancel?.booking_type === 'online' && 
+                         bookingToCancel?.holding_fee?.status === 'paid' ? (
+                    <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <Checkbox 
+                        id="refund" 
+                        checked={shouldRefund}
+                        onCheckedChange={(checked) => setShouldRefund(checked === true)}
+                      />
+                      <Label htmlFor="refund" className="text-sm cursor-pointer">
+                        <span className="font-semibold text-blue-900">Hoàn tiền giữ chỗ</span>
+                        <span className="text-gray-600 ml-1">
+                          (50,000đ - tiền mặt tại quầy)
+                        </span>
+                      </Label>
+                    </div>
+                  ) : null;
+                })()}
+                
                 <div className="space-y-2">
                   <Label htmlFor="cancel-reason">Lý do hủy *</Label>
                   <Textarea
@@ -2664,6 +2703,7 @@ const Booking: React.FC = () => {
                       setIsCancelDialogOpen(false);
                       setCancelingBookingId(null);
                       setCancelReason('');
+                      setShouldRefund(false);
                     }}
                     disabled={isCanceling}
                   >

@@ -52,6 +52,13 @@ export interface Booking {
   total_days: number;
   total_price: number;
   deposit_amount: number;
+  holding_fee?: {
+    amount: number;
+    status: 'unpaid' | 'paid';
+    payment_method?: string;
+    paid_at?: string;
+    payment_id?: string;
+  };
   late_fee: number;
   damage_fee: number;
   other_fees: number;
@@ -66,6 +73,8 @@ export interface Booking {
   qr_code?: string;
   qr_expires_at?: string;
   qr_used_at?: string;
+  edit_count?: number;
+  edit_reason?: string;
   created_by: string;
   is_active: boolean;
   created_at: string;
@@ -308,12 +317,44 @@ export async function confirmBooking(
   return res.json();
 }
 
+// Types for cancel booking
+export interface CancelBookingRequest {
+  reason: string;
+  refund_to_customer?: boolean;
+}
+
+export interface RefundInfo {
+  holding_fee_paid: number;
+  holding_fee_refundable: number;
+  refund_payment_id?: string;
+  refund_payment_code?: string;
+  policy: string;
+  message: string;
+}
+
+export interface CancelBookingResponse {
+  message: string;
+  booking: Booking;
+  refund_info?: RefundInfo;
+}
+
 // API function to cancel booking
-export async function cancelBooking(bookingId: string, reason: string): Promise<Booking> {
+export async function cancelBooking(
+  bookingId: string, 
+  reason: string,
+  refundToCustomer?: boolean
+): Promise<CancelBookingResponse> {
+  const body: CancelBookingRequest = { reason };
+  
+  // Only include refund_to_customer if explicitly set
+  if (refundToCustomer !== undefined) {
+    body.refund_to_customer = refundToCustomer;
+  }
+
   const res = await fetch(apiUrl(`/api/bookings/${bookingId}`), {
     method: 'DELETE',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -335,9 +376,7 @@ export async function cancelBooking(bookingId: string, reason: string): Promise<
     throw new ApiError(errorMessage, res.status);
   }
 
-  const data = await res.json();
-  // API có thể trả về { message, booking } hoặc chỉ booking object
-  return data.booking || data;
+  return res.json();
 }
 
 // Types for walk-in booking
