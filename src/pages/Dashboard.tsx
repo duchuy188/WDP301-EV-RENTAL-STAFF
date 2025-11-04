@@ -1,52 +1,64 @@
 import { motion } from 'framer-motion'
-import { Car, DollarSign, Users, Battery, TrendingUp, Clock } from 'lucide-react'
+import { Car, DollarSign, Users, Battery, TrendingUp, Clock, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { mockKPIData, mockChartData } from '@/data/mockData'
 import { useProfile } from '@/contexts/ProfileContext'
+import { useDashboardKPI } from '@/hooks/useDashboardKPI'
+import { useDashboardStats } from '@/hooks/useDashboardStats'
+import { useDashboardChart } from '@/hooks/useDashboardChart'
+import { useDashboardShift } from '@/hooks/useDashboardShift'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
-const kpiCards = [
+const kpiCardsConfig = [
   {
     title: 'Xe có sẵn',
-    value: mockKPIData.availableVehicles,
+    dataKey: 'availableVehicles' as const,
+    changeKey: 'availableVehiclesChange' as const,
     icon: Car,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
     darkBgColor: 'dark:bg-blue-900/20',
-    change: '+2 từ hôm qua'
   },
   {
     title: 'Lượt giao/nhận',
-    value: mockKPIData.todayHandovers,
+    dataKey: 'todayHandovers' as const,
+    changeKey: 'handoversChange' as const,
     icon: Users,
     color: 'text-green-600',
     bgColor: 'bg-green-100',
     darkBgColor: 'dark:bg-green-900/20',
-    change: '+25% so với hôm qua'
   },
   {
     title: 'Doanh thu điểm',
-    value: `${(mockKPIData.stationRevenue / 1000000).toFixed(1)}M`,
+    dataKey: 'stationRevenue' as const,
+    changeKey: 'revenueChange' as const,
     icon: DollarSign,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100',
     darkBgColor: 'dark:bg-purple-900/20',
-    change: '+15% so với tuần trước'
+    formatValue: (val: number) => `${val.toLocaleString('vi-VN')}đ`
   },
   {
     title: 'Xe đang thuê',
-    value: mockKPIData.activeRentals,
+    dataKey: 'activeRentals' as const,
+    changeKey: 'rentalsChange' as const,
     icon: Battery,
     color: 'text-orange-600',
     bgColor: 'bg-orange-100',
     darkBgColor: 'dark:bg-orange-900/20',
-    change: '2 xe sẽ trả hôm nay'
   }
 ]
 
 export function Dashboard() {
   const { profile } = useProfile()
+  const { data: kpiData, isLoading: kpiLoading, refetch: refetchKPI } = useDashboardKPI()
+  const { data: statsData, isLoading: statsLoading } = useDashboardStats()
+  const { data: chartData, isLoading: chartLoading } = useDashboardChart()
+  const { morningShift, afternoonShift, currentShift, progress } = useDashboardShift()
+
+  const isLoading = kpiLoading || statsLoading || chartLoading
 
   return (
     <motion.div
@@ -71,18 +83,30 @@ export function Dashboard() {
               Chúc bạn một ngày làm việc hiệu quả
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-green-100">Hôm nay</p>
-            <p className="text-2xl font-bold">
-              {new Date().toLocaleDateString('vi-VN')}
-            </p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetchKPI()}
+              disabled={isLoading}
+              className="text-white hover:bg-white/20"
+              title="Làm mới dữ liệu"
+            >
+              <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+            <div className="text-right">
+              <p className="text-green-100">Hôm nay</p>
+              <p className="text-2xl font-bold">
+                {new Date().toLocaleDateString('vi-VN')}
+              </p>
+            </div>
           </div>
         </div>
       </motion.div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiCards.map((card, index) => (
+        {kpiCardsConfig.map((card, index) => (
           <motion.div
             key={card.title}
             initial={{ opacity: 0, y: 20 }}
@@ -93,22 +117,34 @@ export function Dashboard() {
           >
             <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      {card.title}
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                      {card.value}
-                    </p>
-                    <p className="text-xs text-green-600 dark:text-green-400">
-                      {card.change}
-                    </p>
+                {kpiLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-3 w-32" />
                   </div>
-                  <div className={`p-3 rounded-xl ${card.bgColor} ${card.darkBgColor} group-hover:scale-110 transition-transform`}>
-                    <card.icon className={`h-6 w-6 ${card.color}`} />
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        {card.title}
+                      </p>
+                      <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                        {kpiData ? (
+                          card.formatValue 
+                            ? card.formatValue(kpiData[card.dataKey])
+                            : kpiData[card.dataKey]
+                        ) : '-'}
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-400">
+                        {kpiData?.[card.changeKey] || 'Đang tải...'}
+                      </p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${card.bgColor} ${card.darkBgColor} group-hover:scale-110 transition-transform`}>
+                      <card.icon className={`h-6 w-6 ${card.color}`} />
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -134,31 +170,40 @@ export function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={mockChartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="hour" />
-                    <YAxis />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="rentals"
-                      stroke="#16a34a"
-                      strokeWidth={3}
-                      dot={{ fill: '#16a34a', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: '#16a34a', strokeWidth: 2 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {chartLoading ? (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <RefreshCw className="h-8 w-8 animate-spin text-green-600 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Đang tải dữ liệu biểu đồ...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis dataKey="hour" />
+                      <YAxis />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="rentals"
+                        stroke="#16a34a"
+                        strokeWidth={3}
+                        dot={{ fill: '#16a34a', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, stroke: '#16a34a', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -176,30 +221,51 @@ export function Dashboard() {
                 <CardTitle className="text-lg">Thông báo nhanh</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-l-4 border-yellow-400">
-                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                    Xe cần bảo trì
-                  </p>
-                  <p className="text-xs text-yellow-600 dark:text-yellow-300 mt-1">
-                    1 xe cần kiểm tra định kỳ
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-400">
-                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    Khách hàng mới
-                  </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                    2 đơn đăng ký chờ xử lý
-                  </p>
-                </div>
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-4 border-green-400">
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                    Thanh toán thành công
-                  </p>
-                  <p className="text-xs text-green-600 dark:text-green-300 mt-1">
-                    3 giao dịch hoàn tất hôm nay
-                  </p>
-                </div>
+                {statsLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                ) : (
+                  <>
+                    {statsData && statsData.maintenanceVehicles > 0 && (
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-l-4 border-yellow-400">
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Xe cần bảo trì
+                        </p>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-300 mt-1">
+                          {statsData.maintenanceVehicles} xe cần kiểm tra định kỳ
+                        </p>
+                      </div>
+                    )}
+                    {statsData && statsData.pendingBookings > 0 && (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-400">
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          Đơn đặt xe mới
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                          {statsData.pendingBookings} đơn chờ xử lý
+                        </p>
+                      </div>
+                    )}
+                    {statsData && statsData.completedPaymentsToday > 0 && (
+                      <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-4 border-green-400">
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                          Thanh toán thành công
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-300 mt-1">
+                          {statsData.completedPaymentsToday} giao dịch hoàn tất hôm nay
+                        </p>
+                      </div>
+                    )}
+                    {statsData && statsData.maintenanceVehicles === 0 && statsData.pendingBookings === 0 && statsData.completedPaymentsToday === 0 && (
+                      <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        Không có thông báo mới
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -218,26 +284,53 @@ export function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Ca sáng */}
                 <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Ca sáng</span>
-                  <span className="text-sm font-medium">06:00 - 14:00</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {morningShift.name}
+                  </span>
+                  <span className={`text-sm font-medium ${morningShift.isActive ? 'text-green-600' : ''}`}>
+                    {morningShift.start} - {morningShift.end}
+                  </span>
                 </div>
+                
+                {/* Ca chiều */}
                 <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Ca chiều</span>
-                  <span className="text-sm font-medium text-green-600">14:00 - 22:00</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {afternoonShift.name}
+                  </span>
+                  <span className={`text-sm font-medium ${afternoonShift.isActive ? 'text-green-600' : ''}`}>
+                    {afternoonShift.start} - {afternoonShift.end}
+                  </span>
                 </div>
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    ✓ Bạn đang trong ca làm việc
-                  </p>
-                </div>
-                <div className="mt-4">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    Tiến độ ca làm
-                  </p>
-                  <Progress value={35} className="h-2" />
-                  <p className="text-xs text-gray-400 mt-1">35% hoàn thành</p>
-                </div>
+                
+                {/* Status */}
+                {currentShift ? (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      ✓ Bạn đang trong {currentShift.name.toLowerCase()}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Ngoài giờ làm việc
+                    </p>
+                  </div>
+                )}
+                
+                {/* Progress bar - only show during shift */}
+                {currentShift && (
+                  <div className="mt-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Tiến độ ca làm
+                    </p>
+                    <Progress value={progress} className="h-2" />
+                    <p className="text-xs text-gray-400 mt-1">
+                      {Math.round(progress)}% hoàn thành
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

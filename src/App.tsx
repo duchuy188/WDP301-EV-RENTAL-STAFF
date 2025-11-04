@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ThemeProvider } from './context/ThemeContext'
 import { SidebarProvider } from './context/SidebarContext'
 import { ProfileProvider } from './contexts/ProfileContext'
+import { NotificationProvider } from './contexts/NotificationContext'
 import { Layout } from './components/Layout/Layout'
 import { Toaster } from './components/ui/toaster'
 import { Login } from './pages/Login'
@@ -58,8 +59,9 @@ function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="ev-rental-theme">
       <ProfileProvider>
-        <SidebarProvider>
-          <Router>
+        <NotificationProvider>
+          <SidebarProvider>
+            <Router>
             <motion.div
               key="dashboard"
               initial={{ opacity: 0, x: 100 }}
@@ -85,6 +87,7 @@ function App() {
             <Toaster />
           </Router>
         </SidebarProvider>
+        </NotificationProvider>
       </ProfileProvider>
     </ThemeProvider>
   )
