@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode, ArrowLeftRight } from 'lucide-react'
+import { AdvancedPagination } from '@/components/ui/advanced-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -857,41 +858,17 @@ export function Payments() {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between mt-4">
+              <div className="flex flex-col items-center gap-4 mt-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                   Hiển thị {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} trong tổng số {pagination.total}
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={pagination.page === 1 || loading}
-                  >
-                    Trước
-                  </Button>
-                  <div className="flex items-center space-x-1">
-                    {[...Array(pagination.pages)].map((_, i) => (
-                      <Button
-                        key={i}
-                        variant={pagination.page === i + 1 ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handlePageChange(i + 1)}
-                        disabled={loading}
-                      >
-                        {i + 1}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={pagination.page === pagination.pages || loading}
-                  >
-                    Sau
-                  </Button>
-                </div>
+                <AdvancedPagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.pages}
+                  onPageChange={handlePageChange}
+                  disabled={loading}
+                  maxVisible={10}
+                />
               </div>
             </>
           )}

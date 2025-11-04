@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, CheckCircle, XCircle, Eye, UserCheck, RefreshCw, Search, Filter, AlertTriangle, Users, UserX, Clock, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Upload, CheckCircle, XCircle, Eye, UserCheck, RefreshCw, Search, Filter, AlertTriangle, Users, UserX, Clock, ArrowUpDown } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { getPendingKyc, updateKycStatus, staffUploadIdentityCardFront, staffUploadIdentityCardBack, staffUploadLicense, staffUploadLicenseFront, staffUploadLicenseBack, getUsersNotSubmittedKyc, getCompletedKyc, type PendingKycUser, type UserNotSubmittedKyc, type CompletedKycUser } from '@/api/kyc'
+import { AdvancedPagination } from '@/components/ui/advanced-pagination'
 
 export function Customers() {
   // KYC Pending states
@@ -1394,43 +1395,17 @@ export function Customers() {
           {filteredUsers.length > 0 && pendingTotalPages > 1 && (
             <Card className="border-0 shadow-lg mt-6">
               <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex flex-col items-center gap-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Hiển thị <span className="font-bold text-gray-900 dark:text-white">
-                      {((pendingPage - 1) * pendingLimit) + 1}
-                    </span> - <span className="font-bold text-gray-900 dark:text-white">
-                      {Math.min(pendingPage * pendingLimit, filteredUsers.length)}
-                    </span> trong tổng số <span className="font-bold text-gray-900 dark:text-white">
-                      {filteredUsers.length}
-                    </span> yêu cầu KYC
+                    Trang <span className="font-bold text-gray-900 dark:text-white">{pendingPage}</span> / {pendingTotalPages}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePendingPageChange(pendingPage - 1)}
-                      disabled={pendingPage === 1 || isLoading}
-                      className="border-2"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Trước
-                    </Button>
-                    <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                      <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                        {pendingPage} / {pendingTotalPages}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePendingPageChange(pendingPage + 1)}
-                      disabled={pendingPage === pendingTotalPages || isLoading}
-                      className="border-2"
-                    >
-                      Sau
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
+                  <AdvancedPagination
+                    currentPage={pendingPage}
+                    totalPages={pendingTotalPages}
+                    onPageChange={handlePendingPageChange}
+                    disabled={isLoading}
+                    maxVisible={10}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1742,43 +1717,17 @@ export function Customers() {
                 {notSubmittedUsers.length > 0 && notSubmittedTotalPagesClient > 1 && (
                   <Card className="border-0 shadow-lg">
                     <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="flex flex-col items-center gap-4">
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Hiển thị <span className="font-bold text-gray-900 dark:text-white">
-                            {((notSubmittedPageClient - 1) * notSubmittedLimitClient) + 1}
-                          </span> - <span className="font-bold text-gray-900 dark:text-white">
-                            {Math.min(notSubmittedPageClient * notSubmittedLimitClient, notSubmittedUsers.length)}
-                          </span> trong tổng số <span className="font-bold text-gray-900 dark:text-white">
-                            {notSubmittedUsers.length}
-                          </span> users
+                          Trang <span className="font-bold text-gray-900 dark:text-white">{notSubmittedPageClient}</span> / {notSubmittedTotalPagesClient}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleNotSubmittedPageClientChange(notSubmittedPageClient - 1)}
-                            disabled={notSubmittedPageClient === 1 || notSubmittedLoading}
-                            className="border-2"
-                          >
-                            <ChevronLeft className="h-4 w-4 mr-1" />
-                            Trước
-                          </Button>
-                          <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                            <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                              {notSubmittedPageClient} / {notSubmittedTotalPagesClient}
-                            </span>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleNotSubmittedPageClientChange(notSubmittedPageClient + 1)}
-                            disabled={notSubmittedPageClient === notSubmittedTotalPagesClient || notSubmittedLoading}
-                            className="border-2"
-                          >
-                            Sau
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
+                        <AdvancedPagination
+                          currentPage={notSubmittedPageClient}
+                          totalPages={notSubmittedTotalPagesClient}
+                          onPageChange={handleNotSubmittedPageClientChange}
+                          disabled={notSubmittedLoading}
+                          maxVisible={10}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -2097,62 +2046,20 @@ export function Customers() {
                 </div>
 
                 {/* Pagination */}
-                {completedKycUsers.length > 0 && (
+                {completedKycUsers.length > 0 && completedPagination.totalPages > 1 && (
                   <Card className="border-0 shadow-lg">
                     <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            Hiển thị <span className="font-bold text-gray-900 dark:text-white">
-                              {((completedPagination.currentPage - 1) * completedPagination.itemsPerPage) + 1}
-                            </span> - <span className="font-bold text-gray-900 dark:text-white">
-                              {Math.min(completedPagination.currentPage * completedPagination.itemsPerPage, completedPagination.totalItems)}
-                            </span> trong tổng số <span className="font-bold text-gray-900 dark:text-white">
-                              {completedPagination.totalItems}
-                            </span> KYC
-                          </div>
-                          <Select 
-                            value={completedPagination.itemsPerPage.toString()} 
-                            onValueChange={(value) => setCompletedPagination(prev => ({ ...prev, itemsPerPage: parseInt(value), currentPage: 1 }))}
-                          >
-                            <SelectTrigger className="w-[100px] border-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="10">10 / trang</SelectItem>
-                              <SelectItem value="20">20 / trang</SelectItem>
-                              <SelectItem value="50">50 / trang</SelectItem>
-                              <SelectItem value="100">100 / trang</SelectItem>
-                            </SelectContent>
-                          </Select>
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Trang <span className="font-bold text-gray-900 dark:text-white">{completedPagination.currentPage}</span> / {completedPagination.totalPages}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCompletedPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
-                            disabled={completedPagination.currentPage === 1 || completedLoading}
-                            className="border-2"
-                          >
-                            <ChevronLeft className="h-4 w-4 mr-1" />
-                            Trước
-                          </Button>
-                          <div className="px-4 py-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                            <span className="text-sm font-bold text-green-900 dark:text-green-100">
-                              {completedPagination.currentPage} / {completedPagination.totalPages}
-                            </span>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCompletedPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
-                            disabled={completedPagination.currentPage === completedPagination.totalPages || completedLoading}
-                            className="border-2"
-                          >
-                            Sau
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
+                        <AdvancedPagination
+                          currentPage={completedPagination.currentPage}
+                          totalPages={completedPagination.totalPages}
+                          onPageChange={(page) => setCompletedPagination(prev => ({ ...prev, currentPage: page }))}
+                          disabled={completedLoading}
+                          maxVisible={10}
+                        />
                       </div>
                     </CardContent>
                   </Card>

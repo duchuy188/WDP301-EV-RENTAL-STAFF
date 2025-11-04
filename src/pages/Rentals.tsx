@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Car, 
   User, 
   Calendar, 
   MapPin, 
@@ -11,14 +10,13 @@ import {
   Image as ImageIcon,
   FileText,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   Battery,
   Gauge,
   CheckCircle,
   AlertCircle,
   XCircle
 } from 'lucide-react';
+import { FaMotorcycle } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, checkoutFees, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse, type CheckoutFeesResponse } from '@/api/rentals';
 import { createContract } from '@/api/contracts';
 import { formatDateTime } from '@/lib/utils';
+import { AdvancedPagination } from '@/components/ui/advanced-pagination';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -442,6 +441,21 @@ export function Rentals() {
     }
   };
 
+  const translateVehicleStatus = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'Sẵn sàng';
+      case 'rented':
+        return 'Đang cho thuê';
+      case 'maintenance':
+        return 'Bảo trì';
+      case 'reserved':
+        return 'Đã đặt trước';
+      default:
+        return status;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -480,7 +494,7 @@ export function Rentals() {
               <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                 Đang thuê
               </CardTitle>
-              <Car className="h-4 w-4 text-green-600" />
+              <FaMotorcycle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">{stats.active}</div>
@@ -640,7 +654,7 @@ export function Rentals() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Car className="h-4 w-4 text-gray-500" />
+                        <FaMotorcycle className="h-4 w-4 text-gray-500" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
                             {rental.vehicle_id?.license_plate || 'N/A'}
@@ -692,37 +706,17 @@ export function Rentals() {
           {pagination.pages > 1 && (
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex flex-col items-center gap-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                      disabled={pagination.page === 1 || loading}
-                      className="border-2"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Trước
-                    </Button>
-                    <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                      <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                        {pagination.page} / {pagination.pages}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                      disabled={pagination.page === pagination.pages || loading}
-                      className="border-2"
-                    >
-                      Sau
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
+                  <AdvancedPagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.pages}
+                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                    disabled={loading}
+                    maxVisible={10}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -807,7 +801,7 @@ export function Rentals() {
                 {/* Vehicle Info */}
                 <Card className="p-4">
                   <h4 className="font-medium mb-3 text-green-600 dark:text-green-400 flex items-center gap-2">
-                    <Car className="h-4 w-4" />
+                    <FaMotorcycle className="h-4 w-4" />
                     Thông tin xe
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -1116,7 +1110,7 @@ export function Rentals() {
                         className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                         size="lg"
                       >
-                        <Car className="h-5 w-5 mr-2" />
+                        <FaMotorcycle className="h-5 w-5 mr-2" />
                         Trả xe / Checkout
                       </Button>
                     </div>
@@ -1364,7 +1358,7 @@ export function Rentals() {
 
                 <Card className="p-4">
                   <h4 className="font-medium mb-3 text-green-600 dark:text-green-400 flex items-center gap-2">
-                    <Car className="h-4 w-4" />
+                    <FaMotorcycle className="h-4 w-4" />
                     Xe
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -1425,12 +1419,12 @@ export function Rentals() {
                     </p>
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <Car className="h-6 w-6 text-blue-600 mb-2" />
+                    <FaMotorcycle className="h-6 w-6 text-blue-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Ngoại hình (dàn áo)</p>
                     {getConditionBadge(checkoutInfo.rental?.vehicle_condition_before?.exterior_condition || null)}
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <Car className="h-6 w-6 text-purple-600 mb-2" />
+                    <FaMotorcycle className="h-6 w-6 text-purple-600 mb-2" />
                     <p className="text-xs text-gray-600 dark:text-gray-400">Kỹ thuật (mô tơ – điện)</p>
                     {getConditionBadge(checkoutInfo.rental?.vehicle_condition_before?.interior_condition || null)}
                   </div>
@@ -1768,7 +1762,7 @@ export function Rentals() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Trạng thái xe</p>
-                        <Badge variant="outline">{checkoutResult.data.vehicle_status}</Badge>
+                        <Badge variant="outline">{translateVehicleStatus(checkoutResult.data.vehicle_status)}</Badge>
                       </div>
                       <div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Tổng thanh toán</p>

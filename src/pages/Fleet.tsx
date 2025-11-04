@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, ChevronLeft, ChevronRight, Eye, Calendar, MapPin, Phone, Mail } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, Eye, Calendar, MapPin, Phone, Mail } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, getStaffVehicleById, type Vehicle, type VehicleDetail } from '@/api/vehicles'
 import { useToast } from '@/hooks/use-toast'
+import { AdvancedPagination } from '@/components/ui/advanced-pagination'
 
 export function Fleet() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -745,37 +746,17 @@ export function Fleet() {
           {pagination.pages > 1 && (
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex flex-col items-center gap-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                      disabled={pagination.page === 1 || loading}
-                      className="border-2"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Trước
-                    </Button>
-                    <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                      <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                        {pagination.page} / {pagination.pages}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                      disabled={pagination.page === pagination.pages || loading}
-                      className="border-2"
-                    >
-                      Sau
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
+                  <AdvancedPagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.pages}
+                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                    disabled={loading}
+                    maxVisible={10}
+                  />
                 </div>
               </CardContent>
             </Card>

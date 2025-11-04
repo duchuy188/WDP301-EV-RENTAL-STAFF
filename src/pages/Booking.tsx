@@ -10,7 +10,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Car,
   User,
   Filter,
   X,
@@ -22,6 +21,7 @@ import {
   Camera,
   Keyboard
 } from 'lucide-react';
+import { FaMotorcycle } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,8 +32,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AdvancedPagination } from '@/components/ui/advanced-pagination';
 import { 
   getStationBookings, 
   getBookingDetails,
@@ -64,7 +64,7 @@ const Booking: React.FC = () => {
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 5,
+    limit: 10,
     total: 0,
     pages: 0
   });
@@ -321,11 +321,11 @@ const Booking: React.FC = () => {
       case 'cancelled':
         return <XCircle className="h-4 w-4 text-red-600" />;
       case 'in_progress':
-        return <Car className="h-4 w-4 text-blue-600" />;
+        return <FaMotorcycle className="h-4 w-4 text-blue-600" />;
       case 'completed':
         return <Check className="h-4 w-4 text-green-600" />;
       case 'checked_in':
-        return <Car className="h-4 w-4 text-green-600" />;
+        return <FaMotorcycle className="h-4 w-4 text-green-600" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-600" />;
     }
@@ -1212,7 +1212,7 @@ const Booking: React.FC = () => {
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                    <Car className="h-5 w-5 text-purple-600" />
+                    <FaMotorcycle className="h-5 w-5 text-purple-600" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Đang thuê</p>
@@ -1291,7 +1291,7 @@ const Booking: React.FC = () => {
                     </div>
               ) : filteredBookings.length === 0 ? (
                 <div className="text-center py-8">
-                  <Car className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <FaMotorcycle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-600 dark:text-gray-300">
                     Không có booking nào
                   </p>
@@ -1323,7 +1323,7 @@ const Booking: React.FC = () => {
                                 </div>
                                 {typeof booking.vehicle_id === 'object' && booking.vehicle_id && (
                                   <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                                    <Car className="h-4 w-4" />
+                                    <FaMotorcycle className="h-4 w-4" />
                                     <span className="font-medium">{booking.vehicle_id.name}</span>
                                     <span className="text-gray-400">•</span>
                                     <span>{booking.vehicle_id.license_plate}</span>
@@ -1447,37 +1447,17 @@ const Booking: React.FC = () => {
               {pagination.pages > 1 && (
                 <Card className="border-0 shadow-lg mt-8">
                   <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex flex-col items-center gap-4">
                       <div className="text-sm text-gray-600 dark:text-gray-400">
                         Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                          disabled={pagination.page === 1 || isLoading}
-                          className="border-2"
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Trước
-                        </Button>
-                        <div className="px-4 py-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                          <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                            {pagination.page} / {pagination.pages}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                          disabled={pagination.page === pagination.pages || isLoading}
-                          className="border-2"
-                        >
-                          Sau
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
+                      <AdvancedPagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.pages}
+                        onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                        disabled={isLoading}
+                        maxVisible={10}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -1542,7 +1522,7 @@ const Booking: React.FC = () => {
                         <Input
                           id="battery_level"
                           type="number"
-                          value={vehicleCondition.battery_level || ''}
+                          value={vehicleCondition.battery_level ?? 0}
                           readOnly
                           disabled
                           placeholder={isLoadingVehicleData ? "Đang tải..." : "Mức pin"}
@@ -1558,7 +1538,7 @@ const Booking: React.FC = () => {
                         <Input
                           id="mileage"
                           type="number"
-                          value={vehicleCondition.mileage || ''}
+                          value={vehicleCondition.mileage ?? 0}
                           readOnly
                           disabled
                           placeholder={isLoadingVehicleData ? "Đang tải..." : "Số km"}
@@ -1711,7 +1691,7 @@ const Booking: React.FC = () => {
                     {/* Booking Info */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                       <h3 className="text-lg font-semibold mb-3 flex items-center">
-                        <Car className="h-5 w-5 mr-2" />
+                        <FaMotorcycle className="h-5 w-5 mr-2" />
                         Thông tin Booking
                       </h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1851,7 +1831,7 @@ const Booking: React.FC = () => {
                   {/* Vehicle Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium flex items-center gap-2">
-                      <Car className="h-5 w-5" />
+                      <FaMotorcycle className="h-5 w-5" />
                       Thông tin xe
                     </h3>
                     
@@ -2030,7 +2010,7 @@ const Booking: React.FC = () => {
                     {/* Booking Info */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                       <h3 className="text-lg font-semibold mb-3 flex items-center">
-                        <Car className="h-5 w-5 mr-2" />
+                        <FaMotorcycle className="h-5 w-5 mr-2" />
                         Thông tin Booking
                       </h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -2118,7 +2098,7 @@ const Booking: React.FC = () => {
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Car className="h-5 w-5" />
+                  <FaMotorcycle className="h-5 w-5" />
                   Chi tiết Booking
                 </DialogTitle>
               </DialogHeader>
@@ -2202,7 +2182,7 @@ const Booking: React.FC = () => {
 
                       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                          <Car className="h-5 w-5 text-green-600" />
+                          <FaMotorcycle className="h-5 w-5 text-green-600" />
                           Thông tin xe
                         </h3>
                         <div className="space-y-2 text-sm">
@@ -3012,7 +2992,7 @@ const Booking: React.FC = () => {
                       {/* Basic Info */}
                       <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border">
                         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                          <Car className="h-5 w-5 text-blue-600" />
+                          <FaMotorcycle className="h-5 w-5 text-blue-600" />
                           Thông tin Booking
                         </h3>
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -3054,7 +3034,7 @@ const Booking: React.FC = () => {
                       {/* Vehicle Info */}
                       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
                         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                          <Car className="h-5 w-5 text-green-600" />
+                          <FaMotorcycle className="h-5 w-5 text-green-600" />
                           Xe thuê
                         </h3>
                         <div className="space-y-2 text-sm">
