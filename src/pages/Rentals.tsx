@@ -1296,7 +1296,7 @@ export function Rentals() {
           }}
         >
           <DialogHeader>
-            <DialogTitle className="text-2xl">🚗 Thông tin trả xe / Checkout</DialogTitle>
+            <DialogTitle className="text-2xl">🛵 Thông tin trả xe / Checkout</DialogTitle>
             <DialogDescription>
               Xem lại thông tin trước khi tiến hành trả xe
             </DialogDescription>
