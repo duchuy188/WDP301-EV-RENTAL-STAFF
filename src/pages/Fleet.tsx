@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, Eye, Calendar, MapPin, Phone, Mail } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, Eye, Calendar, MapPin, Phone, Mail, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { getStaffVehicles, updateVehicleBattery, reportVehicleMaintenance, getStaffVehicleById, type Vehicle, type VehicleDetail } from '@/api/vehicles'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getStaffVehicles, reportVehicleMaintenance, getStaffVehicleById, type Vehicle, type VehicleDetail } from '@/api/vehicles'
+import { getMaintenanceReports, getMaintenanceReportById, updateMaintenanceReport, type MaintenanceReport, type MaintenanceReportDetail } from '@/api/maintenance'
 import { useToast } from '@/hooks/use-toast'
 import { AdvancedPagination } from '@/components/ui/advanced-pagination'
 
@@ -23,6 +25,8 @@ export function Fleet() {
   const [showImageModal, setShowImageModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [submittingReport, setSubmittingReport] = useState(false)
+  const [maintenanceType, setMaintenanceType] = useState<'low_battery' | 'poor_condition'>('poor_condition')
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
   const [statistics, setStatistics] = useState({
     available: 0,
     rented: 0,
@@ -42,6 +46,31 @@ export function Fleet() {
     type: 'all' as 'all' | 'scooter' | 'motorcycle'
   })
   
+  // Maintenance states
+  const [activeTab, setActiveTab] = useState<'vehicles' | 'maintenance'>('vehicles')
+  const [maintenanceReports, setMaintenanceReports] = useState<MaintenanceReport[]>([])
+  const [selectedReport, setSelectedReport] = useState<MaintenanceReportDetail | null>(null)
+  const [loadingReports, setLoadingReports] = useState(false)
+  const [showMaintenanceDetail, setShowMaintenanceDetail] = useState(false)
+  const [updatingReport, setUpdatingReport] = useState(false)
+  const [batteryLevel, setBatteryLevel] = useState(80)
+  const [newStatus, setNewStatus] = useState<'in_progress' | 'fixed'>('in_progress')
+  const [maintenancePagination, setMaintenancePagination] = useState({
+    page: 1,
+    limit: 9,
+    total: 0,
+    pages: 0
+  })
+  const [maintenanceFilters, setMaintenanceFilters] = useState({
+    status: 'all',
+    search: ''
+  })
+  const [maintenanceStats, setMaintenanceStats] = useState({
+    reported: 0,
+    in_progress: 0,
+    fixed: 0,
+    total: 0
+  })
   
   const { toast } = useToast()
 
@@ -107,9 +136,117 @@ export function Fleet() {
     }
   }, [pagination.page, pagination.limit, filters, toast])
 
+  // Load maintenance reports
+  const loadMaintenanceReports = useCallback(async () => {
+    try {
+      setLoadingReports(true)
+      const response = await getMaintenanceReports({
+        page: maintenancePagination.page,
+        limit: maintenancePagination.limit,
+        status: maintenanceFilters.status
+      })
+      
+      setMaintenanceReports(response.data.reports)
+      setMaintenancePagination(prev => ({
+        ...prev,
+        total: response.data.pagination.total,
+        pages: response.data.pagination.pages
+      }))
+      
+      // Calculate statistics from all reports
+      const allReportsResponse = await getMaintenanceReports({
+        page: 1,
+        limit: 100,
+        status: 'all'
+      })
+      
+      const stats = allReportsResponse.data.reports.reduce((acc, report) => {
+        acc.total++
+        if (report.status === 'reported') acc.reported++
+        if (report.status === 'in_progress') acc.in_progress++
+        if (report.status === 'fixed') acc.fixed++
+        return acc
+      }, { reported: 0, in_progress: 0, fixed: 0, total: 0 })
+      
+      setMaintenanceStats(stats)
+      
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || "Không thể tải danh sách báo cáo"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: errorMessage,
+        duration: 5000,
+      })
+    } finally {
+      setLoadingReports(false)
+    }
+  }, [maintenancePagination.page, maintenancePagination.limit, maintenanceFilters.status, toast])
 
+  // View maintenance detail
+  const handleViewMaintenanceDetail = async (reportId: string) => {
+    try {
+      const response = await getMaintenanceReportById(reportId)
+      setSelectedReport(response.data)
+      setBatteryLevel(response.data.vehicle_id?.current_battery || 80)
+      setNewStatus(response.data.status === 'fixed' ? 'fixed' : 'in_progress')
+      setShowMaintenanceDetail(true)
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || "Không thể tải chi tiết báo cáo"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: errorMessage,
+        duration: 5000,
+      })
+    }
+  }
 
+  // Update maintenance status
+  const handleUpdateMaintenanceStatus = async () => {
+    if (!selectedReport) return
+    
+    try {
+      setUpdatingReport(true)
+      
+      await updateMaintenanceReport(selectedReport._id, {
+        status: newStatus,
+        battery_level: newStatus === 'fixed' ? batteryLevel : undefined
+      })
+      
+      toast({
+        title: "Thành công",
+        description: `Đã cập nhật trạng thái báo cáo thành công`,
+        variant: "success",
+        duration: 5000,
+      })
+      
+      setShowMaintenanceDetail(false)
+      loadMaintenanceReports()
+      loadVehicles() // Refresh vehicle list to update battery
+      
+    } catch (error: unknown) {
+      const errorMessage = (error as Error)?.message || "Không thể cập nhật báo cáo"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: errorMessage,
+        duration: 5000,
+      })
+    } finally {
+      setUpdatingReport(false)
+    }
+  }
 
+  // Get maintenance status badge
+  const getMaintenanceStatusBadge = (status: string) => {
+    const badges = {
+      reported: <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Chờ xử lý</Badge>,
+      in_progress: <Badge className="bg-yellow-500 hover:bg-yellow-600 flex items-center gap-1"><Clock className="w-3 h-3" /> Đang xử lý</Badge>,
+      fixed: <Badge className="bg-green-500 hover:bg-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Đã xong</Badge>,
+    }
+    return badges[status as keyof typeof badges] || <Badge>{status}</Badge>
+  }
 
   useEffect(() => {
     // Debug: Check token availability
@@ -120,40 +257,31 @@ export function Fleet() {
     loadVehicles()
   }, [loadVehicles])
 
-
-  const handleUpdateBattery = async (vehicleId: string, newBatteryLevel: number) => {
-    try {
-      const response = await updateVehicleBattery(vehicleId, newBatteryLevel)
-      
-      // Update local state with the response from API
-      setVehicles(prev => prev.map(vehicle => 
-        vehicle._id === vehicleId 
-          ? { ...vehicle, current_battery: response.vehicle.current_battery }
-          : vehicle
-      ))
-      
-      toast({
-        title: "Cập nhật thành công ✅",
-        description: response.message || "Mức pin xe đã được cập nhật",
-        duration: 3000,
-      })
-    } catch (error: unknown) {
-      const errorMessage = (error as Error)?.message || 'Không thể cập nhật mức pin xe'
-      toast({
-        title: "Lỗi",
-        description: errorMessage,
-        variant: "destructive",
-      })
+  // Load maintenance reports when tab changes
+  useEffect(() => {
+    if (activeTab === 'maintenance') {
+      loadMaintenanceReports()
     }
-  }
+  }, [activeTab, loadMaintenanceReports])
 
 
-  const handleReportIssue = async (reason: string, images: File[]) => {
+  const handleReportIssue = async (reason: string, images: File[], maintenance_type: 'low_battery' | 'poor_condition') => {
     if (!selectedVehicle) return;
+    
+    // Validate low_battery type
+    if (maintenance_type === 'low_battery' && selectedVehicle.current_battery >= 50) {
+      toast({
+        title: "Lỗi xác thực",
+        description: `Chỉ được báo cáo low_battery khi pin < 50%. Pin hiện tại: ${selectedVehicle.current_battery}%`,
+        variant: "destructive",
+        duration: 4000,
+      })
+      return;
+    }
     
     setSubmittingReport(true)
     try {
-      const response = await reportVehicleMaintenance(selectedVehicle._id, reason, images);
+      const response = await reportVehicleMaintenance(selectedVehicle._id, reason, images, maintenance_type);
       
       // Update vehicle status to maintenance
       setVehicles(prev => prev.map(vehicle => 
@@ -164,12 +292,21 @@ export function Fleet() {
       
       // Clear form data
       setUploadedImages([])
+      setMaintenanceType('poor_condition')
+      
+      const successTitle = maintenance_type === 'low_battery' 
+        ? "Báo cáo pin yếu thành công 🔋" 
+        : "Báo cáo bảo trì thành công ⚠️"
       
       toast({
-        title: "Báo sự cố thành công ⚠️",
+        title: successTitle,
         description: response.message || "Sự cố đã được ghi nhận và chuyển đến bộ phận kỹ thuật",
+        variant: "success",
         duration: 3000,
       })
+      
+      // Close dialog and reset
+      setIsReportDialogOpen(false)
       setSelectedVehicle(null)
     } catch (error: unknown) {
       const errorMessage = (error as Error)?.message || 'Không thể báo cáo sự cố'
@@ -177,16 +314,18 @@ export function Fleet() {
       // Parse error message to show user-friendly text
       let friendlyMessage = errorMessage
       if (errorMessage.includes('Chỉ có thể báo cáo bảo trì xe đang available')) {
-        friendlyMessage = 'Chỉ có thể báo cáo bảo trì cho xe đang có sẵn. Xe này hiện đang trong trạng thái bảo trì.'
+        friendlyMessage = 'Chỉ có thể báo cáo bảo trì cho xe đang có sẵn. Xe này hiện đang trong trạng thái khác.'
       } else if (errorMessage.includes('maintenance')) {
         friendlyMessage = 'Xe này đang trong trạng thái bảo trì, không thể báo cáo thêm sự cố.'
+      } else if (errorMessage.includes('Pin hiện tại')) {
+        friendlyMessage = errorMessage // Show the battery validation error from API
       }
       
       toast({
         title: "Không thể báo cáo sự cố",
         description: friendlyMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 4000,
       })
     } finally {
       setSubmittingReport(false)
@@ -224,6 +363,7 @@ export function Fleet() {
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
+        duration: 5000,
       })
     } finally {
       setLoadingDetail(false)
@@ -269,16 +409,34 @@ export function Fleet() {
         </div>
         <div className="flex items-center gap-2">
           <Button 
-            onClick={loadVehicles}
-            disabled={loading}
+            onClick={activeTab === 'vehicles' ? loadVehicles : loadMaintenanceReports}
+            disabled={loading || loadingReports}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${(loading || loadingReports) ? 'animate-spin' : ''}`} />
             Làm mới
           </Button>
         </div>
       </div>
 
+      {/* TABS */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'vehicles' | 'maintenance')}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="vehicles" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Danh sách xe
+          </TabsTrigger>
+          <TabsTrigger value="maintenance" className="flex items-center gap-2">
+            <Wrench className="w-4 h-4" />
+            Báo cáo bảo trì
+            {maintenanceStats.reported > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">{maintenanceStats.reported}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: VEHICLES */}
+        <TabsContent value="vehicles" className="space-y-6 mt-6">
       {/* Vehicle Management Section */}
       <div className="space-y-6">
 
@@ -540,7 +698,7 @@ export function Fleet() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="grid grid-cols-3 gap-2 pt-2">
+                        <div className="grid grid-cols-2 gap-2 pt-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -550,61 +708,15 @@ export function Fleet() {
                             <Eye className="h-3 w-3 mr-1" />
                             Chi tiết
                           </Button>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-300">
-                                <Battery className="h-3 w-3 mr-1" />
-                                Cập nhật pin
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Cập nhật mức pin: {vehicle.name}</DialogTitle>
-                                <DialogDescription>
-                                  Nhập mức pin hiện tại của xe
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 py-4">
-                                <div>
-                                  <label className="block text-sm font-medium mb-2">Mức pin (%)</label>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    defaultValue={vehicle.current_battery}
-                                    className="w-full"
-                                  />
-                                </div>
-                                <Button
-                                  onClick={(e) => {
-                                    const input = e.currentTarget.parentElement?.querySelector('input[type="number"]') as HTMLInputElement
-                                    const batteryLevel = parseInt(input?.value || '0')
-                                    if (batteryLevel >= 0 && batteryLevel <= 100) {
-                                      handleUpdateBattery(vehicle._id, batteryLevel)
-                                    } else {
-                                      toast({
-                                        title: "Lỗi",
-                                        description: "Mức pin phải từ 0 đến 100%",
-                                        variant: "destructive",
-                                        duration: 3000,
-                                      })
-                                    }
-                                  }}
-                                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
-                                >
-                                  Cập nhật
-                                </Button>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-
-
                           <Dialog 
+                            open={isReportDialogOpen && selectedVehicle?._id === vehicle._id}
                             onOpenChange={(open) => {
-                              if (!submittingReport || !open) {
-                                // Allow opening, but prevent closing when submitting
-                                if (!open && submittingReport) {
-                                  return;
+                              if (!submittingReport) {
+                                setIsReportDialogOpen(open)
+                                if (!open) {
+                                  setSelectedVehicle(null)
+                                  setUploadedImages([])
+                                  setMaintenanceType('poor_condition')
                                 }
                               }
                             }}
@@ -614,7 +726,10 @@ export function Fleet() {
                                 variant="outline" 
                                 size="sm" 
                                 className="hover:bg-red-50 hover:border-red-300 hover:text-red-700"
-                                onClick={() => setSelectedVehicle(vehicle)}
+                                onClick={() => {
+                                  setSelectedVehicle(vehicle)
+                                  setIsReportDialogOpen(true)
+                                }}
                               >
                                 <AlertTriangle className="h-3 w-3 mr-1" />
                                 Báo sự cố
@@ -630,21 +745,98 @@ export function Fleet() {
                               }}
                             >
                               <DialogHeader>
-                                <DialogTitle>Báo sự cố: {selectedVehicle?.name}</DialogTitle>
+                                <DialogTitle>Báo cáo bảo trì: {selectedVehicle?.name}</DialogTitle>
                                 <DialogDescription>
-                                  Mô tả chi tiết sự cố và đính kèm hình ảnh nếu có
+                                  Chọn loại bảo trì, mô tả chi tiết và đính kèm hình ảnh
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-6 py-4">
+                                {/* Vehicle Info Banner */}
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-700 dark:text-gray-300">Pin hiện tại:</span>
+                                    <span className={`font-semibold ${getBatteryColor(selectedVehicle?.current_battery || 0)}`}>
+                                      {selectedVehicle?.current_battery}%
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-sm mt-1">
+                                    <span className="text-gray-700 dark:text-gray-300">Trạng thái:</span>
+                                    <span className="font-medium">{getStatusBadge(selectedVehicle?.status || '')}</span>
+                                  </div>
+                                </div>
+
+                                {/* Maintenance Type Selection */}
                                 <div>
-                                  <label className="block text-sm font-medium mb-2">Mô tả sự cố</label>
+                                  <label className="block text-sm font-medium mb-2">
+                                    Loại bảo trì <span className="text-red-500">*</span>
+                                  </label>
+                                  <Select 
+                                    value={maintenanceType} 
+                                    onValueChange={(value) => setMaintenanceType(value as 'low_battery' | 'poor_condition')}
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Chọn loại bảo trì" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="poor_condition">
+                                        <div className="flex items-center gap-2">
+                                          <Wrench className="h-4 w-4 text-red-600" />
+                                          <div className="text-left">
+                                            <div className="font-medium">Xe hỏng hóc (Poor Condition)</div>
+                                            <div className="text-xs text-gray-500">Cần Admin duyệt - Mặc định</div>
+                                          </div>
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem 
+                                        value="low_battery"
+                                        disabled={selectedVehicle ? selectedVehicle.current_battery >= 50 : false}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Battery className="h-4 w-4 text-yellow-600" />
+                                          <div className="text-left">
+                                            <div className="font-medium">Pin yếu (Low Battery)</div>
+                                            <div className="text-xs text-gray-500">
+                                              {selectedVehicle && selectedVehicle.current_battery >= 50 
+                                                ? `Chỉ dùng khi pin < 50% (hiện tại: ${selectedVehicle.current_battery}%)`
+                                                : 'Staff tự fix được - Chỉ khi pin < 50%'
+                                              }
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {maintenanceType === 'low_battery' && (
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
+                                      <Battery className="h-3 w-3" />
+                                      Staff có thể tự sạc pin và đưa xe vào hoạt động sau khi xử lý
+                                    </p>
+                                  )}
+                                  {maintenanceType === 'poor_condition' && (
+                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                      <Wrench className="h-3 w-3" />
+                                      Cần Admin xem xét và duyệt trước khi xe có thể hoạt động lại
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                  <label className="block text-sm font-medium mb-2">
+                                    Mô tả sự cố <span className="text-red-500">*</span>
+                                  </label>
                                   <textarea
                                     id="issue-description"
-                                    placeholder="Mô tả chi tiết tình trạng xe, sự cố gặp phải..."
+                                    placeholder={
+                                      maintenanceType === 'low_battery' 
+                                        ? "VD: Pin còn 40%, cần sạc trước khi cho thuê" 
+                                        : "Mô tả chi tiết tình trạng xe, sự cố gặp phải..."
+                                    }
                                     className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                   />
                                 </div>
                                 
+                                {/* Images */}
                                 <div>
                                   <label className="block text-sm font-medium mb-2">Hình ảnh sự cố</label>
                                   <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
@@ -713,7 +905,7 @@ export function Fleet() {
                                       return;
                                     }
                                     
-                                    handleReportIssue(description, uploadedImages);
+                                    handleReportIssue(description, uploadedImages, maintenanceType);
                                   }}
                                   disabled={submittingReport}
                                   className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -723,10 +915,15 @@ export function Fleet() {
                                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                                       Đang gửi...
                                     </>
+                                  ) : maintenanceType === 'low_battery' ? (
+                                    <>
+                                      <Battery className="h-4 w-4 mr-2" />
+                                      Báo cáo pin yếu
+                                    </>
                                   ) : (
                                     <>
                                       <AlertTriangle className="h-4 w-4 mr-2" />
-                                      Gửi báo cáo sự cố
+                                      Gửi báo cáo bảo trì
                                     </>
                                   )}
                                 </Button>
@@ -764,8 +961,210 @@ export function Fleet() {
         </div>
       )}
           </div>
+        </TabsContent>
 
+        {/* TAB 2: MAINTENANCE */}
+        <TabsContent value="maintenance" className="space-y-6 mt-6">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Chờ xử lý</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-red-500">{maintenanceStats.reported}</div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Đang xử lý</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-yellow-500">{maintenanceStats.in_progress}</div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Đã xong</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-green-500">{maintenanceStats.fixed}</div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Tổng số</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{maintenanceStats.total}</div>
+              </CardContent>
+            </Card>
+          </div>
 
+          {/* Filters */}
+          <Card className="border-0 shadow-lg">
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <Select value={maintenanceFilters.status} onValueChange={(value) => {
+                  setMaintenanceFilters({...maintenanceFilters, status: value})
+                  setMaintenancePagination(prev => ({ ...prev, page: 1 }))
+                }}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả</SelectItem>
+                    <SelectItem value="reported">Chờ xử lý</SelectItem>
+                    <SelectItem value="in_progress">Đang xử lý</SelectItem>
+                    <SelectItem value="fixed">Đã xong</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Input
+                  placeholder="Tìm theo tên xe..."
+                  value={maintenanceFilters.search}
+                  onChange={(e) => setMaintenanceFilters({...maintenanceFilters, search: e.target.value})}
+                  className="max-w-sm"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Reports List */}
+          {loadingReports ? (
+            <div className="text-center py-16">
+              <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+              <p className="text-lg text-gray-600">Đang tải...</p>
+            </div>
+          ) : maintenanceReports.length === 0 ? (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="py-16 text-center text-muted-foreground">
+                Không có báo cáo nào
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {maintenanceReports
+                .filter(r => !maintenanceFilters.search || r.vehicle_id?.name.toLowerCase().includes(maintenanceFilters.search.toLowerCase()))
+                .map((report, index) => (
+                  <motion.div
+                    key={report._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -5 }}
+                  >
+                    <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                      {/* Header with gradient based on status */}
+                      <div className={`h-2 ${
+                        report.status === 'fixed' ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                        report.status === 'in_progress' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                        report.status === 'reported' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                        'bg-gradient-to-r from-gray-500 to-gray-600'
+                      }`} />
+                      
+                      <CardContent className="p-6">
+                        <div className="space-y-4">
+                          {/* Report Info */}
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
+                                {report.vehicle_id?.name}
+                              </h3>
+                              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                Biển số: {report.vehicle_id?.license_plate}
+                              </p>
+                            </div>
+                            {getMaintenanceStatusBadge(report.status)}
+                          </div>
+
+                          {/* Report Details */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Mã báo cáo:</span>
+                              <span className="text-sm font-medium">{report.code}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Model:</span>
+                              <span className="text-sm font-medium">{report.vehicle_id?.model}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Loại:</span>
+                              <span className="text-sm font-medium">
+                                {report.maintenance_type === 'low_battery' ? '🔋 Pin yếu' : '🔧 Kỹ thuật'}
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Mô tả:</span>
+                              <span className="text-sm font-medium line-clamp-2">{report.title}</span>
+                            </div>
+                          </div>
+
+                          {/* Battery Level */}
+                          {report.vehicle_id && 'current_battery' in report.vehicle_id && typeof report.vehicle_id.current_battery === 'number' && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Battery className={`h-4 w-4 ${getBatteryColor(report.vehicle_id.current_battery)}`} />
+                                  <span className="text-sm font-medium">Mức pin</span>
+                                </div>
+                                <span className={`text-sm font-bold ${getBatteryColor(report.vehicle_id.current_battery)}`}>
+                                  {report.vehicle_id.current_battery}%
+                                </span>
+                              </div>
+                              <Progress value={report.vehicle_id.current_battery} className="h-3" />
+                            </div>
+                          )}
+
+                          {/* Reported Info */}
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Người báo:</span>
+                            <span className="font-medium">{report.reported_by.fullname}</span>
+                          </div>
+
+                          {/* Time */}
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>
+                            <span className="font-medium text-xs">
+                              {new Date(report.createdAt).toLocaleDateString('vi-VN')}
+                            </span>
+                          </div>
+
+                          {/* Action Button */}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                            onClick={() => handleViewMaintenanceDetail(report._id)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Chi tiết
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {maintenancePagination.pages > 1 && (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-4">
+                <AdvancedPagination
+                  currentPage={maintenancePagination.page}
+                  totalPages={maintenancePagination.pages}
+                  onPageChange={(page) => setMaintenancePagination(prev => ({ ...prev, page }))}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Vehicle Detail Modal */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
@@ -1075,6 +1474,153 @@ export function Fleet() {
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Maintenance Detail Dialog */}
+      <Dialog open={showMaintenanceDetail} onOpenChange={setShowMaintenanceDetail}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Battery className="w-5 h-5" />
+              Chi Tiết Báo Cáo Bảo Trì
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedReport && (
+            <div className="space-y-4 py-4">
+              {/* Vehicle Info */}
+              <div className="bg-muted p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">Thông tin xe</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>Tên xe: <span className="font-medium">{selectedReport.vehicle_id?.name}</span></div>
+                  <div>Model: <span className="font-medium">{selectedReport.vehicle_id?.model}</span></div>
+                  <div>Biển số: <span className="font-medium">{selectedReport.vehicle_id?.license_plate}</span></div>
+                  <div>Pin hiện tại: <span className="font-medium">{selectedReport.vehicle_id?.current_battery}%</span></div>
+                </div>
+              </div>
+
+              {/* Report Info */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Mã báo cáo:</span>
+                  <span className="font-medium">{selectedReport.code}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Trạng thái:</span>
+                  {getMaintenanceStatusBadge(selectedReport.status)}
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Loại bảo trì:</span>
+                  <span className="font-medium">
+                    {selectedReport.maintenance_type === 'low_battery' ? '🔋 Pin yếu' : '🔧 Kỹ thuật'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Mô tả:</span>
+                  <p className="mt-1 p-2 bg-muted rounded">{selectedReport.description}</p>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Người báo:</span>
+                  <span className="font-medium">{selectedReport.reported_by.fullname}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Thời gian:</span>
+                  <span>{new Date(selectedReport.createdAt).toLocaleString('vi-VN')}</span>
+                </div>
+              </div>
+
+              {/* Update Status */}
+              {selectedReport.status !== 'fixed' && selectedReport.maintenance_type === 'low_battery' && (
+                <div className="border-t pt-4 space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    Cập nhật trạng thái
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Trạng thái mới</label>
+                    <Select value={newStatus} onValueChange={(value) => setNewStatus(value as 'in_progress' | 'fixed')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="in_progress">Đang xử lý</SelectItem>
+                        <SelectItem value="fixed">Đã hoàn thành</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {newStatus === 'fixed' && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Mức pin sau khi sạc <span className="text-red-500">*</span> (phải ≥ 80%)
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={batteryLevel}
+                          onChange={(e) => {
+                            const value = Number(e.target.value)
+                            if (value >= 0 && value <= 100) {
+                              setBatteryLevel(value)
+                            } else if (e.target.value === '') {
+                              setBatteryLevel(0)
+                            }
+                          }}
+                          className="w-24"
+                        />
+                        <span className="text-sm font-medium">%</span>
+                        <Progress value={batteryLevel} className="flex-1" />
+                      </div>
+                      {batteryLevel < 80 && (
+                        <p className="text-xs text-red-500 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Pin phải đạt ít nhất 80% để hoàn thành
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Info for non-low-battery reports */}
+              {selectedReport.maintenance_type !== 'low_battery' && selectedReport.status !== 'fixed' && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Chỉ Admin mới có thể xử lý báo cáo kỹ thuật này
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMaintenanceDetail(false)}>
+              Đóng
+            </Button>
+            {selectedReport?.status !== 'fixed' && selectedReport?.maintenance_type === 'low_battery' && (
+              <Button 
+                onClick={handleUpdateMaintenanceStatus} 
+                disabled={updatingReport || (newStatus === 'fixed' && batteryLevel < 80)}
+              >
+                {updatingReport ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Đang cập nhật...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Cập nhật
+                  </>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>

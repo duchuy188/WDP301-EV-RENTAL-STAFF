@@ -60,6 +60,8 @@ export interface Maintenance {
   title: string;
   description: string;
   status: string;
+  maintenance_type?: 'low_battery' | 'poor_condition';
+  can_staff_fix?: boolean;
   reported_by: string;
   notes: string;
   images: string[];
@@ -68,6 +70,18 @@ export interface Maintenance {
   createdAt: string;
   updatedAt: string;
   __v: number;
+}
+
+export interface MaintenanceReportResponse {
+  message: string;
+  maintenance: {
+    code: string;
+    maintenance_type: 'low_battery' | 'poor_condition';
+    status: string;
+    can_staff_fix: boolean;
+    title: string;
+    description: string;
+  };
 }
 
 // Add new interfaces for the staff vehicle detail response
@@ -222,47 +236,19 @@ export async function updateVehicleTechnicalStatus(
   return res.json();
 }
 
-// API function to update vehicle battery
-export async function updateVehicleBattery(
-  id: string, 
-  current_battery: number
-): Promise<{ message: string; vehicle: Vehicle }> {
-  const res = await fetch(apiUrl(`/api/vehicles/${id}/battery`), {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ current_battery }),
-  });
-
-  if (!res.ok) {
-    let errorMessage = 'Lỗi khi cập nhật pin xe';
-    try {
-      const errorData = await res.json();
-      errorMessage = errorData.message || errorData.error || errorMessage;
-    } catch {
-      const text = await res.text().catch(() => '');
-      if (text) {
-        try {
-          const parsedError = JSON.parse(text);
-          errorMessage = parsedError.message || parsedError.error || errorMessage;
-        } catch {
-          errorMessage = text || errorMessage;
-        }
-      }
-    }
-    throw new ApiError(errorMessage, res.status);
-  }
-
-  return res.json();
-}
-
 // API function to report vehicle maintenance
 export async function reportVehicleMaintenance(
   id: string, 
   reason: string,
-  images?: File[]
-): Promise<{ message: string; maintenance: Maintenance }> {
+  images?: File[],
+  maintenance_type?: 'low_battery' | 'poor_condition'
+): Promise<MaintenanceReportResponse> {
   const formData = new FormData();
   formData.append('reason', reason);
+  
+  if (maintenance_type) {
+    formData.append('maintenance_type', maintenance_type);
+  }
   
   if (images && images.length > 0) {
     images.forEach(image => {
