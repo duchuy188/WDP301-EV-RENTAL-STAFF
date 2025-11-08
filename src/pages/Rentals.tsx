@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getStaffRentals, getRentalById, getCheckoutInfo, checkoutNormal, checkoutFees, type Rental, type RentalDetail, type CheckoutInfo, type CheckoutNormalResponse, type CheckoutFeesResponse } from '@/api/rentals';
 import { createContract } from '@/api/contracts';
 import { formatDateTime } from '@/lib/utils';
-import { AdvancedPagination } from '@/components/ui/advanced-pagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 export function Rentals() {
   const { toast } = useToast();
@@ -43,6 +43,11 @@ export function Rentals() {
     total: 0,
     pages: 0
   });
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    loadRentals(1, newLimit);
+  };
   const [selectedRental, setSelectedRental] = useState<RentalDetail | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -88,13 +93,17 @@ export function Rentals() {
   });
 
   // Load rentals
-  const loadRentals = useCallback(async () => {
+  const loadRentals = useCallback(async (page?: number, limit?: number, status?: typeof statusFilter) => {
     setLoading(true);
     try {
+      const pageToLoad = page !== undefined ? page : pagination.page;
+      const limitToLoad = limit !== undefined ? limit : pagination.limit;
+      const statusToLoad = status !== undefined ? status : statusFilter;
+      
       const response = await getStaffRentals({
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        page: pagination.page,
-        limit: pagination.limit
+        status: statusToLoad === 'all' ? undefined : statusToLoad,
+        page: pageToLoad,
+        limit: limitToLoad
       });
       
       setRentals(response.data.rentals);
@@ -132,7 +141,7 @@ export function Rentals() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, toast]);
+  }, [toast, pagination.page, pagination.limit, statusFilter]);
 
   useEffect(() => {
     loadRentals();
@@ -473,7 +482,7 @@ export function Rentals() {
           </p>
         </div>
         <Button 
-          onClick={loadRentals}
+          onClick={() => loadRentals()}
           disabled={loading}
           className="flex items-center gap-2"
         >
@@ -703,21 +712,18 @@ export function Rentals() {
           </div>
 
           {/* Pagination */}
-          {pagination.pages > 1 && (
+          {pagination.total > 0 && (
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
-                  </div>
-                  <AdvancedPagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.pages}
-                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-                    disabled={loading}
-                    maxVisible={10}
-                  />
-                </div>
+                <TablePagination
+                  currentPage={pagination.page}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={(page) => loadRentals(page)}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  disabled={loading}
+                  itemsPerPageOptions={[5, 10, 20, 50]}
+                />
               </CardContent>
             </Card>
           )}

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getStaffVehicles, reportVehicleMaintenance, getStaffVehicleById, type Vehicle, type VehicleDetail } from '@/api/vehicles'
 import { getMaintenanceReports, getMaintenanceReportById, updateMaintenanceReport, type MaintenanceReport, type MaintenanceReportDetail } from '@/api/maintenance'
 import { useToast } from '@/hooks/use-toast'
-import { AdvancedPagination } from '@/components/ui/advanced-pagination'
+import { TablePagination } from '@/components/ui/table-pagination'
 
 export function Fleet() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -39,7 +39,12 @@ export function Fleet() {
     limit: 9,
     total: 0,
     pages: 0
-  })
+  });
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    loadVehicles(1, newLimit);
+  };
   const [filters, setFilters] = useState({
     status: 'all' as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved',
     color: '',
@@ -60,7 +65,12 @@ export function Fleet() {
     limit: 9,
     total: 0,
     pages: 0
-  })
+  });
+
+  const handleMaintenanceItemsPerPageChange = (newLimit: number) => {
+    setMaintenancePagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    loadMaintenanceReports(1, newLimit);
+  };
   const [maintenanceFilters, setMaintenanceFilters] = useState({
     status: 'all',
     search: ''
@@ -75,7 +85,7 @@ export function Fleet() {
   const { toast } = useToast()
 
   // Load vehicles from API
-  const loadVehicles = useCallback(async () => {
+  const loadVehicles = useCallback(async (page?: number, limit?: number) => {
     setLoading(true)
     try {
       // Check if user is authenticated
@@ -84,9 +94,12 @@ export function Fleet() {
         throw new Error('Bạn cần đăng nhập để xem danh sách xe')
       }
 
+      const pageToLoad = page !== undefined ? page : pagination.page;
+      const limitToLoad = limit !== undefined ? limit : pagination.limit;
+
       const response = await getStaffVehicles({
-        page: pagination.page,
-        limit: pagination.limit,
+        page: pageToLoad,
+        limit: limitToLoad,
         status: filters.status === 'all' ? undefined : filters.status,
         color: filters.color || undefined,
         type: filters.type === 'all' ? undefined : filters.type
@@ -134,21 +147,26 @@ export function Fleet() {
     } finally {
       setLoading(false)
     }
-  }, [pagination.page, pagination.limit, filters, toast])
+  }, [filters, toast, pagination.page, pagination.limit])
 
   // Load maintenance reports
-  const loadMaintenanceReports = useCallback(async () => {
+  const loadMaintenanceReports = useCallback(async (page?: number, limit?: number) => {
     try {
       setLoadingReports(true)
+      const pageToLoad = page !== undefined ? page : maintenancePagination.page;
+      const limitToLoad = limit !== undefined ? limit : maintenancePagination.limit;
+      
       const response = await getMaintenanceReports({
-        page: maintenancePagination.page,
-        limit: maintenancePagination.limit,
+        page: pageToLoad,
+        limit: limitToLoad,
         status: maintenanceFilters.status
       })
       
       setMaintenanceReports(response.data.reports)
       setMaintenancePagination(prev => ({
         ...prev,
+        page: pageToLoad,
+        limit: limitToLoad,
         total: response.data.pagination.total,
         pages: response.data.pagination.pages
       }))
@@ -181,7 +199,7 @@ export function Fleet() {
     } finally {
       setLoadingReports(false)
     }
-  }, [maintenancePagination.page, maintenancePagination.limit, maintenanceFilters.status, toast])
+  }, [maintenanceFilters.status, toast, maintenancePagination.page, maintenancePagination.limit])
 
   // View maintenance detail
   const handleViewMaintenanceDetail = async (reportId: string) => {
@@ -409,7 +427,7 @@ export function Fleet() {
         </div>
         <div className="flex items-center gap-2">
           <Button 
-            onClick={activeTab === 'vehicles' ? loadVehicles : loadMaintenanceReports}
+            onClick={() => activeTab === 'vehicles' ? loadVehicles() : loadMaintenanceReports()}
             disabled={loading || loadingReports}
             className="flex items-center gap-2"
           >
@@ -940,21 +958,18 @@ export function Fleet() {
           </div>
 
           {/* Pagination */}
-          {pagination.pages > 1 && (
+          {pagination.total > 0 && (
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
-                  </div>
-                  <AdvancedPagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.pages}
-                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-                    disabled={loading}
-                    maxVisible={10}
-                  />
-                </div>
+                <TablePagination
+                  currentPage={pagination.page}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={(page) => loadVehicles(page)}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  disabled={loading}
+                  itemsPerPageOptions={[5, 10, 20, 50]}
+                />
               </CardContent>
             </Card>
           )}
@@ -1152,13 +1167,17 @@ export function Fleet() {
           )}
 
           {/* Pagination */}
-          {maintenancePagination.pages > 1 && (
+          {maintenancePagination.total > 0 && (
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4">
-                <AdvancedPagination
+                <TablePagination
                   currentPage={maintenancePagination.page}
-                  totalPages={maintenancePagination.pages}
-                  onPageChange={(page) => setMaintenancePagination(prev => ({ ...prev, page }))}
+                  totalItems={maintenancePagination.total}
+                  itemsPerPage={maintenancePagination.limit}
+                  onPageChange={(page) => loadMaintenanceReports(page)}
+                  onItemsPerPageChange={handleMaintenanceItemsPerPageChange}
+                  disabled={loadingReports}
+                  itemsPerPageOptions={[5, 10, 20, 50]}
                 />
               </CardContent>
             </Card>

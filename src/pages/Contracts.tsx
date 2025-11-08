@@ -31,7 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, type Contract } from '@/api/contracts';
 import { SignaturePad } from '@/components/SignaturePad';
 import { formatDate, formatDateTime } from '@/lib/utils';
-import { AdvancedPagination } from '@/components/ui/advanced-pagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 // Helper function to convert status to Vietnamese
 const getPaymentStatusText = (status: string) => {
@@ -86,6 +86,11 @@ export function Contracts() {
     total: 0,
     pages: 0
   });
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    loadContracts(1, newLimit);
+  };
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -107,16 +112,19 @@ export function Contracts() {
   });
 
   // Load contracts
-  const loadContracts = useCallback(async () => {
+  const loadContracts = useCallback(async (page?: number, limit?: number) => {
     setLoading(true);
     try {
+      const pageToLoad = page !== undefined ? page : pagination.page;
+      const limitToLoad = limit !== undefined ? limit : pagination.limit;
+      
       const response = await getContracts({
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchQuery || undefined,
         sort: sortField !== 'none' ? sortField : undefined,
         order: sortField !== 'none' ? sortOrder : undefined,
-        page: pagination.page,
-        limit: pagination.limit
+        page: pageToLoad,
+        limit: limitToLoad
       });
       
       setContracts(response.data.contracts);
@@ -153,7 +161,7 @@ export function Contracts() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, searchQuery, sortField, sortOrder, toast]);
+  }, [statusFilter, searchQuery, sortField, sortOrder, toast, pagination.page, pagination.limit]);
 
   useEffect(() => {
     loadContracts();
@@ -408,7 +416,7 @@ export function Contracts() {
           </p>
         </div>
         <Button 
-          onClick={loadContracts}
+          onClick={() => loadContracts()}
           disabled={loading}
           className="flex items-center gap-2"
         >
@@ -739,21 +747,18 @@ export function Contracts() {
           </div>
 
           {/* Pagination */}
-          {pagination.pages > 1 && (
+          {pagination.total > 0 && (
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
-                  </div>
-                  <AdvancedPagination
-                    currentPage={pagination.page}
-                    totalPages={pagination.pages}
-                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-                    disabled={loading}
-                    maxVisible={10}
-                  />
-                </div>
+                <TablePagination
+                  currentPage={pagination.page}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={(page) => loadContracts(page)}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  disabled={loading}
+                  itemsPerPageOptions={[5, 10, 20, 50]}
+                />
               </CardContent>
             </Card>
           )}

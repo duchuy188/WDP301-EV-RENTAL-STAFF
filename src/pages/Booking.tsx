@@ -33,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { AdvancedPagination } from '@/components/ui/advanced-pagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { 
   getStationBookings, 
   getBookingDetails,
@@ -68,6 +68,11 @@ const Booking: React.FC = () => {
     total: 0,
     pages: 0
   });
+  
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    loadBookings(undefined, 1, newLimit);
+  };
   
   // Advanced filters
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -171,13 +176,14 @@ const Booking: React.FC = () => {
   };
 
   // Load bookings data
-  const loadBookings = useCallback(async (params?: BookingListParams, page?: number) => {
+  const loadBookings = useCallback(async (params?: BookingListParams, page?: number, limit?: number) => {
     setIsLoading(true);
     try {
-      const pageToLoad = page || pagination.page;
+      const pageToLoad = page !== undefined ? page : pagination.page;
+      const limitToLoad = limit !== undefined ? limit : pagination.limit;
       const response: BookingListResponse = await getStationBookings({
         page: pageToLoad,
-        limit: pagination.limit,
+        limit: limitToLoad,
         ...params
       });
 
@@ -185,9 +191,9 @@ const Booking: React.FC = () => {
       setFilteredBookings(response.bookings);
       setPagination({
         page: response.pagination?.current || pageToLoad,
-        limit: pagination.limit,
+        limit: limitToLoad,
         total: response.pagination?.totalRecords || response.bookings.length,
-        pages: response.pagination?.total || Math.ceil((response.pagination?.totalRecords || response.bookings.length) / pagination.limit)
+        pages: response.pagination?.total || Math.ceil((response.pagination?.totalRecords || response.bookings.length) / limitToLoad)
       });
       
     } catch (error: unknown) {
@@ -202,7 +208,8 @@ const Booking: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, pagination.page, pagination.limit]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
 
   // Load data on component mount
   useEffect(() => {
@@ -1444,21 +1451,20 @@ const Booking: React.FC = () => {
               )}
 
               {/* Pagination */}
-              {pagination.pages > 1 && (
+              {pagination.total > 0 && (
                 <Card className="border-0 shadow-lg mt-8">
                   <CardContent className="p-4">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Trang <span className="font-bold text-gray-900 dark:text-white">{pagination.page}</span> / {pagination.pages}
-                      </div>
-                      <AdvancedPagination
-                        currentPage={pagination.page}
-                        totalPages={pagination.pages}
-                        onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-                        disabled={isLoading}
-                        maxVisible={10}
-                      />
-                    </div>
+                    <TablePagination
+                      currentPage={pagination.page}
+                      totalItems={pagination.total}
+                      itemsPerPage={pagination.limit}
+                      onPageChange={(page) => {
+                        loadBookings(undefined, page);
+                      }}
+                      onItemsPerPageChange={handleItemsPerPageChange}
+                      disabled={isLoading}
+                      itemsPerPageOptions={[5, 10, 20, 50]}
+                    />
                   </CardContent>
                 </Card>
               )}

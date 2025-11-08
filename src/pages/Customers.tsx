@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { getPendingKyc, updateKycStatus, staffUploadIdentityCardFront, staffUploadIdentityCardBack, staffUploadLicense, staffUploadLicenseFront, staffUploadLicenseBack, getUsersNotSubmittedKyc, getCompletedKyc, type PendingKycUser, type UserNotSubmittedKyc, type CompletedKycUser } from '@/api/kyc'
-import { AdvancedPagination } from '@/components/ui/advanced-pagination'
+import { TablePagination } from '@/components/ui/table-pagination'
 
 export function Customers() {
   // KYC Pending states
@@ -44,7 +44,12 @@ export function Customers() {
 
   // Pagination for KYC Pending (client-side) - hiển thị 6 cards mỗi trang
   const [pendingPage, setPendingPage] = useState(1)
-  const pendingLimit = 6
+  const [pendingLimit, setPendingLimit] = useState(6)
+  
+  const handlePendingItemsPerPageChange = (newLimit: number) => {
+    setPendingLimit(newLimit);
+    setPendingPage(1);
+  };
 
   // Users Not Submitted KYC states
   const [notSubmittedUsers, setNotSubmittedUsers] = useState<UserNotSubmittedKyc[]>([])
@@ -95,7 +100,12 @@ export function Customers() {
   
   // Pagination for Not Submitted tab (client-side) - hiển thị 6 cards mỗi trang
   const [notSubmittedPageClient, setNotSubmittedPageClient] = useState(1)
-  const notSubmittedLimitClient = 6
+  const [notSubmittedLimitClient, setNotSubmittedLimitClient] = useState(6)
+  
+  const handleNotSubmittedItemsPerPageChange = (newLimit: number) => {
+    setNotSubmittedLimitClient(newLimit);
+    setNotSubmittedPageClient(1);
+  };
 
   const { toast } = useToast()
 
@@ -209,6 +219,14 @@ export function Customers() {
 
   const handleCompletedSearch = () => {
     setCompletedPagination(prev => ({ ...prev, currentPage: 1 }))
+  }
+
+  const handleCompletedItemsPerPageChange = (newLimit: number) => {
+    setCompletedPagination(prev => ({ 
+      ...prev, 
+      itemsPerPage: newLimit, 
+      currentPage: 1 
+    }))
   }
 
   // Load users who haven't submitted KYC
@@ -1392,21 +1410,18 @@ export function Customers() {
           )}
 
           {/* Phân trang KYC Pending */}
-          {filteredUsers.length > 0 && pendingTotalPages > 1 && (
+          {filteredUsers.length > 0 && (
             <Card className="border-0 shadow-lg mt-6">
               <CardContent className="p-4">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Trang <span className="font-bold text-gray-900 dark:text-white">{pendingPage}</span> / {pendingTotalPages}
-                  </div>
-                  <AdvancedPagination
-                    currentPage={pendingPage}
-                    totalPages={pendingTotalPages}
-                    onPageChange={handlePendingPageChange}
-                    disabled={isLoading}
-                    maxVisible={10}
-                  />
-                </div>
+                <TablePagination
+                  currentPage={pendingPage}
+                  totalItems={filteredUsers.length}
+                  itemsPerPage={pendingLimit}
+                  onPageChange={handlePendingPageChange}
+                  onItemsPerPageChange={handlePendingItemsPerPageChange}
+                  disabled={isLoading}
+                  itemsPerPageOptions={[5, 10, 20, 50]}
+                />
               </CardContent>
             </Card>
           )}
@@ -1714,21 +1729,18 @@ export function Customers() {
                 </div>
 
                 {/* Phân trang Chưa submit KYC */}
-                {notSubmittedUsers.length > 0 && notSubmittedTotalPagesClient > 1 && (
+                {notSubmittedUsers.length > 0 && (
                   <Card className="border-0 shadow-lg">
                     <CardContent className="p-4">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Trang <span className="font-bold text-gray-900 dark:text-white">{notSubmittedPageClient}</span> / {notSubmittedTotalPagesClient}
-                        </div>
-                        <AdvancedPagination
-                          currentPage={notSubmittedPageClient}
-                          totalPages={notSubmittedTotalPagesClient}
-                          onPageChange={handleNotSubmittedPageClientChange}
-                          disabled={notSubmittedLoading}
-                          maxVisible={10}
-                        />
-                      </div>
+                      <TablePagination
+                        currentPage={notSubmittedPageClient}
+                        totalItems={notSubmittedUsers.length}
+                        itemsPerPage={notSubmittedLimitClient}
+                        onPageChange={handleNotSubmittedPageClientChange}
+                        onItemsPerPageChange={handleNotSubmittedItemsPerPageChange}
+                        disabled={notSubmittedLoading}
+                        itemsPerPageOptions={[5, 10, 20, 50]}
+                      />
                     </CardContent>
                   </Card>
                 )}
@@ -2046,21 +2058,18 @@ export function Customers() {
                 </div>
 
                 {/* Pagination */}
-                {completedKycUsers.length > 0 && completedPagination.totalPages > 1 && (
+                {completedKycUsers.length > 0 && completedPagination.totalItems > 0 && (
                   <Card className="border-0 shadow-lg">
                     <CardContent className="p-4">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Trang <span className="font-bold text-gray-900 dark:text-white">{completedPagination.currentPage}</span> / {completedPagination.totalPages}
-                        </div>
-                        <AdvancedPagination
-                          currentPage={completedPagination.currentPage}
-                          totalPages={completedPagination.totalPages}
-                          onPageChange={(page) => setCompletedPagination(prev => ({ ...prev, currentPage: page }))}
-                          disabled={completedLoading}
-                          maxVisible={10}
-                        />
-                      </div>
+                      <TablePagination
+                        currentPage={completedPagination.currentPage}
+                        totalItems={completedPagination.totalItems}
+                        itemsPerPage={completedPagination.itemsPerPage}
+                        onPageChange={(page) => setCompletedPagination(prev => ({ ...prev, currentPage: page }))}
+                        onItemsPerPageChange={handleCompletedItemsPerPageChange}
+                        disabled={completedLoading}
+                        itemsPerPageOptions={[5, 10, 20, 50]}
+                      />
                     </CardContent>
                   </Card>
                 )}

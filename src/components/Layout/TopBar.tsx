@@ -38,8 +38,10 @@ export function TopBar({ onLogout }: TopBarProps) {
 
   const handleLogout = () => {
     toast({
-      title: "Đã đăng xuất thành công ✅",
-      description: "Hẹn gặp lại bạn lần sau!"
+      title: "Thành công",
+      description: "Đã đăng xuất thành công. Hẹn gặp lại bạn lần sau!✅",
+      variant: "success",
+      duration: 3000,
     })
     // Clear stored tokens
     localStorage.removeItem('accessToken')

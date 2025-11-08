@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
-import { Car, DollarSign, Users, Battery, TrendingUp, Clock, RefreshCw } from 'lucide-react'
+import { DollarSign, Users, Battery, TrendingUp, Clock, RefreshCw } from 'lucide-react'
+import { FaMotorcycle } from 'react-icons/fa'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -16,7 +17,7 @@ const kpiCardsConfig = [
     title: 'Xe có sẵn',
     dataKey: 'availableVehicles' as const,
     changeKey: 'availableVehiclesChange' as const,
-    icon: Car,
+    icon: FaMotorcycle,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
     darkBgColor: 'dark:bg-blue-900/20',

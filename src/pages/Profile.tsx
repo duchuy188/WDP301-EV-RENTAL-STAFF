@@ -22,7 +22,6 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { updateProfile, UpdateProfilePayload, ApiError, getStoredTokens, logout as apiLogout, clearStoredTokens } from '@/api/auth';
-import { toast } from 'sonner';
 import { useToast } from '@/hooks/use-toast';
 import { useSidebar } from '@/context/SidebarContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -32,7 +31,7 @@ import { useNavigate } from 'react-router-dom';
 const Profile: React.FC = () => {
   const { collapsed } = useSidebar();
   const navigate = useNavigate();
-  const { toast: showToast } = useToast();
+  const { toast } = useToast();
   const { profile, updateProfile: updateProfileContext, isLoading: profileLoading, error: profileError } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,9 +55,11 @@ const Profile: React.FC = () => {
       console.error('Logout failed:', e);
     } finally {
       clearStoredTokens();
-      showToast({
-        title: "Đã đăng xuất thành công ✅",
-        description: "Hẹn gặp lại bạn lần sau!"
+      toast({
+        title: "Đã đăng xuất thành công",
+        description: "Hẹn gặp lại bạn lần sau!",
+        variant: "success",
+        duration: 3000,
       });
       setTimeout(() => {
         window.location.reload();
@@ -107,10 +108,20 @@ const Profile: React.FC = () => {
       setAvatarPreview(null);
       
       setIsEditing(false);
-      toast.success(response.message || 'Cập nhật hồ sơ thành công!');
+      toast({
+        title: "Thành công",
+        description: response.message || 'Cập nhật hồ sơ thành công!',
+        variant: "success",
+        duration: 3000,
+      });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Cập nhật hồ sơ thất bại';
-      toast.error(message);
+      toast({
+        title: "Lỗi",
+        description: message,
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode, ArrowLeftRight } from 'lucide-react'
-import { AdvancedPagination } from '@/components/ui/advanced-pagination'
+import { TablePagination } from '@/components/ui/table-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,14 +81,20 @@ export function Payments() {
     page: 1,
     limit: 10,
     pages: 1,
-  })
+  });
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setFilters(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    fetchPayments({ limit: newLimit, page: 1 });
+  };
 
   // Fetch payments data
-  const fetchPayments = useCallback(async () => {
+  const fetchPayments = useCallback(async (customFilters?: Partial<PaymentListParams>) => {
     try {
       setLoading(true)
       const params: PaymentListParams = {
         ...filters,
+        ...customFilters,
         search: searchTerm || undefined,
       }
       
@@ -109,7 +115,7 @@ export function Payments() {
     } finally {
       setLoading(false)
     }
-  }, [filters, searchTerm, toast])
+  }, [searchTerm, toast, filters])
 
   // Load payments on mount and when filters change
   useEffect(() => {
@@ -209,7 +215,8 @@ export function Payments() {
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {
-    setFilters(prev => ({ ...prev, page: newPage }))
+    setFilters(prev => ({ ...prev, page: newPage }));
+    fetchPayments({ page: newPage });
   }
 
   // View payment details
@@ -633,7 +640,7 @@ export function Payments() {
             Tạo payment
           </Button>
           <Button 
-            onClick={fetchPayments}
+            onClick={() => fetchPayments()}
             disabled={loading}
             className="flex items-center gap-2"
           >
@@ -858,16 +865,15 @@ export function Payments() {
               </div>
 
               {/* Pagination */}
-              <div className="flex flex-col items-center gap-4 mt-4">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Hiển thị {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} trong tổng số {pagination.total}
-                </div>
-                <AdvancedPagination
+              <div className="mt-4">
+                <TablePagination
                   currentPage={pagination.page}
-                  totalPages={pagination.pages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
                   onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
                   disabled={loading}
-                  maxVisible={10}
+                  itemsPerPageOptions={[5, 10, 20, 50, 100]}
                 />
               </div>
             </>
