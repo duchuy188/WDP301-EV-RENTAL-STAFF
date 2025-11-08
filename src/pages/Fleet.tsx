@@ -48,7 +48,8 @@ export function Fleet() {
   const [filters, setFilters] = useState({
     status: 'all' as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved',
     color: '',
-    type: 'all' as 'all' | 'scooter' | 'motorcycle'
+    type: 'all' as 'all' | 'scooter' | 'motorcycle',
+    search: ''
   })
   
   // Maintenance states
@@ -394,6 +395,17 @@ export function Fleet() {
     return 'text-red-600'
   }
 
+  const filterVehiclesBySearch = (vehiclesList: Vehicle[]) => {
+    if (!filters.search) return vehiclesList;
+    const searchLower = filters.search.toLowerCase();
+    return vehiclesList.filter(vehicle => 
+      vehicle.license_plate.toLowerCase().includes(searchLower) ||
+      vehicle.name.toLowerCase().includes(searchLower) ||
+      vehicle.brand.toLowerCase().includes(searchLower) ||
+      vehicle.model.toLowerCase().includes(searchLower)
+    );
+  }
+
 
 
   const getStatusBadge = (status: string) => {
@@ -465,16 +477,18 @@ export function Fleet() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Xe có sẵn
+              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
+                Đã duyệt
               </CardTitle>
-              <Battery className="h-4 w-4 text-green-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                <Battery className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{statistics.available}</div>
-              <p className="text-xs text-gray-500 mt-1">Sẵn sàng cho thuê</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{statistics.available}</div>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">Sẵn sàng cho thuê</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -484,16 +498,18 @@ export function Fleet() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Đang thuê
+              <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">
+                Bị từ chối
               </CardTitle>
-              <Settings className="h-4 w-4 text-blue-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg">
+                <AlertCircle className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{statistics.rented}</div>
-              <p className="text-xs text-gray-500 mt-1">Xe đang được sử dụng</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">{statistics.rented}</div>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">Xe đang được sử dụng</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -503,16 +519,39 @@ export function Fleet() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Đang đặt trước
+              <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                Đang chờ
               </CardTitle>
-              <Calendar className="h-4 w-4 text-yellow-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-yellow-600">{statistics.reserved}</div>
-              <p className="text-xs text-gray-500 mt-1">Xe đã được đặt trước</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{statistics.reserved}</div>
+              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 font-medium">Xe đã được đặt trước</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                Tổng cộng
+              </CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <Settings className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{statistics.total}</div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">Tất cả xe tại trạm</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -522,35 +561,18 @@ export function Fleet() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/50 dark:to-red-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-400">
                 Cần bảo trì
               </CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">{statistics.maintenance}</div>
-              <p className="text-xs text-gray-500 mt-1">Cần kiểm tra/sửa chữa</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Tổng số xe
-              </CardTitle>
-              <Wrench className="h-4 w-4 text-gray-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">{statistics.total}</div>
-              <p className="text-xs text-gray-500 mt-1">Tất cả xe tại trạm</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{statistics.maintenance}</div>
+              <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">Cần kiểm tra/sửa chữa</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -559,8 +581,8 @@ export function Fleet() {
       {/* Filter Section */}
       <Card className="border-0 shadow-lg">
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="flex items-center gap-2 flex-1">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium whitespace-nowrap">Lọc theo:</span>
               <Select value={filters.status} onValueChange={(value) => {
                 setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved' }))
@@ -591,11 +613,21 @@ export function Fleet() {
                   <SelectItem value="motorcycle">🏍️ Xe máy</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <Input
+                placeholder="🔍 Tìm kiếm..."
+                value={filters.search}
+                onChange={(e) => {
+                  setFilters(prev => ({ ...prev, search: e.target.value }))
+                  setPagination(prev => ({ ...prev, page: 1 }))
+                }}
+                className="w-[400px] border-2 focus:border-blue-500"
+              />
             </div>
             
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Hiển thị {vehicles.length} trong {pagination.total} xe
+              <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                Hiển thị {filterVehiclesBySearch(vehicles).length} trong {pagination.total} xe
               </span>
             </div>
           </div>
@@ -608,24 +640,30 @@ export function Fleet() {
           <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
           <p className="text-lg text-gray-600 dark:text-gray-300">Đang tải danh sách xe...</p>
         </div>
-      ) : vehicles.length === 0 ? (
-        <Card className="border-0 shadow-lg">
-          <CardContent className="text-center py-16">
-            <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-            <p className="text-xl font-medium text-gray-900 dark:text-white mb-2">
-              Không có xe nào
-            </p>
-            <p className="text-gray-600 dark:text-gray-400">
-              {filters.status !== 'all' 
-                ? 'Thử thay đổi bộ lọc để xem các xe khác' 
-                : 'Chưa có xe nào tại trạm của bạn'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vehicles.map((vehicle, index) => {
+      ) : (() => {
+        // Filter vehicles based on search term
+        const filteredVehicles = filterVehiclesBySearch(vehicles);
+        
+        return filteredVehicles.length === 0 ? (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="text-center py-16">
+              <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <p className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+                Không tìm thấy xe nào
+              </p>
+              <p className="text-gray-600 dark:text-gray-400">
+                {filters.search 
+                  ? `Không tìm thấy xe phù hợp với "${filters.search}"` 
+                  : filters.status !== 'all' 
+                    ? 'Thử thay đổi bộ lọc để xem các xe khác' 
+                    : 'Chưa có xe nào tại trạm của bạn'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredVehicles.map((vehicle, index) => {
               return (
                 <motion.div
                   key={vehicle._id}
@@ -974,7 +1012,8 @@ export function Fleet() {
             </Card>
           )}
         </div>
-      )}
+        );
+      })()}
           </div>
         </TabsContent>
 
@@ -982,39 +1021,55 @@ export function Fleet() {
         <TabsContent value="maintenance" className="space-y-6 mt-6">
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Chờ xử lý</CardTitle>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">Chờ xử lý</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-md">
+                  <AlertCircle className="h-5 w-5 text-white" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-500">{maintenanceStats.reported}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">{maintenanceStats.reported}</div>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">Báo cáo mới</p>
               </CardContent>
             </Card>
             
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Đang xử lý</CardTitle>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Đang xử lý</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-md">
+                  <Clock className="h-5 w-5 text-white" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-yellow-500">{maintenanceStats.in_progress}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{maintenanceStats.in_progress}</div>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 font-medium">Đang sửa chữa</p>
               </CardContent>
             </Card>
             
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Đã xong</CardTitle>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Đã xong</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md">
+                  <CheckCircle className="h-5 w-5 text-white" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-500">{maintenanceStats.fixed}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{maintenanceStats.fixed}</div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">Hoàn thành</p>
               </CardContent>
             </Card>
             
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Tổng số</CardTitle>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">Tổng số</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+                  <Wrench className="h-5 w-5 text-white" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{maintenanceStats.total}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{maintenanceStats.total}</div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">Tất cả báo cáo</p>
               </CardContent>
             </Card>
           </div>

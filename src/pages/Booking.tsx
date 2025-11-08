@@ -1155,15 +1155,15 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                    <Calendar className="h-5 w-5 text-blue-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                    <Calendar className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Tổng số</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Tổng số</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.total}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1175,15 +1175,15 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                    <Clock className="h-5 w-5 text-yellow-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
+                    <Clock className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Chờ xử lý</p>
-                    <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">Chờ xử lý</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{stats.pending}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1195,15 +1195,15 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                    <CheckCircle className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Đã xác nhận</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.confirmed}</p>
+                    <p className="text-xs text-green-700 dark:text-green-400 font-medium">Đã xác nhận</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{stats.confirmed}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1215,15 +1215,15 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                    <FaMotorcycle className="h-5 w-5 text-purple-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+                    <FaMotorcycle className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Đang thuê</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.in_progress}</p>
+                    <p className="text-xs text-purple-700 dark:text-purple-400 font-medium">Đang thuê</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{stats.in_progress}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1235,15 +1235,15 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/50 dark:to-cyan-950/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
-                    <Check className="h-5 w-5 text-emerald-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg">
+                    <Check className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Hoàn thành</p>
-                    <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
+                    <p className="text-xs text-teal-700 dark:text-teal-400 font-medium">Hoàn thành</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">{stats.completed}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1255,15 +1255,15 @@ const Booking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
-                    <XCircle className="h-5 w-5 text-red-600" />
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg">
+                    <XCircle className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Đã hủy</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
+                    <p className="text-xs text-red-700 dark:text-red-400 font-medium">Đã hủy</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">{stats.cancelled}</p>
                   </div>
                 </div>
               </CardContent>

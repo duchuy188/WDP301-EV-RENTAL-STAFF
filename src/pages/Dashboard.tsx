@@ -107,49 +107,80 @@ export function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiCardsConfig.map((card, index) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + index * 0.1 }}
-            whileHover={{ scale: 1.02, y: -5 }}
-            className="group"
-          >
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-              <CardContent className="p-6">
-                {kpiLoading ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-8 w-16" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        {card.title}
-                      </p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                        {kpiData ? (
-                          card.formatValue 
-                            ? card.formatValue(kpiData[card.dataKey])
-                            : kpiData[card.dataKey]
-                        ) : '-'}
-                      </p>
-                      <p className="text-xs text-green-600 dark:text-green-400">
-                        {kpiData?.[card.changeKey] || 'Đang tải...'}
-                      </p>
+        {kpiCardsConfig.map((card, index) => {
+          const gradientMap = {
+            'text-blue-600': {
+              cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50',
+              iconBg: 'bg-gradient-to-br from-blue-500 to-indigo-600',
+              textGradient: 'bg-gradient-to-r from-blue-600 to-indigo-600',
+              textColor: 'text-blue-700 dark:text-blue-400'
+            },
+            'text-green-600': {
+              cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50',
+              iconBg: 'bg-gradient-to-br from-green-500 to-emerald-600',
+              textGradient: 'bg-gradient-to-r from-green-600 to-emerald-600',
+              textColor: 'text-green-700 dark:text-green-400'
+            },
+            'text-purple-600': {
+              cardBg: 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50',
+              iconBg: 'bg-gradient-to-br from-purple-500 to-pink-600',
+              textGradient: 'bg-gradient-to-r from-purple-600 to-pink-600',
+              textColor: 'text-purple-700 dark:text-purple-400'
+            },
+            'text-orange-600': {
+              cardBg: 'bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/50 dark:to-red-950/50',
+              iconBg: 'bg-gradient-to-br from-orange-500 to-red-600',
+              textGradient: 'bg-gradient-to-r from-orange-600 to-red-600',
+              textColor: 'text-orange-700 dark:text-orange-400'
+            }
+          };
+          
+          const colors = gradientMap[card.color as keyof typeof gradientMap];
+          
+          return (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + index * 0.1 }}
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="group"
+            >
+              <Card className={`border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${colors.cardBg}`}>
+                <CardContent className="p-6">
+                  {kpiLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-3 w-32" />
                     </div>
-                    <div className={`p-3 rounded-xl ${card.bgColor} ${card.darkBgColor} group-hover:scale-110 transition-transform`}>
-                      <card.icon className={`h-6 w-6 ${card.color}`} />
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`text-sm font-medium mb-1 ${colors.textColor}`}>
+                          {card.title}
+                        </p>
+                        <p className={`text-3xl font-bold mb-1 bg-clip-text text-transparent ${colors.textGradient}`}>
+                          {kpiData ? (
+                            card.formatValue 
+                              ? card.formatValue(kpiData[card.dataKey])
+                              : kpiData[card.dataKey]
+                          ) : '-'}
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                          {kpiData?.[card.changeKey] || 'Đang tải...'}
+                        </p>
+                      </div>
+                      <div className={`h-12 w-12 rounded-xl ${colors.iconBg} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                        <card.icon className="h-6 w-6 text-white" />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

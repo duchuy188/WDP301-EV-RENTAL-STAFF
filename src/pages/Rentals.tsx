@@ -498,16 +498,18 @@ export function Rentals() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
                 Đang thuê
               </CardTitle>
-              <FaMotorcycle className="h-4 w-4 text-green-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                <FaMotorcycle className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{stats.active}</div>
-              <p className="text-xs text-gray-500 mt-1">Rentals đang hoạt động</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{stats.active}</div>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">Rentals đang hoạt động</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -517,16 +519,18 @@ export function Rentals() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
                 Chờ thanh toán
               </CardTitle>
-              <DollarSign className="h-4 w-4 text-yellow-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
+                <DollarSign className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-yellow-600">{stats.pending_payment}</div>
-              <p className="text-xs text-gray-500 mt-1">Cần xử lý thanh toán</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{stats.pending_payment}</div>
+              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 font-medium">Cần xử lý thanh toán</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -536,16 +540,18 @@ export function Rentals() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">
                 Hoàn thành
               </CardTitle>
-              <CheckCircle className="h-4 w-4 text-blue-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{stats.completed}</div>
-              <p className="text-xs text-gray-500 mt-1">Rentals đã hoàn thành</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.completed}</div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">Rentals đã hoàn thành</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -555,16 +561,18 @@ export function Rentals() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-400">
                 Tổng cộng
               </CardTitle>
-              <FileText className="h-4 w-4 text-gray-600" />
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
-              <p className="text-xs text-gray-500 mt-1">Tất cả rentals</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{stats.total}</div>
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-medium">Tất cả rentals</p>
             </CardContent>
           </Card>
         </motion.div>
