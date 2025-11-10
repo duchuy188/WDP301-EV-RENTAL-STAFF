@@ -1650,67 +1650,189 @@ export function Rentals() {
                     </div>
                     
                     {hasAdditionalFees && (
-                      <div className="space-y-4 pt-4 border-t border-orange-200 dark:border-orange-700">
-                        <div className="space-y-2">
-                          <Label htmlFor="late-fee" className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            Phí trễ giờ (VNĐ)
-                          </Label>
-                          <Input
-                            id="late-fee"
-                            type="number"
-                            min="0"
-                            placeholder="VD: 50000"
-                            value={lateFee}
-                            onChange={(e) => setLateFee(e.target.value)}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="damage-fee" className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4" />
-                            Phí hư hỏng xe (VNĐ)
-                          </Label>
-                          <Input
-                            id="damage-fee"
-                            type="number"
-                            min="0"
-                            placeholder="VD: 75000"
-                            value={damageFee}
-                            onChange={(e) => setDamageFee(e.target.value)}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="other-fees" className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
-                            Phí phụ trội khác (VNĐ)
-                          </Label>
-                          <Input
-                            id="other-fees"
-                            type="number"
-                            min="0"
-                            placeholder="VD: 25000"
-                            value={otherFees}
-                            onChange={(e) => setOtherFees(e.target.value)}
-                          />
-                        </div>
-                        
-                        {(lateFee || damageFee || otherFees) && (
-                          <div className="pt-4 border-t border-orange-200 dark:border-orange-700">
-                            <div className="flex items-center justify-between text-lg font-bold">
-                              <span className="text-orange-900 dark:text-orange-300">Tổng phí phát sinh:</span>
-                              <span className="text-red-600 dark:text-red-400">
-                                {formatPrice(
-                                  (lateFee ? parseInt(lateFee) : 0) +
-                                  (damageFee ? parseInt(damageFee) : 0) +
-                                  (otherFees ? parseInt(otherFees) : 0)
-                                )}
-                              </span>
+                      <>
+                        {/* Bảng giá tham khảo */}
+                        <Card className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
+                          <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            📊 Bảng giá tham khảo
+                          </h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                            {/* Phí trễ giờ */}
+                            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-700 space-y-2">
+                              <p className="font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                Phí trễ giờ
+                              </p>
+                              <div className="space-y-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setLateFee('20000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">1-2 giờ:</span>
+                                  <span className="font-bold ml-2">20,000đ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setLateFee('50000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">3-6 giờ:</span>
+                                  <span className="font-bold ml-2">50,000đ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setLateFee('100000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">&gt;6 giờ:</span>
+                                  <span className="font-bold ml-2">100,000đ</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Phí hư hỏng xe */}
+                            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-orange-200 dark:border-orange-700 space-y-2">
+                              <p className="font-semibold text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                                <AlertCircle className="h-3 w-3" />
+                                Phí hư hỏng xe
+                              </p>
+                              <div className="space-y-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setDamageFee('50000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">Trầy nhẹ:</span>
+                                  <span className="font-bold ml-2">50,000đ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDamageFee('150000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">Hư hỏng vừa:</span>
+                                  <span className="font-bold ml-2">150,000đ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDamageFee('300000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">Hư hỏng nặng:</span>
+                                  <span className="font-bold ml-2">300,000đ</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Phí phụ trội khác */}
+                            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700 space-y-2">
+                              <p className="font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                                <DollarSign className="h-3 w-3" />
+                                Phí phụ trội khác
+                              </p>
+                              <div className="space-y-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setOtherFees('25000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">Vệ sinh xe:</span>
+                                  <span className="font-bold ml-2">25,000đ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setOtherFees('50000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">Mất phụ kiện:</span>
+                                  <span className="font-bold ml-2">50,000đ</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setOtherFees('100000')}
+                                  className="w-full text-left px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                                >
+                                  <span className="text-gray-600 dark:text-gray-400">Vi phạm khác:</span>
+                                  <span className="font-bold ml-2">100,000đ</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        )}
-                      </div>
+
+                          <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-300 flex items-start gap-2">
+                              <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                              <span>💡 <strong>Mẹo:</strong> Nhấn vào giá để tự động điền, hoặc nhập số tiền tùy chỉnh bên dưới</span>
+                            </p>
+                          </div>
+                        </Card>
+
+                        {/* Các input fields */}
+                        <div className="space-y-4 pt-4 border-t border-orange-200 dark:border-orange-700">
+                          <div className="space-y-2">
+                            <Label htmlFor="late-fee" className="flex items-center gap-2">
+                              <Clock className="h-4 w-4" />
+                              Phí trễ giờ (VNĐ)
+                            </Label>
+                            <Input
+                              id="late-fee"
+                              type="number"
+                              min="0"
+                              placeholder="VD: 50000"
+                              value={lateFee}
+                              onChange={(e) => setLateFee(e.target.value)}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="damage-fee" className="flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4" />
+                              Phí hư hỏng xe (VNĐ)
+                            </Label>
+                            <Input
+                              id="damage-fee"
+                              type="number"
+                              min="0"
+                              placeholder="VD: 75000"
+                              value={damageFee}
+                              onChange={(e) => setDamageFee(e.target.value)}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="other-fees" className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4" />
+                              Phí phụ trội khác (VNĐ)
+                            </Label>
+                            <Input
+                              id="other-fees"
+                              type="number"
+                              min="0"
+                              placeholder="VD: 25000"
+                              value={otherFees}
+                              onChange={(e) => setOtherFees(e.target.value)}
+                            />
+                          </div>
+                          
+                          {(lateFee || damageFee || otherFees) && (
+                            <div className="pt-4 border-t border-orange-200 dark:border-orange-700">
+                              <div className="flex items-center justify-between text-lg font-bold">
+                                <span className="text-orange-900 dark:text-orange-300">Tổng phí phát sinh:</span>
+                                <span className="text-red-600 dark:text-red-400">
+                                  {formatPrice(
+                                    (lateFee ? parseInt(lateFee) : 0) +
+                                    (damageFee ? parseInt(damageFee) : 0) +
+                                    (otherFees ? parseInt(otherFees) : 0)
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
                   </Card>
 

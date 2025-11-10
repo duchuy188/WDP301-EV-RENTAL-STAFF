@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CheckCircle2, XCircle, Clock, ArrowLeft, Receipt, Download, Home } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, ArrowLeft, Receipt, Home } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -298,17 +298,6 @@ export function PaymentSuccess() {
             transition={{ delay: 0.8 }}
             className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
           >
-            {isSuccess && (
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => window.print()}
-                className="flex items-center space-x-2"
-              >
-                <Download className="h-5 w-5" />
-                <span>In hóa đơn</span>
-              </Button>
-            )}
             <Button
               size="lg"
               onClick={() => navigate('/payments')}
