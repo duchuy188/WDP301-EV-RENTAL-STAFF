@@ -161,7 +161,7 @@ export function Contracts() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchQuery, sortField, sortOrder, toast, pagination.page, pagination.limit]);
+  }, [statusFilter, searchQuery, sortField, sortOrder, toast]);
 
   useEffect(() => {
     loadContracts();

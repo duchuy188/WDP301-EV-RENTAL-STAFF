@@ -141,7 +141,8 @@ export function Rentals() {
     } finally {
       setLoading(false);
     }
-  }, [toast, pagination.page, pagination.limit, statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast, statusFilter]);
 
   useEffect(() => {
     loadRentals();

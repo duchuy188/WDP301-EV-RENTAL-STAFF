@@ -148,7 +148,8 @@ export function Fleet() {
     } finally {
       setLoading(false)
     }
-  }, [filters, toast, pagination.page, pagination.limit])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, toast])
 
   // Load maintenance reports
   const loadMaintenanceReports = useCallback(async (page?: number, limit?: number) => {
@@ -200,7 +201,8 @@ export function Fleet() {
     } finally {
       setLoadingReports(false)
     }
-  }, [maintenanceFilters.status, toast, maintenancePagination.page, maintenancePagination.limit])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maintenanceFilters.status, toast])
 
   // View maintenance detail
   const handleViewMaintenanceDetail = async (reportId: string) => {
