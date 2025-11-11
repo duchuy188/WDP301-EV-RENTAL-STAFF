@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode, ArrowLeftRight } from 'lucide-react'
 import { TablePagination } from '@/components/ui/table-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,7 +21,6 @@ import { Textarea } from '@/components/ui/textarea'
 
 export function Payments() {
   const location = useLocation()
-  const navigate = useNavigate()
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -123,19 +122,8 @@ export function Payments() {
     fetchPayments()
   }, [fetchPayments])
 
-  // Check for VNPay callback parameters and redirect to PaymentSuccess page
+  // Check if navigated from Rentals with QR data
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search)
-    const vnp_ResponseCode = searchParams.get('vnp_ResponseCode')
-    const vnp_TransactionStatus = searchParams.get('vnp_TransactionStatus')
-
-    // If VNPay callback parameters exist, redirect to /payments/success with all params
-    if (vnp_ResponseCode || vnp_TransactionStatus) {
-      navigate(`/payments/success${location.search}`, { replace: true })
-      return
-    }
-
-    // Check if navigated from Rentals with QR data
     if (location.state && 'showQr' in location.state && location.state.showQr && location.state.qrData) {
       // Show QR dialog with the payment info
       setQrData(location.state.qrData as QRData)
@@ -144,7 +132,7 @@ export function Payments() {
       // Clear the state to prevent showing again on refresh
       window.history.replaceState({}, document.title)
     }
-  }, [location, navigate])
+  }, [location])
 
   // Fetch bookings for dropdown
   const fetchBookings = useCallback(async () => {
