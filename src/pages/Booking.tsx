@@ -286,7 +286,7 @@ const Booking: React.FC = () => {
       case 'confirmed':
         return 'default';
       case 'pending':
-        return 'secondary';
+        return 'outline';
       case 'cancelled':
         return 'destructive';
       case 'in_progress':
@@ -297,6 +297,15 @@ const Booking: React.FC = () => {
         return 'default';
       default:
         return 'secondary';
+    }
+  };
+
+  const getStatusClassName = (status: Booking['status']) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+      default:
+        return '';
     }
   };
 
@@ -1321,7 +1330,7 @@ const Booking: React.FC = () => {
                                 <div className="flex flex-wrap items-center gap-2 mb-2">
                                   <h3 className="text-xl font-bold text-gray-900 dark:text-white">{booking.code || 'N/A'}</h3>
                                   {getStatusIcon(booking.status)}
-                                  <Badge variant={getStatusVariant(booking.status)} className="text-xs px-2 py-1">
+                                  <Badge variant={getStatusVariant(booking.status)} className={`text-xs px-2 py-1 ${getStatusClassName(booking.status)}`}>
                                     {getStatusText(booking.status)}
                                   </Badge>
                                   <Badge variant="outline" className="text-xs">
@@ -2124,7 +2133,7 @@ const Booking: React.FC = () => {
                       </h2>
                       <div className="flex items-center gap-2">
                         {getStatusIcon(selectedBookingDetail.status)}
-                        <Badge variant={getStatusVariant(selectedBookingDetail.status)} className="text-sm">
+                        <Badge variant={getStatusVariant(selectedBookingDetail.status)} className={`text-sm ${getStatusClassName(selectedBookingDetail.status)}`}>
                           {getStatusText(selectedBookingDetail.status)}
                         </Badge>
                         <Badge variant="outline" className="text-sm">
@@ -3008,7 +3017,7 @@ const Booking: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Trạng thái:</span>
-                            <Badge variant="secondary" className="mt-1 font-semibold text-green-600">
+                            <Badge variant={getStatusVariant(scanResult.booking.status as Booking['status'])} className={`mt-1 ${getStatusClassName(scanResult.booking.status as Booking['status'])}`}>
                               {getStatusText(scanResult.booking.status as Booking['status'])}
                             </Badge>
                           </div>
@@ -3127,6 +3136,34 @@ const Booking: React.FC = () => {
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-3 pt-4 border-t">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setIsQRScannerOpen(false);
+                          resetQRScanner();
+                        }}
+                      >
+                        Đóng
+                      </Button>
+                      {scanResult.booking.isCheckedIn && (
+                        <Button 
+                          onClick={() => {
+                            // Đóng modal QR
+                            setIsQRScannerOpen(false);
+                            resetQRScanner();
+                            // Mở modal xác nhận bàn giao xe
+                            openConfirmDialog(scanResult.booking._id);
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Xác nhận 
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )

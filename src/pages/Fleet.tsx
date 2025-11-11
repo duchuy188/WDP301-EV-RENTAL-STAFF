@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, Eye, Calendar, MapPin, Phone, Mail, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react'
+import { AlertTriangle, Battery, Settings, Camera, Wrench, RefreshCw, Eye, Calendar, MapPin, Phone, Mail, AlertCircle, CheckCircle, Clock, Zap, Search, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -48,9 +48,9 @@ export function Fleet() {
   const [filters, setFilters] = useState({
     status: 'all' as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved',
     color: '',
-    type: 'all' as 'all' | 'scooter' | 'motorcycle',
-    search: ''
+    type: 'all' as 'all' | 'scooter' | 'motorcycle'
   })
+  const [searchTerm, setSearchTerm] = useState('')
   
   // Maintenance states
   const [activeTab, setActiveTab] = useState<'vehicles' | 'maintenance'>('vehicles')
@@ -73,8 +73,7 @@ export function Fleet() {
     loadMaintenanceReports(1, newLimit);
   };
   const [maintenanceFilters, setMaintenanceFilters] = useState({
-    status: 'all',
-    search: ''
+    status: 'all'
   })
   const [maintenanceStats, setMaintenanceStats] = useState({
     reported: 0,
@@ -398,11 +397,14 @@ export function Fleet() {
   }
 
   const filterVehiclesBySearch = (vehiclesList: Vehicle[]) => {
-    if (!filters.search) return vehiclesList;
-    const searchLower = filters.search.toLowerCase();
+    if (!searchTerm.trim()) {
+      return vehiclesList;
+    }
+    
+    const searchLower = searchTerm.toLowerCase().trim();
     return vehiclesList.filter(vehicle => 
-      vehicle.license_plate.toLowerCase().includes(searchLower) ||
       vehicle.name.toLowerCase().includes(searchLower) ||
+      vehicle.license_plate.toLowerCase().includes(searchLower) ||
       vehicle.brand.toLowerCase().includes(searchLower) ||
       vehicle.model.toLowerCase().includes(searchLower)
     );
@@ -583,54 +585,68 @@ export function Fleet() {
       {/* Filter Section */}
       <Card className="border-0 shadow-lg">
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium whitespace-nowrap">Lọc theo:</span>
-              <Select value={filters.status} onValueChange={(value) => {
-                setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved' }))
-                setPagination(prev => ({ ...prev, page: 1 }))
-              }}>
-                <SelectTrigger className="w-[150px] border-2 focus:border-blue-500">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">📋 Tất cả</SelectItem>
-                  <SelectItem value="available">✅ Có sẵn</SelectItem>
-                  <SelectItem value="rented">🛵 Đang thuê</SelectItem>
-                  <SelectItem value="reserved">📅 Đang đặt trước</SelectItem>
-                  <SelectItem value="maintenance">🔧 Bảo trì</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={filters.type} onValueChange={(value) => {
-                setFilters(prev => ({ ...prev, type: value as 'all' | 'scooter' | 'motorcycle' }))
-                setPagination(prev => ({ ...prev, page: 1 }))
-              }}>
-                <SelectTrigger className="w-[150px] border-2 focus:border-blue-500">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">📋 Tất cả</SelectItem>
-                  <SelectItem value="scooter">🛵 Xe tay ga</SelectItem>
-                  <SelectItem value="motorcycle">🏍️ Xe máy</SelectItem>
-                </SelectContent>
-              </Select>
-              
+          <div className="flex flex-col gap-4">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="🔍 Tìm kiếm..."
-                value={filters.search}
-                onChange={(e) => {
-                  setFilters(prev => ({ ...prev, search: e.target.value }))
-                  setPagination(prev => ({ ...prev, page: 1 }))
-                }}
-                className="w-[400px] border-2 focus:border-blue-500"
+                type="text"
+                placeholder="🔍 Tìm kiếm theo tên xe, biển số, hãng, model..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-10 border-2 focus:border-blue-500"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  title="Xóa tìm kiếm"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                Hiển thị {filterVehiclesBySearch(vehicles).length} trong {pagination.total} xe
-              </span>
+
+            {/* Filters Row */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium whitespace-nowrap">Lọc theo:</span>
+                <Select value={filters.status} onValueChange={(value) => {
+                  setFilters(prev => ({ ...prev, status: value as 'all' | 'available' | 'rented' | 'maintenance' | 'reserved' }))
+                  setPagination(prev => ({ ...prev, page: 1 }))
+                }}>
+                  <SelectTrigger className="w-[150px] border-2 focus:border-blue-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">📋 Tất cả</SelectItem>
+                    <SelectItem value="available">✅ Có sẵn</SelectItem>
+                    <SelectItem value="rented">🛵 Đang thuê</SelectItem>
+                    <SelectItem value="reserved">📅 Đang đặt trước</SelectItem>
+                    <SelectItem value="maintenance">🔧 Bảo trì</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={filters.type} onValueChange={(value) => {
+                  setFilters(prev => ({ ...prev, type: value as 'all' | 'scooter' | 'motorcycle' }))
+                  setPagination(prev => ({ ...prev, page: 1 }))
+                }}>
+                  <SelectTrigger className="w-[150px] border-2 focus:border-blue-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">📋 Tất cả</SelectItem>
+                    <SelectItem value="scooter">🛵 Xe tay ga</SelectItem>
+                    <SelectItem value="motorcycle">🏍️ Xe máy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  Hiển thị {filterVehiclesBySearch(vehicles).length} trong {pagination.total} xe
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -654,11 +670,9 @@ export function Fleet() {
                 Không tìm thấy xe nào
               </p>
               <p className="text-gray-600 dark:text-gray-400">
-                {filters.search 
-                  ? `Không tìm thấy xe phù hợp với "${filters.search}"` 
-                  : filters.status !== 'all' 
-                    ? 'Thử thay đổi bộ lọc để xem các xe khác' 
-                    : 'Chưa có xe nào tại trạm của bạn'}
+                {filters.status !== 'all' 
+                  ? 'Thử thay đổi bộ lọc để xem các xe khác' 
+                  : 'Chưa có xe nào tại trạm của bạn'}
               </p>
             </CardContent>
           </Card>
@@ -1094,13 +1108,6 @@ export function Fleet() {
                     <SelectItem value="fixed">Đã xong</SelectItem>
                   </SelectContent>
                 </Select>
-                
-                <Input
-                  placeholder="Tìm theo tên xe..."
-                  value={maintenanceFilters.search}
-                  onChange={(e) => setMaintenanceFilters({...maintenanceFilters, search: e.target.value})}
-                  className="max-w-sm"
-                />
               </div>
             </CardContent>
           </Card>
@@ -1119,9 +1126,7 @@ export function Fleet() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {maintenanceReports
-                .filter(r => !maintenanceFilters.search || r.vehicle_id?.name.toLowerCase().includes(maintenanceFilters.search.toLowerCase()))
-                .map((report, index) => (
+              {maintenanceReports.map((report, index) => (
                   <motion.div
                     key={report._id}
                     initial={{ opacity: 0, y: 20 }}

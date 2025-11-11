@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, Receipt, Filter, RefreshCw, Eye, Plus, QrCode, ArrowLeftRight } from 'lucide-react'
 import { TablePagination } from '@/components/ui/table-pagination'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 export function Payments() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -122,17 +123,28 @@ export function Payments() {
     fetchPayments()
   }, [fetchPayments])
 
-  // Check if navigated from Rentals with QR data
+  // Check for VNPay callback parameters and redirect to PaymentSuccess page
   useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const vnp_ResponseCode = searchParams.get('vnp_ResponseCode')
+    const vnp_TransactionStatus = searchParams.get('vnp_TransactionStatus')
+
+    // If VNPay callback parameters exist, redirect to /payments/success with all params
+    if (vnp_ResponseCode || vnp_TransactionStatus) {
+      navigate(`/payments/success${location.search}`, { replace: true })
+      return
+    }
+
+    // Check if navigated from Rentals with QR data
     if (location.state && 'showQr' in location.state && location.state.showQr && location.state.qrData) {
       // Show QR dialog with the payment info
       setQrData(location.state.qrData as QRData)
       setShowQrDialog(true)
-      
+
       // Clear the state to prevent showing again on refresh
       window.history.replaceState({}, document.title)
     }
-  }, [location])
+  }, [location, navigate])
 
   // Fetch bookings for dropdown
   const fetchBookings = useCallback(async () => {
@@ -553,6 +565,7 @@ export function Payments() {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       pending: 'outline',
+      pending_payment: 'outline',
       pending_deposit: 'outline',
       completed: 'default',
       cancelled: 'destructive',
@@ -565,6 +578,7 @@ export function Payments() {
     
     const labels: Record<string, string> = {
       pending: 'Chờ xử lý',
+      pending_payment: 'Chờ thanh toán',
       pending_deposit: 'Chờ đặt cọc',
       completed: 'Hoàn thành',
       cancelled: 'Đã hủy',
@@ -577,6 +591,7 @@ export function Payments() {
     
     const customClasses: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800',
+      pending_payment: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800',
       pending_deposit: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800',
       cancelled: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
     }
@@ -1071,6 +1086,35 @@ export function Payments() {
                       className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600"
                     >
                       Xác nhận thanh toán
+                    </Button>
+                  )}
+                  {/* Show QR Code Button for VNPay */}
+                  {selectedPayment.payment_method === 'vnpay' && selectedPayment.vnpay_url && (
+                    <Button
+                      onClick={() => {
+                        // Create QR data and show dialog
+                        const createDate = selectedPayment.createdAt || selectedPayment.created_at || new Date().toISOString()
+                        setQrData({
+                          qrData: selectedPayment.qr_code_data || selectedPayment.vnpay_url || '',
+                          qrImageUrl: selectedPayment.qr_code_image || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(selectedPayment.vnpay_url || '')}`,
+                          qrText: `Mã giao dịch: ${selectedPayment.code}\nQuét mã QR hoặc truy cập link để thanh toán VNPay`,
+                          vnpayData: {
+                            paymentUrl: selectedPayment.vnpay_url || '',
+                            orderId: selectedPayment.vnpay_transaction_no || selectedPayment.code,
+                            txnRef: selectedPayment.code,
+                            orderInfo: `Thanh toán ${selectedPayment.code}`,
+                            amount: selectedPayment.amount,
+                            createDate: createDate,
+                            expireDate: new Date(new Date(createDate).getTime() + 15 * 60 * 1000).toISOString(),
+                            params: {}
+                          }
+                        })
+                        setShowQrDialog(true)
+                      }}
+                      className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600"
+                    >
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Xem mã QR thanh toán
                     </Button>
                   )}
                   {/* Update Payment Method Button */}
