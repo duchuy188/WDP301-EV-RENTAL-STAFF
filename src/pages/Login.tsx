@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
-import { login as loginApi } from '@/api/auth'
+import { login as loginApi, getProfile } from '@/api/auth'
 
 interface LoginProps {
   onLogin: () => void
@@ -31,44 +31,24 @@ export function Login({ onLogin }: LoginProps) {
         throw new Error('Không nhận được token xác thực')
       }
 
-      // Optional: enforce staff role if present in JWT claims
-      const decodeJwt = (jwt: string): Record<string, unknown> | null => {
-        try {
-          const payload = jwt.split('.')[1]
-          const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-          const json = atob(base64)
-          return JSON.parse(json)
-        } catch {
-          return null
-        }
+      // Store token temporarily to call profile API
+      const tempStorage = rememberMe ? localStorage : sessionStorage
+      tempStorage.setItem('accessToken', token)
+      if (refreshToken) tempStorage.setItem('refreshToken', refreshToken)
+
+
+      const profile = await getProfile()
+      
+      
+      const userRole = profile.role.toLowerCase()
+      if (!userRole.includes('staff')) {
+        // Clear tokens if not staff
+        tempStorage.removeItem('accessToken')
+        tempStorage.removeItem('refreshToken')
+        throw new Error(`Tài khoản không có quyền Nhân viên Trạm. Role hiện tại: ${profile.role}`)
       }
 
-      const claims = decodeJwt(token)
-      if (claims) {
-        const cl = claims as Record<string, unknown>
-        const role = typeof cl.role === 'string' ? (cl.role as string) : undefined
-        const rolesRaw = cl.roles
-        const roles = Array.isArray(rolesRaw)
-          ? (rolesRaw.filter((v) => typeof v === 'string') as string[])
-          : undefined
-        const hasStaffRole =
-          (typeof role === 'string' && role.toLowerCase().includes('staff')) ||
-          (Array.isArray(roles) && roles.some((r) => r.toLowerCase().includes('staff')))
-        if (role !== undefined || roles !== undefined) {
-          if (!hasStaffRole) {
-            throw new Error('Tài khoản không có quyền Nhân viên Trạm')
-          }
-        }
-      }
-
-      if (rememberMe) {
-        localStorage.setItem('accessToken', token)
-        if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
-      } else {
-        sessionStorage.setItem('accessToken', token)
-        if (refreshToken) sessionStorage.setItem('refreshToken', refreshToken)
-      }
-
+      
       toast({
         title: 'Thành công',
         description: 'Đăng nhập thành công! Chào mừng bạn quay trở lại!🎉',
