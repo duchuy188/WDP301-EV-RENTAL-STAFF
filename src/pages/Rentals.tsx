@@ -901,7 +901,7 @@ export function Rentals() {
                         <Battery className="h-3 w-3" />
                         Pin:
                       </span>
-                      <span className="font-medium">{selectedRental.vehicle_condition_before.battery_level ? `${selectedRental.vehicle_condition_before.battery_level}%` : 'N/A'}</span>
+                      <span className="font-medium">{selectedRental.vehicle_condition_before.battery_level != null ? `${selectedRental.vehicle_condition_before.battery_level}%` : 'N/A'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Ngoại hình (dàn áo):</span>
@@ -939,7 +939,7 @@ export function Rentals() {
                           <Battery className="h-3 w-3" />
                           Pin:
                         </span>
-                        <span className="font-medium">{selectedRental.vehicle_condition_after.battery_level ? `${selectedRental.vehicle_condition_after.battery_level}%` : 'N/A'}</span>
+                        <span className="font-medium">{selectedRental.vehicle_condition_after.battery_level != null ? `${selectedRental.vehicle_condition_after.battery_level}%` : 'N/A'}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Ngoại hình (dàn áo):</span>
@@ -1544,7 +1544,13 @@ export function Rentals() {
                         max="100"
                         placeholder="VD: 75"
                         value={batteryLevel}
-                        onChange={(e) => setBatteryLevel(e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Chỉ cho phép nhập số từ 0 đến 100
+                          if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
+                            setBatteryLevel(value);
+                          }
+                        }}
                         required
                       />
                     </div>
