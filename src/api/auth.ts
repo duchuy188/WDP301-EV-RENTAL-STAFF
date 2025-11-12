@@ -265,3 +265,42 @@ export async function updateProfile(payload: UpdateProfilePayload): Promise<Upda
 
   return res.json();
 }
+
+// Change password types
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<ChangePasswordResponse> {
+  const res = await fetch(apiUrl('/api/auth/change-password'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Đổi mật khẩu thất bại';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsedError = JSON.parse(text);
+          errorMessage = parsedError.message || parsedError.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.json();
+}
