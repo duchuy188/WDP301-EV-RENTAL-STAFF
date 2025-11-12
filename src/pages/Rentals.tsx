@@ -594,7 +594,7 @@ export function Rentals() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">📋 Tất cả</SelectItem>
-                  <SelectItem value="active">🚗 Đang thuê</SelectItem>
+                  <SelectItem value="active">🛵 Đang thuê</SelectItem>
                   <SelectItem value="pending_payment">💰 Chờ thanh toán</SelectItem>
                   <SelectItem value="pending_deposit">💰 Chờ thanh toán cọc</SelectItem>
                   <SelectItem value="completed">✅ Hoàn thành</SelectItem>
