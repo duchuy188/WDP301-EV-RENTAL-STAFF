@@ -132,7 +132,7 @@ const Booking: React.FC = () => {
     start_date: '',
     end_date: '',
     pickup_time: '08:00',
-    return_time: '18:00',
+    return_time: '08:00', // Will be auto-set to pickup_time on submit
     special_requests: '',
     notes: ''
   });
@@ -671,7 +671,6 @@ const Booking: React.FC = () => {
     if (!walkInFormData.start_date) return 'Vui lòng chọn ngày bắt đầu';
     if (!walkInFormData.end_date) return 'Vui lòng chọn ngày kết thúc';
     if (!walkInFormData.pickup_time) return 'Vui lòng chọn giờ nhận xe';
-    if (!walkInFormData.return_time) return 'Vui lòng chọn giờ trả xe';
     
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -721,7 +720,13 @@ const Booking: React.FC = () => {
 
     setIsCreatingWalkIn(true);
     try {
-      const response = await createWalkInBooking(walkInFormData);
+      // Auto set return_time = pickup_time (giống logic online booking)
+      const bookingData = {
+        ...walkInFormData,
+        return_time: walkInFormData.pickup_time
+      };
+
+      const response = await createWalkInBooking(bookingData);
       
       setWalkInResult(response);
       setShowWalkInResult(true);
@@ -1933,26 +1938,15 @@ const Booking: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="pickup_time">Giờ nhận xe *</Label>
-                        <Input
-                          id="pickup_time"
-                          type="time"
-                          value={walkInFormData.pickup_time}
-                          onChange={(e) => handleWalkInFormChange('pickup_time', e.target.value)}
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="return_time">Giờ trả xe *</Label>
-                        <Input
-                          id="return_time"
-                          type="time"
-                          value={walkInFormData.return_time}
-                          onChange={(e) => handleWalkInFormChange('return_time', e.target.value)}
-                        />
-                      </div>
+                    <div className="max-w-xs">
+                      <Label htmlFor="pickup_time">Giờ nhận xe *</Label>
+                      <Input
+                        id="pickup_time"
+                        type="time"
+                        value={walkInFormData.pickup_time}
+                        onChange={(e) => handleWalkInFormChange('pickup_time', e.target.value)}
+                        className="w-40"
+                      />
                     </div>
                   </div>
 
