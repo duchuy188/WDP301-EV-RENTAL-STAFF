@@ -69,9 +69,9 @@ function App() {
               transition={{ duration: 0.5 }}
             >
               <Routes>
-                {/* Route without Layout for payment success page */}
+                {/* Routes without Layout */}
                 <Route path="/payments/success" element={<PaymentSuccess />} />
-                
+
                 {/* Routes with Layout */}
                 <Route path="/" element={<Layout onLogout={handleLogout}><Dashboard /></Layout>} />
                 <Route path="/customers" element={<Layout onLogout={handleLogout}><Customers /></Layout>} />

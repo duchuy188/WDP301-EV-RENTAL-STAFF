@@ -368,3 +368,29 @@ export async function cancelContract(id: string, data: CancelContractRequest): P
   return res.json();
 }
 
+// API function to view contract HTML
+export async function viewContractHtml(id: string): Promise<string> {
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+
+  const headers: HeadersInit = {
+    'Accept': 'text/html',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(apiUrl(`/api/contracts/${id}/view`), {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    const errorMessage = errorData?.message || 'Lỗi khi xem contract';
+    throw new ApiError(errorMessage, res.status);
+  }
+
+  return res.text();
+}
+

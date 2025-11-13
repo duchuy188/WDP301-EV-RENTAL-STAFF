@@ -484,14 +484,14 @@ export function Fleet() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
-                Đã duyệt
+                Có sẵn
               </CardTitle>
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
                 <Battery className="h-6 w-6 text-white" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{statistics.available}</div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{statistics.available || 0}</div>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">Sẵn sàng cho thuê</p>
             </CardContent>
           </Card>
@@ -505,14 +505,14 @@ export function Fleet() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">
-                Bị từ chối
+                Đang thuê
               </CardTitle>
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg">
                 <AlertCircle className="h-6 w-6 text-white" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">{statistics.rented}</div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">{statistics.rented || 0}</div>
               <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">Xe đang được sử dụng</p>
             </CardContent>
           </Card>
@@ -533,7 +533,7 @@ export function Fleet() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{statistics.reserved}</div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{statistics.reserved || 0}</div>
               <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 font-medium">Xe đã được đặt trước</p>
             </CardContent>
           </Card>
@@ -554,7 +554,7 @@ export function Fleet() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{statistics.total}</div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{statistics.total || 0}</div>
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">Tất cả xe tại trạm</p>
             </CardContent>
           </Card>
@@ -575,7 +575,7 @@ export function Fleet() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{statistics.maintenance}</div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{statistics.maintenance || 0}</div>
               <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">Cần kiểm tra/sửa chữa</p>
             </CardContent>
           </Card>
@@ -1170,8 +1170,18 @@ export function Fleet() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-sm text-gray-600 dark:text-gray-400">Loại:</span>
-                              <span className="text-sm font-medium">
-                                {report.maintenance_type === 'low_battery' ? '🔋 Pin yếu' : '🔧 Kỹ thuật'}
+                              <span className="text-sm font-medium flex items-center gap-1">
+                                {report.maintenance_type === 'low_battery' ? (
+                                  <>
+                                    <Battery className="h-4 w-4 text-red-600" />
+                                    Pin yếu
+                                  </>
+                                ) : (
+                                  <>
+                                    <Wrench className="h-4 w-4 text-orange-600" />
+                                    Kỹ thuật
+                                  </>
+                                )}
                               </span>
                             </div>
                             <div className="flex items-start gap-2">
@@ -1593,8 +1603,18 @@ export function Fleet() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Loại bảo trì:</span>
-                  <span className="font-medium">
-                    {selectedReport.maintenance_type === 'low_battery' ? '🔋 Pin yếu' : '🔧 Kỹ thuật'}
+                  <span className="font-medium flex items-center gap-1">
+                    {selectedReport.maintenance_type === 'low_battery' ? (
+                      <>
+                        <Battery className="h-4 w-4 text-red-600" />
+                        Pin yếu
+                      </>
+                    ) : (
+                      <>
+                        <Wrench className="h-4 w-4 text-orange-600" />
+                        Kỹ thuật
+                      </>
+                    )}
                   </span>
                 </div>
                 <div>

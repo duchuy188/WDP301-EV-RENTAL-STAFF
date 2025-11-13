@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  FileText, 
-  User, 
-  Calendar, 
+import {
+  FileText,
+  User,
+  Calendar,
   MapPin,
   RefreshCw,
   CheckCircle,
@@ -17,7 +17,8 @@ import {
   Ban,
   CreditCard,
   DollarSign,
-  Receipt
+  Receipt,
+  Eye
 } from 'lucide-react';
 import { FaMotorcycle } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, type Contract } from '@/api/contracts';
+import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, viewContractHtml, type Contract } from '@/api/contracts';
 import { SignaturePad } from '@/components/SignaturePad';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { TablePagination } from '@/components/ui/table-pagination';
@@ -102,6 +103,9 @@ export function Contracts() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancellingContract, setCancellingContract] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [viewHtmlContent, setViewHtmlContent] = useState<string>('');
+  const [viewLoading, setViewLoading] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -317,7 +321,7 @@ export function Contracts() {
 
   const handleCancelContract = async () => {
     if (!selectedContract) return;
-    
+
     if (!cancelReason.trim()) {
       toast({
         title: "Lỗi",
@@ -331,7 +335,7 @@ export function Contracts() {
     setCancellingContract(true);
     try {
       await cancelContract(selectedContract._id, { reason: cancelReason });
-      
+
       toast({
         title: "Thành công",
         description: `Đã hủy contract ${selectedContract.code}`,
@@ -341,14 +345,14 @@ export function Contracts() {
 
       // Reload contracts list
       loadContracts();
-      
+
       setShowCancelDialog(false);
       setShowDetailDialog(false);
       setCancelReason('');
     } catch (error: unknown) {
       console.error('Cancel Contract Error:', error);
-      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
-                          (error as Error)?.message || 
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message ||
+                          (error as Error)?.message ||
                           'Lỗi khi hủy contract';
       toast({
         title: "Lỗi",
@@ -358,6 +362,31 @@ export function Contracts() {
       });
     } finally {
       setCancellingContract(false);
+    }
+  };
+
+  const handleViewContract = async (contractId: string) => {
+    setShowViewDialog(true);
+    setViewLoading(true);
+    setViewHtmlContent('');
+
+    try {
+      const html = await viewContractHtml(contractId);
+      setViewHtmlContent(html);
+    } catch (error: unknown) {
+      console.error('Error loading contract HTML:', error);
+      const errorMessage = (error as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message ||
+        (error as Error)?.message ||
+        'Lỗi khi tải contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+      setShowViewDialog(false);
+    } finally {
+      setViewLoading(false);
     }
   };
 
@@ -735,6 +764,15 @@ export function Contracts() {
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Chi tiết
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-2 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-500 transition-all"
+                        onClick={() => handleViewContract(contract._id)}
+                        title="Xem contract online"
+                      >
+                        <Eye className="h-4 w-4" />
                       </Button>
                       {contract.contract_file_url && (
                         <Button
@@ -1195,17 +1233,27 @@ export function Contracts() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap justify-center gap-4 pt-4">
+                {/* View Online Button */}
+                <Button
+                  onClick={() => handleViewContract(selectedContract._id)}
+                  className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                  size="lg"
+                >
+                  <Eye className="h-5 w-5 mr-2" />
+                  Xem Online
+                </Button>
+
                 {/* Sign Button for Staff - only show if staff hasn't signed yet and status is pending */}
                 {selectedContract.status === 'pending' && !selectedContract.staff_signed_at && (
                   <Button
                     onClick={() => setShowSignDialog(true)}
-                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                     size="lg"
                   >
                     ✍️ Ký Contract (Staff)
                   </Button>
                 )}
-                
+
                 {/* Sign Button for Customer - Customer signs themselves at station */}
                 {selectedContract.status === 'pending' && !selectedContract.customer_signed_at && (
                   <Button
@@ -1216,7 +1264,7 @@ export function Contracts() {
                     ✍️ Khách hàng ký
                   </Button>
                 )}
-                
+
                 {/* Download Button */}
                 {selectedContract.contract_file_url && (
                   <Button
@@ -1238,7 +1286,7 @@ export function Contracts() {
                     )}
                   </Button>
                 )}
-                
+
                 {/* Cancel Button */}
                 {selectedContract.status !== 'cancelled' && selectedContract.status !== 'signed' && (
                   <Button
@@ -1536,6 +1584,71 @@ export function Contracts() {
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Contract Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl">Xem hợp đồng</DialogTitle>
+                <DialogDescription>
+                  Xem hợp đồng thuê xe điện dưới dạng HTML
+                </DialogDescription>
+              </div>
+              {selectedContract && (
+                <Button
+                  onClick={() => handleDownloadPdf(selectedContract._id, selectedContract.code)}
+                  disabled={downloadingPdfId === selectedContract._id}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                >
+                  {downloadingPdfId === selectedContract._id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang tải...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Tải PDF
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+            {viewLoading ? (
+              <div className="text-center py-16">
+                <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+                <p className="text-lg text-gray-600 dark:text-gray-300">Đang tải hợp đồng...</p>
+              </div>
+            ) : viewHtmlContent ? (
+              <div className="w-full h-full bg-white dark:bg-gray-900">
+                <iframe
+                  srcDoc={viewHtmlContent}
+                  title="Contract View"
+                  className="w-full border-0"
+                  style={{ minHeight: '600px', height: 'calc(90vh - 140px)' }}
+                  sandbox="allow-same-origin"
+                />
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+                <p className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+                  Không thể tải hợp đồng
+                </p>
+                <Button onClick={() => selectedContract && handleViewContract(selectedContract._id)} variant="outline" className="mt-4">
+                  Thử lại
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
