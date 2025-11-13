@@ -51,12 +51,12 @@ export function useDashboardKPI(): UseKPIReturn {
         return rentalDate >= today && rentalDate < tomorrow;
       });
 
-      // Filter payments: chỉ lấy payments hôm nay và KHÔNG phải refund
+      // Filter payments: lấy TẤT CẢ payments hôm nay (bao gồm cả refund)
       const todayPayments = paymentsResponse.payments.filter(payment => {
         // Sử dụng createdAt hoặc created_at
         const dateString = payment.createdAt || payment.created_at;
         if (!dateString) return false;
-        
+
         // Parse date - xử lý cả format DD/MM/YYYY và ISO
         let paymentDate: Date;
         if (dateString.includes('/')) {
@@ -68,15 +68,16 @@ export function useDashboardKPI(): UseKPIReturn {
           // Format ISO
           paymentDate = new Date(dateString);
         }
-        
-        // Check if payment is today and NOT a refund
+
+        // Check if payment is today (bao gồm cả refund)
         const isToday = paymentDate >= today && paymentDate < tomorrow;
-        const isNotRefund = payment.payment_type !== 'refund';
-        
-        return isToday && isNotRefund;
+
+        return isToday;
       });
 
-      // Tính doanh thu (không bao gồm refund)
+      // Tính doanh thu thuần (Net Revenue): Tổng thu - Hoàn tiền
+      // Nếu payment_type là 'refund', amount thường là số âm trong DB
+      // Nên chỉ cần cộng trực tiếp: 740000 + (-50000) = 690000
       const todayRevenue = todayPayments.reduce((sum, payment) => {
         return sum + payment.amount;
       }, 0);
