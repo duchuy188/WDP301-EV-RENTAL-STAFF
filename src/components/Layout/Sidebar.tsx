@@ -11,7 +11,8 @@ import {
   Zap,
   Calendar,
   FileText,
-  FileSignature
+  FileSignature,
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/context/SidebarContext'
@@ -22,6 +23,7 @@ const navigation = [
   // { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
   { name: 'Quản Lý Thuê Xe', href: '/rentals', icon: FileText },
   { name: 'Quản Lý Hợp Đồng', href: '/contracts', icon: FileSignature },
+  { name: 'Báo Cáo Sự Cố', href: '/reports', icon: AlertTriangle },
   { name: 'Xác Thực KH', href: '/customers', icon: UserCheck },
   { name: 'Thanh Toán', href: '/payments', icon: CreditCard },
   { name: 'Quản Lý Xe', href: '/fleet', icon: Settings },
