@@ -607,10 +607,10 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
             </div>
 
             {/* Vehicle Info */}
-            <Card className="border-2 border-blue-200 dark:border-blue-800">
+            <Card className="border-2">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  🚗 Thông tin xe
+                  🛵 Thông tin xe
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -678,7 +678,7 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
             </Card>
 
             {/* Customer Info */}
-            <Card className="border-2 border-purple-200 dark:border-purple-800">
+            <Card className="border-2">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   👤 Thông tin khách hàng
@@ -708,7 +708,7 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
             </Card>
 
             {/* Station Info */}
-            <Card className="border-2 border-green-200 dark:border-green-800">
+            <Card className="border-2">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   📍 Thông tin trạm
@@ -733,7 +733,7 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
             </Card>
 
             {/* Rental Info */}
-            <Card className="border-2 border-orange-200 dark:border-orange-800">
+            <Card className="border-2">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   📋 Thông tin thuê xe
@@ -747,9 +747,16 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
                   </div>
                   <div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">Trạng thái thuê</div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {report.rental_id.status === 'active' ? '🟢 Đang thuê' : report.rental_id.status || 'N/A'}
-                    </div>
+                    {report.rental_id.status === 'active' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-full">
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <span className="text-sm font-medium text-green-700 dark:text-green-300">Đang thuê</span>
+                      </div>
+                    ) : (
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {report.rental_id.status || 'N/A'}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {report.rental_id.actual_start_time && (
@@ -765,7 +772,7 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
 
             {/* Booking Info */}
             {typeof report.booking_id === 'object' && (
-              <Card className="border-2 border-indigo-200 dark:border-indigo-800">
+              <Card className="border-2">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     📅 Thông tin đặt xe
