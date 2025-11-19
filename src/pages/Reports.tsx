@@ -3,6 +3,32 @@ import { motion } from 'framer-motion'
 import { AlertCircle, CheckCircle, Clock, Eye, Image as ImageIcon, RefreshCw, Search, AlertTriangle, FileText, X, Battery, Wrench, Car } from 'lucide-react'
 import { getReports, getReportById, getReportStats, resolveReport, Report, GetReportsParams, ReportStats } from '@/api/reports'
 import { useToast } from '@/hooks/use-toast'
+
+// Helper function to format date - handles both ISO strings and pre-formatted strings
+const formatDate = (dateValue: string | null | undefined, includeTime = false): string => {
+  if (!dateValue) return 'Chưa cập nhật'
+  
+  // If it's already formatted (contains "/"), return as is
+  if (typeof dateValue === 'string' && dateValue.includes('/')) {
+    return dateValue
+  }
+  
+  try {
+    const date = new Date(dateValue)
+    if (isNaN(date.getTime())) return 'Chưa cập nhật'
+    
+    if (includeTime) {
+      return date.toLocaleString('vi-VN')
+    }
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  } catch {
+    return 'Chưa cập nhật'
+  }
+}
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -136,8 +162,9 @@ export function Reports() {
       battery_issue: '🔋 Vấn đề pin',
       vehicle_breakdown: '🔧 Xe hỏng',
       accident: '⚠️ Tai nạn',
+      other: '📋 Khác',
     }
-    return labels[type] || type
+    return labels[type] || '📋 Khác'
   }
 
   const filterReportsBySearch = (reportsList: Report[]) => {
@@ -440,7 +467,7 @@ export function Reports() {
                           {report.code}
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(report.createdAt).toLocaleDateString('vi-VN')}
+                          {formatDate(report.createdAt)}
                         </p>
                       </div>
                       {getStatusBadge(report.status)}
@@ -557,8 +584,9 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
       battery_issue: '🔋 Vấn đề pin',
       vehicle_breakdown: '🔧 Xe hỏng',
       accident: '⚠️ Tai nạn',
+      other: '📋 Khác',
     }
-    return labels[type] || type
+    return labels[type] || '📋 Khác'
   }
 
   return (
@@ -763,7 +791,7 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
                   <div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">Thời gian bắt đầu</div>
                     <div className="font-medium text-gray-900 dark:text-white">
-                      {new Date(report.rental_id.actual_start_time).toLocaleString('vi-VN')}
+                      {formatDate(report.rental_id.actual_start_time, true)}
                     </div>
                   </div>
                 )}
@@ -795,13 +823,13 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
                     <div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Ngày bắt đầu</div>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {new Date(report.booking_id.start_date).toLocaleDateString('vi-VN')}
+                        {formatDate(report.booking_id.start_date)}
                       </div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Ngày kết thúc</div>
                       <div className="font-medium text-gray-900 dark:text-white">
-                        {new Date(report.booking_id.end_date).toLocaleDateString('vi-VN')}
+                        {formatDate(report.booking_id.end_date)}
                       </div>
                     </div>
                   </div>
@@ -888,7 +916,7 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
                     <div>
                       <div className="text-sm text-green-700 dark:text-green-300">Thời gian xử lý</div>
                       <div className="font-medium text-green-900 dark:text-green-100">
-                        {new Date(report.resolved_at).toLocaleString('vi-VN')}
+                        {formatDate(report.resolved_at, true)}
                       </div>
                     </div>
                   )}
@@ -901,13 +929,13 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
               <div>
                 <div className="text-gray-500 dark:text-gray-400">Ngày tạo</div>
                 <div className="font-medium text-gray-900 dark:text-white">
-                  {new Date(report.createdAt).toLocaleString('vi-VN')}
+                  {formatDate(report.createdAt, true)}
                 </div>
               </div>
               <div>
                 <div className="text-gray-500 dark:text-gray-400">Cập nhật lần cuối</div>
                 <div className="font-medium text-gray-900 dark:text-white">
-                  {new Date(report.updatedAt).toLocaleString('vi-VN')}
+                  {formatDate(report.updatedAt, true)}
                 </div>
               </div>
             </div>
