@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -11,7 +11,8 @@ import {
   Check,
   X,
   Upload,
-  Camera
+  Camera,
+  ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,47 +21,294 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { mockUser } from '@/data/mockData';
-import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Eye, EyeOff } from 'lucide-react';
+import { updateProfile, UpdateProfilePayload, ApiError, getStoredTokens, logout as apiLogout, clearStoredTokens, changePassword, ChangePasswordPayload } from '@/api/auth';
+import { useToast } from '@/hooks/use-toast';
+import { useSidebar } from '@/context/SidebarContext';
+import { useProfile } from '@/contexts/ProfileContext';
+import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 const Profile: React.FC = () => {
+  const { collapsed } = useSidebar();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { profile, updateProfile: updateProfileContext, isLoading: profileLoading, error: profileError } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: mockUser.name,
-    email: mockUser.email,
-    phone: mockUser.phone,
+    fullname: '',
+    email: '',
+    phone: '',
+    address: '',
   });
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  
+  // Change Password states
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success('Cập nhật hồ sơ thành công!');
+  const handleLogout = async () => {
+    try {
+      const { refreshToken } = getStoredTokens();
+      if (refreshToken) {
+        await apiLogout({ refreshToken });
+      }
+    } catch (e) {
+      // proceed even if API fails
+      console.error('Logout failed:', e);
+    } finally {
+      clearStoredTokens();
+      toast({
+        title: "Đã đăng xuất thành công",
+        description: "Hẹn gặp lại bạn lần sau!",
+        variant: "success",
+        duration: 3000,
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+  };
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        fullname: profile.fullname || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+      });
+    }
+  }, [profile]);
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      const updatePayload: UpdateProfilePayload = {
+        fullname: formData.fullname,
+        phone: formData.phone,
+        address: formData.address,
+      };
+      
+      if (selectedAvatar) {
+        updatePayload.avatar = selectedAvatar;
+      }
+      
+      const response = await updateProfile(updatePayload);
+      
+      // Update global profile context
+      updateProfileContext(response.profile);
+      setFormData({
+        fullname: response.profile.fullname || '',
+        email: response.profile.email || '',
+        phone: response.profile.phone || '',
+        address: response.profile.address || '',
+      });
+      
+      // Clear avatar selection
+      setSelectedAvatar(null);
+      setAvatarPreview(null);
+      
+      setIsEditing(false);
+      toast({
+        title: "Thành công",
+        description: response.message || 'Cập nhật hồ sơ thành công!',
+        variant: "success",
+        duration: 3000,
+      });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Cập nhật hồ sơ thất bại';
+      toast({
+        title: "Lỗi",
+        description: message,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
-    setFormData({
-      name: mockUser.name,
-      email: mockUser.email,
-      phone: mockUser.phone,
-    });
+    if (profile) {
+      setFormData({
+        fullname: profile.fullname || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+      });
+    }
+    setSelectedAvatar(null);
+    setAvatarPreview(null);
     setIsEditing(false);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedAvatar(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
+  const handleChangePassword = async () => {
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng điền đầy đủ thông tin",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Lỗi",
+        description: "Mật khẩu mới và xác nhận mật khẩu không khớp",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast({
+        title: "Lỗi",
+        description: "Mật khẩu mới phải có ít nhất 8 ký tự",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+      
+      const payload: ChangePasswordPayload = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      };
+      
+      const response = await changePassword(payload);
+      
+      toast({
+        title: "Thành công",
+        description: response.message || 'Đổi mật khẩu thành công! Vui lòng đăng nhập lại.',
+        variant: "success",
+        duration: 3000,
+      });
+      
+      // Close dialog
+      setIsChangePasswordOpen(false);
+      
+      // Reset form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      
+      // Auto logout after 2 seconds
+      setTimeout(async () => {
+        await handleLogout();
+      }, 2000);
+      
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Đổi mật khẩu thất bại';
+      toast({
+        title: "Lỗi",
+        description: message,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleCloseChangePasswordDialog = () => {
+    setIsChangePasswordOpen(false);
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400 mb-4">{profileError}</p>
+          <button
+            className="px-4 py-2 rounded-md bg-primary text-white"
+            onClick={() => window.location.reload()}
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 md:py-8">
+      <div
+        className={cn(
+          'mx-auto px-4 sm:px-6 lg:px-8 transition-[max-width] duration-300',
+          collapsed ? 'max-w-7xl' : 'max-w-6xl'
+        )}
+      >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
+          <div className="mb-4">
+            <Button
+              size="default"
+              className="bg-green-600 hover:bg-green-700 text-white shadow-sm focus-visible:ring-2 focus-visible:ring-green-500"
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate('/');
+                }
+              }}
+            > 
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Quay lại
+            </Button>
+          </div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Tài khoản của tôi
           </h1>
@@ -69,7 +317,7 @@ const Profile: React.FC = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Profile Card */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -101,10 +349,11 @@ const Profile: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={handleSave}
+                        disabled={isLoading}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <Check className="mr-2 h-4 w-4" />
-                        Lưu
+                        {isLoading ? 'Đang lưu...' : 'Lưu'}
                       </Button>
                     </div>
                   )}
@@ -115,24 +364,33 @@ const Profile: React.FC = () => {
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={mockUser.avatar} alt={mockUser.name} />
+                      <AvatarImage 
+                        src={avatarPreview || profile?.avatar} 
+                        alt={profile?.fullname || 'Avatar'} 
+                      />
                       <AvatarFallback className="text-lg">
-                        {mockUser.name.charAt(0)}
+                        {(profile?.fullname || 'U').charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     {isEditing && (
-                      <button className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white rounded-full p-2 transition-colors">
+                      <label className="absolute bottom-0 right-0 bg-green-600 hover:bg-green-700 text-white rounded-full p-2 transition-colors cursor-pointer">
                         <Camera className="h-4 w-4" />
-                      </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
+                        />
+                      </label>
                     )}
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {mockUser.name}
+                      {formData.fullname || profile?.fullname}
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      Thành viên từ {formatDate(mockUser.memberSince)}
-                    </p>
+                    {profile?.role && (
+                      <p className="text-gray-600 dark:text-gray-300">{profile.role}</p>
+                    )}
                   </div>
                 </div>
 
@@ -145,13 +403,13 @@ const Profile: React.FC = () => {
                     {isEditing ? (
                       <Input
                         id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        value={formData.fullname}
+                        onChange={(e) => setFormData(prev => ({ ...prev, fullname: e.target.value }))}
                       />
                     ) : (
                       <div className="flex items-center space-x-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
                         <User className="h-4 w-4 text-gray-400" />
-                        <span>{mockUser.name}</span>
+                        <span>{profile?.fullname}</span>
                       </div>
                     )}
                   </div>
@@ -168,7 +426,7 @@ const Profile: React.FC = () => {
                     ) : (
                       <div className="flex items-center space-x-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
                         <Mail className="h-4 w-4 text-gray-400" />
-                        <span>{mockUser.email}</span>
+                        <span>{profile?.email}</span>
                       </div>
                     )}
                   </div>
@@ -184,17 +442,25 @@ const Profile: React.FC = () => {
                     ) : (
                       <div className="flex items-center space-x-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
                         <Phone className="h-4 w-4 text-gray-400" />
-                        <span>{mockUser.phone}</span>
+                        <span>{profile?.phone || '—'}</span>
                       </div>
                     )}
                   </div>
-
                   <div className="space-y-2">
-                    <Label>Thành viên từ</Label>
-                    <div className="flex items-center space-x-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span>{formatDate(mockUser.memberSince)}</span>
-                    </div>
+                    <Label htmlFor="address">Địa chỉ</Label>
+                    {isEditing ? (
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Nhập địa chỉ của bạn"
+                      />
+                    ) : (
+                      <div className="flex items-center space-x-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-700">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span>{profile?.address || '—'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -215,8 +481,8 @@ const Profile: React.FC = () => {
                         <p className="text-sm text-gray-600 dark:text-gray-300">GPLX hạng B1</p>
                       </div>
                     </div>
-                    <Badge className={mockUser.licenseVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {mockUser.licenseVerified ? 'Đã xác thực' : 'Chưa xác thực'}
+                    <Badge className={'bg-green-100 text-green-800'}>
+                      Đang mô phỏng
                     </Badge>
                   </div>
 
@@ -228,22 +494,20 @@ const Profile: React.FC = () => {
                         <p className="text-sm text-gray-600 dark:text-gray-300">CCCD/CMND</p>
                       </div>
                     </div>
-                    <Badge className={mockUser.idVerified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {mockUser.idVerified ? 'Đã xác thực' : 'Chưa xác thực'}
+                    <Badge className={'bg-green-100 text-green-800'}>
+                      Đang mô phỏng
                     </Badge>
                   </div>
 
-                  {(!mockUser.licenseVerified || !mockUser.idVerified) && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                      <p className="text-yellow-800 dark:text-yellow-400 text-sm">
-                        Vui lòng hoàn tất xác thực giấy tờ để có thể thuê xe
-                      </p>
-                      <Button className="mt-2 bg-yellow-600 hover:bg-yellow-700">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload giấy tờ
-                      </Button>
-                    </div>
-                  )}
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <p className="text-yellow-800 dark:text-yellow-400 text-sm">
+                      Khu vực xác thực giấy tờ là mô phỏng trong phiên bản này
+                    </p>
+                    <Button className="mt-2 bg-yellow-600 hover:bg-yellow-700">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload giấy tờ
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -253,7 +517,7 @@ const Profile: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-6"
+            className="space-y-6 lg:sticky lg:top-24 self-start"
           >
             {/* Payment Methods */}
             <Card>
@@ -318,10 +582,125 @@ const Profile: React.FC = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Đổi mật khẩu
-                  </Button>
+                  <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Đổi mật khẩu
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Đổi mật khẩu</DialogTitle>
+                        <DialogDescription>
+                          Nhập mật khẩu hiện tại và mật khẩu mới của bạn. Bạn sẽ cần đăng nhập lại sau khi đổi mật khẩu.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        {/* Current Password */}
+                        <div className="space-y-2">
+                          <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
+                          <div className="relative">
+                            <Input
+                              id="currentPassword"
+                              type={showCurrentPassword ? "text" : "password"}
+                              placeholder="Nhập mật khẩu hiện tại"
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            >
+                              {showCurrentPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* New Password */}
+                        <div className="space-y-2">
+                          <Label htmlFor="newPassword">Mật khẩu mới</Label>
+                          <div className="relative">
+                            <Input
+                              id="newPassword"
+                              type={showNewPassword ? "text" : "password"}
+                              placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Confirm Password */}
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
+                          <div className="relative">
+                            <Input
+                              id="confirmPassword"
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Nhập lại mật khẩu mới"
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCloseChangePasswordDialog}
+                          disabled={isChangingPassword}
+                        >
+                          Hủy
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleChangePassword}
+                          disabled={isChangingPassword}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {isChangingPassword ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                   <Button variant="outline" className="w-full justify-start">
                     <User className="mr-2 h-4 w-4" />
                     Cài đặt riêng tư
@@ -330,7 +709,7 @@ const Profile: React.FC = () => {
                   <Button 
                     variant="destructive" 
                     className="w-full justify-start"
-                    onClick={() => toast.success('Đã đăng xuất!')}
+                    onClick={handleLogout}
                   >
                     Đăng xuất
                   </Button>

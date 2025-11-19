@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  MessageCircle, 
   Send, 
-  Bot, 
+  BotMessageSquare,
   User, 
   X, 
-  Minimize2 
+  Minimize2,
+  Maximize2,
+  Plus,
+  History,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import * as chatbotApi from '@/api/chatbot';
 
 interface ChatMessage {
   id: string;
@@ -31,15 +36,7 @@ interface ChatContext {
 const FloatingChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'bot',
-      message: 'Xin chào! Tôi là trợ lý ảo của EV Rental. Tôi có thể giúp gì cho bạn?',
-      timestamp: new Date(),
-      context: 'greeting'
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatContext, setChatContext] = useState<ChatContext>({
     topic: '',
@@ -48,12 +45,161 @@ const FloatingChat: React.FC = () => {
     conversationStep: 0
   });
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState<string | undefined>();
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [showConversationsList, setShowConversationsList] = useState(false);
+  const [conversations, setConversations] = useState<chatbotApi.Conversation[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Draggable position state
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages, isTyping]);
+
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isOpen) return; // Don't drag when chat is open
+    e.preventDefault();
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Mark as moved if position changed significantly (> 5px)
+    if (Math.abs(newX - position.x) > 5 || Math.abs(newY - position.y) > 5) {
+      setHasMoved(true);
+    }
+    
+    // Constrain to viewport
+    const maxX = window.innerWidth - 64; // 64px = button width
+    const maxY = window.innerHeight - 64;
+    
+    setPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    });
+  }, [isDragging, dragStart, position.x, position.y]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add/remove mouse event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  const addWelcomeMessage = useCallback(() => {
+    setChatMessages([{
+      id: Date.now().toString(),
+      type: 'bot',
+      message: 'Xin chào! Tôi là trợ lý ảo của EV Rental. Tôi có thể giúp gì cho bạn?',
+      timestamp: new Date(),
+      context: 'greeting'
+    }]);
+  }, []);
+
+  // Initialize chatbot: Load conversations or create new one
+  const initializeChatbot = useCallback(async () => {
+    setIsLoadingConversations(true);
+    try {
+      // BƯỚC 1: Lấy danh sách conversations
+      const response = await chatbotApi.getConversations(20);
+      
+      if (response.success && response.data.conversations.length > 0) {
+        // Lưu danh sách conversations
+        setConversations(response.data.conversations);
+        
+        // BƯỚC 2a: Đã có conversation → load conversation gần nhất
+        const latestConv = response.data.conversations[0];
+        setSessionId(latestConv.session_id);
+        
+        // Load lịch sử nếu có messages
+        if (latestConv.total_messages > 0) {
+          const history = await chatbotApi.getChatHistory(latestConv.session_id);
+          if (history.success && history.data.messages && history.data.messages.length > 0) {
+            // Convert API messages sang UI format
+            // API trả về role: 'user' | 'assistant', cần convert sang type: 'user' | 'bot'
+            setChatMessages(history.data.messages.map((msg, index) => ({
+              id: `${latestConv.session_id}-${index}`,
+              type: msg.role === 'assistant' ? 'bot' : 'user',
+              message: msg.message,
+              timestamp: new Date(msg.timestamp),
+              context: msg.metadata?.context
+            })));
+          } else {
+            // Có conversation nhưng chưa có message
+            addWelcomeMessage();
+          }
+        } else {
+          // Có conversation nhưng chưa có message
+          addWelcomeMessage();
+        }
+      } else {
+        // BƯỚC 2b: Chưa có conversation → tạo mới
+        const newConv = await chatbotApi.createConversation();
+        if (newConv.success && newConv.data.session_id) {
+          setSessionId(newConv.data.session_id);
+          console.log('Created new conversation:', newConv.data.session_id, 'for role:', newConv.data.user_role);
+          // Reload conversations list
+          const updatedResponse = await chatbotApi.getConversations(20);
+          if (updatedResponse.success) {
+            setConversations(updatedResponse.data.conversations);
+          }
+        }
+        addWelcomeMessage();
+      }
+
+      // BƯỚC 3: Load suggestions (optional)
+      try {
+        const suggestionsData = await chatbotApi.getSuggestions();
+        if (suggestionsData.success && suggestionsData.data.suggestions) {
+          setSuggestions(suggestionsData.data.suggestions);
+          console.log('Suggestions loaded for role:', suggestionsData.data.user_role);
+        }
+      } catch (error) {
+        console.log('Could not load suggestions:', error);
+      }
+
+    } catch (error) {
+      console.error('Error initializing chatbot:', error);
+      // Fallback: Show welcome message
+      addWelcomeMessage();
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  }, [addWelcomeMessage]);
+
+  // Load conversations when chat opens
+  useEffect(() => {
+    if (isOpen && chatMessages.length === 0 && !isLoadingConversations) {
+      initializeChatbot();
+    }
+  }, [isOpen, chatMessages.length, isLoadingConversations, initializeChatbot]);
 
   // Function to extract keywords and intent from user message
   const analyzeUserMessage = (message: string) => {
@@ -87,7 +233,7 @@ const FloatingChat: React.FC = () => {
   };
 
   // Function to generate contextual bot response
-  const generateBotResponse = (userMessage: string, chatHistory: ChatMessage[], currentContext: ChatContext): { message: string; newContext: ChatContext } => {
+  const generateBotResponse = (userMessage: string, _chatHistory: ChatMessage[], currentContext: ChatContext): { message: string; newContext: ChatContext } => {
     const analysis = analyzeUserMessage(userMessage);
     const lowerMessage = userMessage.toLowerCase();
     
@@ -185,7 +331,7 @@ const FloatingChat: React.FC = () => {
     };
   };
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
@@ -197,26 +343,63 @@ const FloatingChat: React.FC = () => {
     };
 
     setChatMessages(prev => [...prev, userMessage]);
+    const currentInput = chatInput;
+    setChatInput('');
     setIsTyping(true);
 
-    // Generate contextual bot response with delay for natural feel
-    setTimeout(() => {
-      const { message, newContext } = generateBotResponse(chatInput, chatMessages, chatContext);
-      
-      const botResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'bot',
-        message,
-        timestamp: new Date(),
-        context: newContext.topic
-      };
-      
-      setChatMessages(prev => [...prev, botResponse]);
-      setChatContext(newContext);
-      setIsTyping(false);
-    }, 1500);
+    try {
+      // BƯỚC 4: Call API để gửi tin nhắn
+      const response = await chatbotApi.sendMessage({
+        message: currentInput,
+        session_id: sessionId
+      });
 
-    setChatInput('');
+      if (response.success && response.message) {
+        // Update sessionId nếu API trả về ID mới
+        if (response.session_id && !sessionId) {
+          setSessionId(response.session_id);
+        }
+
+        // Thêm bot response vào UI
+        const botResponse: ChatMessage = {
+          id: Date.now().toString(),
+          type: 'bot',
+          message: response.message,
+          timestamp: new Date(),
+          context: response.context
+        };
+
+        setChatMessages(prev => [...prev, botResponse]);
+
+        // Update suggestions nếu có
+        if (response.suggestions && response.suggestions.length > 0) {
+          setSuggestions(response.suggestions);
+        }
+      } else {
+        throw new Error('Invalid API response');
+      }
+
+    } catch (error) {
+      console.error('Error sending message to API:', error);
+      
+      // Fallback: Generate contextual bot response locally
+      setTimeout(() => {
+        const { message, newContext } = generateBotResponse(currentInput, chatMessages, chatContext);
+        
+        const botResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'bot',
+          message,
+          timestamp: new Date(),
+          context: newContext.topic
+        };
+        
+        setChatMessages(prev => [...prev, botResponse]);
+        setChatContext(newContext);
+      }, 500);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const toggleChat = () => {
@@ -225,12 +408,148 @@ const FloatingChat: React.FC = () => {
   };
 
   const minimizeChat = () => {
-    setIsMinimized(true);
+    setIsMinimized(!isMinimized);
   };
 
   const closeChat = () => {
     setIsOpen(false);
     setIsMinimized(false);
+  };
+
+  const handleNewConversation = async () => {
+    try {
+      setIsLoadingConversations(true);
+      
+      // Tạo conversation mới
+      const newConv = await chatbotApi.createConversation();
+      if (newConv.success && newConv.data.session_id) {
+        setSessionId(newConv.data.session_id);
+        console.log('Created new conversation:', newConv.data.session_id);
+        
+        // Reload conversations list
+        const updatedResponse = await chatbotApi.getConversations(20);
+        if (updatedResponse.success) {
+          setConversations(updatedResponse.data.conversations);
+        }
+        
+        // Reset chat messages với welcome message
+        setChatMessages([{
+          id: Date.now().toString(),
+          type: 'bot',
+          message: 'Xin chào! Đây là hội thoại mới. Tôi có thể giúp gì cho bạn?',
+          timestamp: new Date(),
+          context: 'greeting'
+        }]);
+        
+        // Reset context
+        setChatContext({
+          topic: '',
+          userIntent: '',
+          lastKeywords: [],
+          conversationStep: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error creating new conversation:', error);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  const handleSelectConversation = async (conversation: chatbotApi.Conversation) => {
+    try {
+      setIsLoadingConversations(true);
+      setSessionId(conversation.session_id);
+      
+      // Load lịch sử conversation
+      if (conversation.total_messages > 0) {
+        const history = await chatbotApi.getChatHistory(conversation.session_id);
+        if (history.success && history.data.messages && history.data.messages.length > 0) {
+          setChatMessages(history.data.messages.map((msg, index) => ({
+            id: `${conversation.session_id}-${index}`,
+            type: msg.role === 'assistant' ? 'bot' : 'user',
+            message: msg.message,
+            timestamp: new Date(msg.timestamp),
+            context: msg.metadata?.context
+          })));
+        } else {
+          addWelcomeMessage();
+        }
+      } else {
+        addWelcomeMessage();
+      }
+      
+      // Close conversations list
+      setShowConversationsList(false);
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  const handleSuggestionClick = async (suggestion: string) => {
+    // Tạo user message
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      message: suggestion,
+      timestamp: new Date(),
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    setIsTyping(true);
+
+    try {
+      // Call API để gửi tin nhắn
+      const response = await chatbotApi.sendMessage({
+        message: suggestion,
+        session_id: sessionId
+      });
+
+      if (response.success && response.message) {
+        if (response.session_id && !sessionId) {
+          setSessionId(response.session_id);
+        }
+
+        const botResponse: ChatMessage = {
+          id: Date.now().toString(),
+          type: 'bot',
+          message: response.message,
+          timestamp: new Date(),
+          context: response.context
+        };
+
+        setChatMessages(prev => [...prev, botResponse]);
+
+        // Update suggestions nếu có
+        if (response.suggestions && response.suggestions.length > 0) {
+          setSuggestions(response.suggestions);
+        }
+      } else {
+        throw new Error('Invalid API response');
+      }
+    } catch (error) {
+      console.error('Error sending suggestion:', error);
+      
+      // Fallback
+      setTimeout(() => {
+        const { message, newContext } = generateBotResponse(suggestion, chatMessages, chatContext);
+        
+        const botResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'bot',
+          message,
+          timestamp: new Date(),
+          context: newContext.topic
+        };
+        
+        setChatMessages(prev => [...prev, botResponse]);
+        setChatContext(newContext);
+      }, 500);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -239,23 +558,41 @@ const FloatingChat: React.FC = () => {
       <AnimatePresence>
         {!isOpen && (
           <motion.div
+            ref={dragRef}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-50"
+            whileHover={{ scale: isDragging ? 1 : 1.1 }}
+            whileTap={{ scale: isDragging ? 1 : 0.9 }}
+            style={{
+              position: 'fixed',
+              right: position.x === 0 ? '1rem' : 'auto',
+              bottom: position.y === 0 ? '1rem' : 'auto',
+              left: position.x !== 0 ? `${position.x}px` : 'auto',
+              top: position.y !== 0 ? `${position.y}px` : 'auto',
+              cursor: isDragging ? 'grabbing' : 'grab'
+            }}
+            className="z-[9999]"
+            onMouseDown={handleMouseDown}
           >
             <Button
-              onClick={toggleChat}
-              className="h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300"
+              onClick={() => {
+                // Only toggle chat if not dragged
+                if (!hasMoved) {
+                  toggleChat();
+                }
+              }}
+              className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
               size="icon"
             >
-              <MessageCircle className="h-6 w-6 text-white" />
+              <div className="relative flex items-center justify-center">
+                <BotMessageSquare className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 absolute -top-1 -right-1 text-yellow-300" />
+              </div>
             </Button>
             {/* Notification dot */}
-            <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">1</span>
+            <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-3.5 w-3.5 sm:h-4 sm:w-4 bg-red-500 rounded-full flex items-center justify-center pointer-events-none">
+              <span className="text-[10px] sm:text-xs text-white font-bold">1</span>
             </div>
           </motion.div>
         )}
@@ -270,46 +607,64 @@ const FloatingChat: React.FC = () => {
               opacity: 1, 
               y: 0, 
               scale: 1,
-              height: isMinimized ? 60 : 400 
+              height: isMinimized ? 60 : 'auto' 
             }}
             exit={{ opacity: 0, y: 100, scale: 0.8 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed bottom-6 right-6 z-50 w-80"
+            className="fixed bottom-4 right-4 z-[9999] w-[calc(100vw-2rem)] sm:w-96 sm:bottom-6 sm:right-6 max-w-md"
           >
-            <Card className="shadow-2xl border-0 overflow-hidden">
+            <Card className="shadow-2xl border-0 overflow-hidden flex flex-col max-h-[600px]">
               {/* Header */}
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+              <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-white text-blue-600">
-                        <Bot className="h-4 w-4" />
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                      <AvatarFallback className="bg-white text-green-600">
+                        <div className="relative">
+                          <BotMessageSquare className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <Zap className="h-1.5 w-1.5 sm:h-2 sm:w-2 absolute -top-0.5 -right-0.5 text-yellow-500" />
+                        </div>
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle className="text-sm font-semibold">Trợ lý ảo</CardTitle>
-                      <div className="flex items-center space-x-1">
+                      <CardTitle className="text-xs sm:text-sm font-semibold">🛵 Trợ lý ảo EV</CardTitle>
+                      <div className="hidden sm:flex items-center space-x-1">
                         <div className="h-2 w-2 bg-green-400 rounded-full"></div>
                         <span className="text-xs opacity-90">Đang online</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-0.5 sm:space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowConversationsList(!showConversationsList)}
+                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-white hover:bg-white/20"
+                      title="Lịch sử hội thoại"
+                    >
+                      <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={minimizeChat}
-                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-white hover:bg-white/20 hidden sm:flex"
+                      title={isMinimized ? "Mở rộng" : "Thu nhỏ"}
                     >
-                      <Minimize2 className="h-4 w-4" />
+                      {isMinimized ? (
+                        <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      ) : (
+                        <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={closeChat}
-                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-white hover:bg-white/20"
+                      title="Đóng"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
@@ -324,9 +679,61 @@ const FloatingChat: React.FC = () => {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <CardContent className="p-0">
-                      {/* Messages */}
-                      <div className="h-64 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
+                    <CardContent className="p-0 flex flex-col">
+                      {/* Conversations List or Messages */}
+                      {showConversationsList ? (
+                        /* Conversations List */
+                        <div className="h-56 sm:h-64 overflow-y-auto p-3 sm:p-4 bg-gray-50 dark:bg-gray-800">
+                          <h3 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 text-gray-700 dark:text-gray-300">
+                            Lịch sử hội thoại
+                          </h3>
+                          <div className="space-y-1.5 sm:space-y-2">
+                            {conversations.length === 0 ? (
+                              <p className="text-xs text-gray-500 text-center py-4">
+                                Chưa có hội thoại nào
+                              </p>
+                            ) : (
+                              conversations.map((conv) => (
+                                <motion.div
+                                  key={conv.session_id}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-all ${
+                                    conv.session_id === sessionId
+                                      ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
+                                      : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600'
+                                  }`}
+                                  onClick={() => handleSelectConversation(conv)}
+                                >
+                                  <div className="flex items-start justify-between gap-1.5 sm:gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                                        <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400 flex-shrink-0" />
+                                        <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
+                                          {new Date(conv.last_activity).toLocaleDateString('vi-VN', {
+                                            day: '2-digit',
+                                            month: '2-digit',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-300">
+                                        {conv.total_messages} tin nhắn
+                                      </p>
+                                    </div>
+                                    {conv.session_id === sessionId && (
+                                      <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Messages */
+                        <div className="h-56 sm:h-64 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 bg-gray-50 dark:bg-gray-800">
                         {chatMessages.map((message) => (
                           <motion.div
                             key={message.id}
@@ -334,32 +741,35 @@ const FloatingChat: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
-                            <div className={`flex items-start space-x-2 max-w-[80%] ${
+                            <div className={`flex items-start space-x-1.5 sm:space-x-2 max-w-[85%] sm:max-w-[80%] ${
                               message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                             }`}>
                               {message.type === 'bot' && (
-                                <Avatar className="h-6 w-6 mt-1">
-                                  <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                                    <Bot className="h-3 w-3" />
+                                <Avatar className="h-5 w-5 sm:h-6 sm:w-6 mt-1">
+                                  <AvatarFallback className="bg-green-100 text-green-600 text-xs">
+                                    <div className="relative">
+                                      <BotMessageSquare className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                      <Zap className="h-1 w-1 sm:h-1.5 sm:w-1.5 absolute -top-0.5 -right-0.5 text-yellow-500" />
+                                    </div>
                                   </AvatarFallback>
                                 </Avatar>
                               )}
                               {message.type === 'user' && (
-                                <Avatar className="h-6 w-6 mt-1">
+                                <Avatar className="h-5 w-5 sm:h-6 sm:w-6 mt-1">
                                   <AvatarFallback className="bg-gray-200 text-gray-600 text-xs">
-                                    <User className="h-3 w-3" />
+                                    <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                                   </AvatarFallback>
                                 </Avatar>
                               )}
-                              <div className={`p-3 rounded-lg ${
+                              <div className={`p-2.5 sm:p-3 rounded-lg ${
                                 message.type === 'user' 
-                                  ? 'bg-blue-600 text-white' 
+                                  ? 'bg-green-600 text-white' 
                                   : 'bg-white dark:bg-gray-700 border'
                               }`}>
-                                <div className="text-sm whitespace-pre-line">{message.message}</div>
-                                <p className={`text-xs mt-1 ${
+                                <div className="text-xs sm:text-sm whitespace-pre-line break-words">{message.message}</div>
+                                <p className={`text-[10px] sm:text-xs mt-1 ${
                                   message.type === 'user' 
-                                    ? 'text-blue-100' 
+                                    ? 'text-green-100' 
                                     : 'text-gray-500 dark:text-gray-400'
                                 }`}>
                                   {message.timestamp.toLocaleTimeString('vi-VN', { 
@@ -381,8 +791,11 @@ const FloatingChat: React.FC = () => {
                           >
                             <div className="flex items-start space-x-2 max-w-[80%]">
                               <Avatar className="h-6 w-6 mt-1">
-                                <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                                  <Bot className="h-3 w-3" />
+                                <AvatarFallback className="bg-green-100 text-green-600 text-xs">
+                                  <div className="relative">
+                                    <BotMessageSquare className="h-3 w-3" />
+                                    <Zap className="h-1.5 w-1.5 absolute -top-0.5 -right-0.5 text-yellow-500" />
+                                  </div>
                                 </AvatarFallback>
                               </Avatar>
                               <div className="bg-white dark:bg-gray-700 border p-3 rounded-lg">
@@ -396,26 +809,65 @@ const FloatingChat: React.FC = () => {
                           </motion.div>
                         )}
                         <div ref={messagesEndRef} />
-                      </div>
+                        </div>
+                      )}
 
                       {/* Input */}
-                      <div className="p-4 border-t bg-white dark:bg-gray-900">
-                        <form onSubmit={handleChatSubmit} className="flex space-x-2">
-                          <Input
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="Nhập tin nhắn..."
-                            className="flex-1 text-sm"
-                          />
-                          <Button 
-                            type="submit" 
-                            size="sm" 
-                            disabled={!chatInput.trim()}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        </form>
+                      <div className="border-t bg-white dark:bg-gray-900">
+                        {/* Suggestions */}
+                        {suggestions.length > 0 && (
+                          <div className="px-3 sm:px-4 pt-2 sm:pt-3 pb-1.5 sm:pb-2">
+                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2">Gợi ý:</p>
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                              {suggestions.slice(0, 3).map((suggestion, index) => (
+                                <Button
+                                  key={index}
+                                  onClick={() => handleSuggestionClick(suggestion)}
+                                  disabled={isTyping}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3 border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                  {suggestion}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Input area */}
+                        <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-2">
+                          <div className="flex gap-1.5 sm:gap-2">
+                            <form onSubmit={handleChatSubmit} className="flex flex-1 gap-1.5 sm:gap-2">
+                              <Input
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                placeholder="Nhập tin nhắn..."
+                                disabled={isTyping}
+                                className="flex-1 text-xs sm:text-sm h-9 sm:h-10"
+                              />
+                              <Button 
+                                type="submit" 
+                                size="sm" 
+                                disabled={!chatInput.trim() || isTyping}
+                                className="bg-green-600 hover:bg-green-700 h-9 w-9 sm:h-10 sm:w-10 p-0"
+                                title="Gửi"
+                              >
+                                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              </Button>
+                            </form>
+                            <Button
+                              onClick={handleNewConversation}
+                              disabled={isLoadingConversations}
+                              variant="outline"
+                              size="sm"
+                              className="border-green-200 text-green-600 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950 h-9 w-9 sm:h-10 sm:w-10 p-0"
+                              title="Tạo hội thoại mới"
+                            >
+                              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </motion.div>

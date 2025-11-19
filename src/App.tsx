@@ -1,25 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ThemeProvider } from './context/ThemeContext'
 import { SidebarProvider } from './context/SidebarContext'
-import { Layout } from './components/layout/Layout'
+import { ProfileProvider } from './contexts/ProfileContext'
+import { NotificationProvider } from './contexts/NotificationContext'
+import { Layout } from './components/Layout/Layout'
 import { Toaster } from './components/ui/toaster'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
-import { Vehicles } from './pages/Vehicles'
 import { Customers } from './pages/Customers'
 import { Payments } from './pages/Payments'
+import { PaymentSuccess } from './pages/PaymentSuccess'
 import { Fleet } from './pages/Fleet'
+import Booking from './pages/Booking'
+import { Rentals } from './pages/Rentals'
+import { Contracts } from './pages/Contracts'
+import Profile from './pages/Profile'
+import { Reports } from './pages/Reports'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
+    if (token) setIsAuthenticated(true)
+  }, [])
 
   const handleLogin = () => {
     setIsAuthenticated(true)
   }
 
   const handleLogout = () => {
+    // Clear any stored tokens
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+    sessionStorage.removeItem('accessToken')
+    sessionStorage.removeItem('refreshToken')
     setIsAuthenticated(false)
   }
 
@@ -42,30 +59,38 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="light" storageKey="ev-rental-theme">
-      <SidebarProvider>
-        <Router>
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Layout onLogout={handleLogout}>
-              <AnimatePresence mode="wait">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/vehicles" element={<Vehicles />} />
-                  <Route path="/customers" element={<Customers />} />
-                  <Route path="/payments" element={<Payments />} />
-                  <Route path="/fleet" element={<Fleet />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </AnimatePresence>
-            </Layout>
-          </motion.div>
-          <Toaster />
-        </Router>
-      </SidebarProvider>
+      <ProfileProvider>
+        <NotificationProvider>
+          <SidebarProvider>
+            <Router>
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Routes>
+                {/* Routes without Layout */}
+                <Route path="/payments/success" element={<PaymentSuccess />} />
+
+                {/* Routes with Layout */}
+                <Route path="/" element={<Layout onLogout={handleLogout}><Dashboard /></Layout>} />
+                <Route path="/customers" element={<Layout onLogout={handleLogout}><Customers /></Layout>} />
+                <Route path="/payments" element={<Layout onLogout={handleLogout}><Payments /></Layout>} />
+                <Route path="/fleet" element={<Layout onLogout={handleLogout}><Fleet /></Layout>} />
+                <Route path="/bookings" element={<Layout onLogout={handleLogout}><Booking /></Layout>} />
+                <Route path="/rentals" element={<Layout onLogout={handleLogout}><Rentals /></Layout>} />
+                <Route path="/contracts" element={<Layout onLogout={handleLogout}><Contracts /></Layout>} />
+                <Route path="/reports" element={<Layout onLogout={handleLogout}><Reports /></Layout>} />
+                <Route path="/profile" element={<Layout onLogout={handleLogout}><Profile /></Layout>} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </motion.div>
+            <Toaster />
+          </Router>
+        </SidebarProvider>
+        </NotificationProvider>
+      </ProfileProvider>
     </ThemeProvider>
   )
 }

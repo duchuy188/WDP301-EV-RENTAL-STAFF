@@ -1,0 +1,1658 @@
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import {
+  FileText,
+  User,
+  Calendar,
+  MapPin,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Clock,
+  Download,
+  Search,
+  Filter,
+  Loader2,
+  Ban,
+  CreditCard,
+  DollarSign,
+  Receipt,
+  Eye
+} from 'lucide-react';
+import { FaMotorcycle } from 'react-icons/fa';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { getContracts, getContractById, signContract, downloadContractPdf, cancelContract, viewContractHtml, type Contract } from '@/api/contracts';
+import { SignaturePad } from '@/components/SignaturePad';
+import { formatDate, formatDateTime } from '@/lib/utils';
+import { TablePagination } from '@/components/ui/table-pagination';
+
+// Helper function to convert status to Vietnamese
+const getPaymentStatusText = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'Hoàn thành';
+    case 'pending':
+      return 'Chờ xử lý';
+    case 'failed':
+      return 'Thất bại';
+    case 'cancelled':
+      return 'Đã hủy';
+    case 'refunded':
+      return 'Đã hoàn tiền';
+    default:
+      return status;
+  }
+};
+
+const getRentalStatusText = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return 'Hoàn thành';
+    case 'in_progress':
+      return 'Đang thuê';
+    case 'active':
+      return 'Đang hoạt động';
+    case 'pending':
+      return 'Chờ xử lý';
+    case 'cancelled':
+      return 'Đã hủy';
+    case 'checked_in':
+      return 'Đã nhận xe';
+    case 'checked_out':
+      return 'Đã trả xe';
+    default:
+      return status;
+  }
+};
+
+export function Contracts() {
+  const { toast } = useToast();
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<string>('none');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 6,
+    total: 0,
+    pages: 0
+  });
+
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    loadContracts(1, newLimit);
+  };
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [showSignDialog, setShowSignDialog] = useState(false);
+  const [signingContract, setSigningContract] = useState(false);
+  const [showSignCustomerDialog, setShowSignCustomerDialog] = useState(false);
+  const [signingCustomerContract, setSigningCustomerContract] = useState(false);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancellingContract, setCancellingContract] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [viewHtmlContent, setViewHtmlContent] = useState<string>('');
+  const [viewLoading, setViewLoading] = useState(false);
+
+  // Stats
+  const [stats, setStats] = useState({
+    pending: 0,
+    signed: 0,
+    cancelled: 0,
+    total: 0
+  });
+
+  // Load contracts
+  const loadContracts = useCallback(async (page?: number, limit?: number) => {
+    setLoading(true);
+    try {
+      const pageToLoad = page !== undefined ? page : pagination.page;
+      const limitToLoad = limit !== undefined ? limit : pagination.limit;
+      
+      const response = await getContracts({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchQuery || undefined,
+        sort: sortField !== 'none' ? sortField : undefined,
+        order: sortField !== 'none' ? sortOrder : undefined,
+        page: pageToLoad,
+        limit: limitToLoad
+      });
+      
+      setContracts(response.data.contracts);
+      setPagination({
+        page: response.data.pagination.page,
+        limit: response.data.pagination.limit,
+        total: response.data.pagination.total,
+        pages: response.data.pagination.pages
+      });
+
+      // Calculate stats
+      const pending = response.data.contracts.filter(c => c.status === 'pending').length;
+      const signed = response.data.contracts.filter(c => c.status === 'signed').length;
+      const cancelled = response.data.contracts.filter(c => c.status === 'cancelled').length;
+      
+      setStats({
+        pending,
+        signed,
+        cancelled,
+        total: response.data.pagination.total
+      });
+    } catch (error: unknown) {
+      console.error('Contracts API Error:', error);
+      setContracts([]);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi tải danh sách contracts';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, searchQuery, sortField, sortOrder, toast]);
+
+  useEffect(() => {
+    loadContracts();
+  }, [loadContracts]);
+
+  const handleViewDetail = async (contract: Contract) => {
+    setShowDetailDialog(true);
+    setDetailLoading(true);
+    try {
+      const response = await getContractById(contract._id);
+      setSelectedContract(response.data.contract);
+    } catch (error: unknown) {
+      console.error('Contract Detail API Error:', error);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi lấy chi tiết contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+      setShowDetailDialog(false);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    loadContracts();
+  };
+
+  const handleSignContract = async (signature: string) => {
+    if (!selectedContract) return;
+    
+    setSigningContract(true);
+    try {
+      // Clean base64 (remove data URL prefix if exists)
+      const cleanSignature = signature.replace(/^data:image\/\w+;base64,/, '');
+      
+      const response = await signContract(selectedContract._id, {
+        signature: cleanSignature,
+        signature_type: 'staff', // Staff always signs as staff
+      });
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+        variant: "success",
+        duration: 3000,
+      });
+      
+      // Reload contract detail
+      const updatedContract = await getContractById(selectedContract._id);
+      setSelectedContract(updatedContract.data.contract);
+      
+      // Reload contracts list
+      loadContracts();
+      
+      setShowSignDialog(false);
+    } catch (error: unknown) {
+      console.error('Sign Contract Error:', error);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi ký contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setSigningContract(false);
+    }
+  };
+
+  const handleSignCustomerContract = async (signature: string) => {
+    if (!selectedContract) return;
+    
+    setSigningCustomerContract(true);
+    try {
+      // Clean base64 (remove data URL prefix if exists)
+      const cleanSignature = signature.replace(/^data:image\/\w+;base64,/, '');
+      
+      const response = await signContract(selectedContract._id, {
+        signature: cleanSignature,
+        signature_type: 'customer', // Sign as customer
+      });
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+        variant: "success",
+        duration: 3000,
+      });
+      
+      // Reload contract detail
+      const updatedContract = await getContractById(selectedContract._id);
+      setSelectedContract(updatedContract.data.contract);
+      
+      // Reload contracts list
+      loadContracts();
+      
+      setShowSignCustomerDialog(false);
+    } catch (error: unknown) {
+      console.error('Sign Contract (Customer) Error:', error);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          'Lỗi khi ký contract cho khách hàng';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setSigningCustomerContract(false);
+    }
+  };
+
+  const handleDownloadPdf = async (contractId: string, contractCode: string) => {
+    setDownloadingPdfId(contractId);
+    try {
+      await downloadContractPdf(contractId);
+      toast({
+        title: "Thành công",
+        description: `Đã tải xuống PDF contract ${contractCode}`,
+        variant: "success",
+        duration: 3000,
+      });
+    } catch (error: unknown) {
+      console.error('Download PDF error:', error);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
+                          (error as Error)?.message || 
+                          "Không thể tải xuống PDF";
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
+  const handleOpenCancelDialog = (contract: Contract) => {
+    setSelectedContract(contract);
+    setCancelReason('');
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelContract = async () => {
+    if (!selectedContract) return;
+
+    if (!cancelReason.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập lý do hủy contract",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setCancellingContract(true);
+    try {
+      await cancelContract(selectedContract._id, { reason: cancelReason });
+
+      toast({
+        title: "Thành công",
+        description: `Đã hủy contract ${selectedContract.code}`,
+        variant: "success",
+        duration: 3000,
+      });
+
+      // Reload contracts list
+      loadContracts();
+
+      setShowCancelDialog(false);
+      setShowDetailDialog(false);
+      setCancelReason('');
+    } catch (error: unknown) {
+      console.error('Cancel Contract Error:', error);
+      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message ||
+                          (error as Error)?.message ||
+                          'Lỗi khi hủy contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setCancellingContract(false);
+    }
+  };
+
+  const handleViewContract = async (contractId: string) => {
+    setShowViewDialog(true);
+    setViewLoading(true);
+    setViewHtmlContent('');
+
+    try {
+      const html = await viewContractHtml(contractId);
+      setViewHtmlContent(html);
+    } catch (error: unknown) {
+      console.error('Error loading contract HTML:', error);
+      const errorMessage = (error as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message ||
+        (error as Error)?.message ||
+        'Lỗi khi tải contract';
+      toast({
+        title: "Lỗi",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+      setShowViewDialog(false);
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+
+  const getStatusBadge = (status: string, statusText?: string) => {
+    const text = statusText || status;
+    
+    switch (status) {
+      case 'pending':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+            <Clock className="h-3 w-3 mr-1" />
+            {text}
+          </Badge>
+        );
+      case 'signed':
+        return (
+          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            {text}
+          </Badge>
+        );
+      case 'expired':
+        return (
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            {text}
+          </Badge>
+        );
+      case 'cancelled':
+        return (
+          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+            <XCircle className="h-3 w-3 mr-1" />
+            {text}
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{text}</Badge>;
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="p-6 space-y-6"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+             Quản lý hợp đồng
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Danh sách hợp đồng thuê xe điện
+          </p>
+        </div>
+        <Button 
+          onClick={() => loadContracts()}
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Làm mới
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                Chờ ký
+              </CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-600 flex items-center justify-center shadow-lg">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">{stats.pending}</div>
+              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 font-medium">Đang chờ xử lý</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
+                Đã ký
+              </CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{stats.signed}</div>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">Hoàn thành ký</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">
+                Đã hủy
+              </CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg">
+                <XCircle className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">{stats.cancelled}</div>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">Hợp đồng hủy</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                Tổng cộng
+              </CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.total}</div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">Tất cả hợp đồng</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Filter & Search */}
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {/* First Row: Status Filter and Search */}
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <Filter className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <span className="text-sm font-medium whitespace-nowrap">Trạng thái:</span>
+                <Select value={statusFilter} onValueChange={(value) => {
+                  setStatusFilter(value);
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}>
+                  <SelectTrigger className="w-[180px] border-2 focus:border-blue-500">
+                    <SelectValue placeholder="Chọn trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">-- Tất cả --</SelectItem>
+                    <SelectItem value="pending">⏳ Chờ ký</SelectItem>
+                    <SelectItem value="signed">✅ Đã ký</SelectItem>
+                    <SelectItem value="cancelled">❌ Đã hủy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-1 w-full md:flex-1">
+                <Search className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <Input
+                  placeholder="Tìm theo mã contract hoặc tiêu đề..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="flex-1"
+                />
+                <Button onClick={handleSearch} size="sm">
+                  Tìm
+                </Button>
+              </div>
+            </div>
+
+            {/* Second Row: Sort options and result count */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap">Sắp xếp theo:</span>
+                  <Select value={sortField} onValueChange={(value) => {
+                    setSortField(value);
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                  }}>
+                    <SelectTrigger className="w-[180px] border-2 focus:border-blue-500">
+                      <SelectValue placeholder="Chọn trường" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Không sắp xếp --</SelectItem>
+                      <SelectItem value="createdAt">📅 Ngày tạo</SelectItem>
+                      <SelectItem value="updatedAt">🔄 Ngày cập nhật</SelectItem>
+                      <SelectItem value="valid_from">📆 Ngày bắt đầu</SelectItem>
+                      <SelectItem value="valid_until">📆 Ngày kết thúc</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap">Thứ tự:</span>
+                  <Select 
+                    value={sortOrder} 
+                    onValueChange={(value: 'asc' | 'desc') => {
+                      setSortOrder(value);
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                    }}
+                    disabled={sortField === 'none'}
+                  >
+                    <SelectTrigger className="w-[120px] border-2 focus:border-blue-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">⬆️ Tăng dần</SelectItem>
+                      <SelectItem value="desc">⬇️ Giảm dần</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <span>
+                  Hiển thị {contracts.length} trong {pagination.total} contracts
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contracts List */}
+      {loading ? (
+        <div className="text-center py-16">
+          <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+          <p className="text-lg text-gray-600 dark:text-gray-300">Đang tải danh sách contracts...</p>
+        </div>
+      ) : contracts.length === 0 ? (
+        <Card className="border-0 shadow-lg">
+          <CardContent className="text-center py-16">
+            <XCircle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+            <p className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+              Không có contract nào
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              {statusFilter !== 'all' || searchQuery
+                ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm' 
+                : 'Chưa có contract nào trong hệ thống'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {contracts.map((contract, index) => (
+              <motion.div
+                key={contract._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -5 }}
+              >
+                <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                  {/* Header with gradient based on status */}
+                  <div className={`h-2 ${
+                    contract.status === 'signed' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                    contract.status === 'pending' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                    contract.status === 'expired' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                    contract.status === 'cancelled' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                    'bg-gradient-to-r from-gray-400 to-gray-500'
+                  }`} />
+                  
+                  <CardContent className="p-6">
+                    {/* Code and Status */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="font-bold text-lg text-gray-900 dark:text-white">
+                        {contract.code}
+                      </div>
+                      {getStatusBadge(contract.status, contract.statusText)}
+                    </div>
+
+                    {/* Title */}
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 line-clamp-2">
+                        {contract.title}
+                      </h3>
+                    </div>
+
+                    {/* Info */}
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {contract.customer?.fullname || 'N/A'}
+                          </p>
+                          <p className="text-xs text-gray-500">{contract.customer?.phone || ''}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <FaMotorcycle className="h-4 w-4 text-gray-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {contract.vehicle?.license_plate || 'N/A'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{contract.vehicle?.name || ''}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {formatDate(contract.valid_from)} - {formatDate(contract.valid_until)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                            {contract.station?.name || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Status Indicator */}
+                    {contract.payment_summary?.deposit_payment && (
+                      <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-600 dark:text-gray-400">Thanh toán cọc:</span>
+                          <div className="flex items-center gap-2">
+                            <Badge className={
+                              contract.payment_summary.deposit_payment.status === 'completed' 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                                : contract.payment_summary.deposit_payment.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                            }>
+                              {getPaymentStatusText(contract.payment_summary.deposit_payment.status)}
+                            </Badge>
+                            <span className="font-medium text-green-600 dark:text-green-400">
+                              {contract.payment_summary.deposit_payment.amount.toLocaleString('vi-VN')} VNĐ
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 border-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-500 transition-all"
+                        onClick={() => handleViewDetail(contract)}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Chi tiết
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-2 hover:bg-green-50 dark:hover:bg-green-900/20 hover:border-green-500 transition-all"
+                        onClick={() => handleViewContract(contract._id)}
+                        title="Xem contract online"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {contract.contract_file_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-2"
+                          onClick={() => handleDownloadPdf(contract._id, contract.code)}
+                          disabled={downloadingPdfId === contract._id}
+                        >
+                          {downloadingPdfId === contract._id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {pagination.total > 0 && (
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-4">
+                <TablePagination
+                  currentPage={pagination.page}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={(page) => loadContracts(page)}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  disabled={loading}
+                  itemsPerPageOptions={[5, 10, 20, 50]}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết Contract: {selectedContract?.code || '...'}</DialogTitle>
+            <DialogDescription>
+              Thông tin đầy đủ về hợp đồng
+            </DialogDescription>
+          </DialogHeader>
+          
+          {detailLoading ? (
+            <div className="text-center py-16">
+              <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+              <p className="text-lg text-gray-600 dark:text-gray-300">Đang tải chi tiết contract...</p>
+            </div>
+          ) : selectedContract && (
+            <div className="space-y-6 py-4">
+              {/* Status */}
+              <div className="flex justify-center">
+                {getStatusBadge(selectedContract.status, selectedContract.statusText)}
+              </div>
+
+              {/* Title & Template */}
+              <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium mb-2 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  {selectedContract.title}
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Template: {selectedContract.template?.name || 'N/A'}
+                </p>
+              </Card>
+
+              {/* Main Info */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Customer Info */}
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Thông tin khách hàng
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Họ tên:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.customer?.fullname || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                      <span className="col-span-2 font-medium text-xs break-all">{selectedContract.customer?.email || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Điện thoại:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.customer?.phone || 'N/A'}</span>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Vehicle Info */}
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 text-green-600 dark:text-green-400 flex items-center gap-2">
+                    <FaMotorcycle className="h-4 w-4" />
+                    Thông tin xe
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Biển số:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.license_plate || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Tên xe:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.name || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Model:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.model || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Màu xe:</span>
+                      <span className="col-span-2 font-medium">{selectedContract.vehicle?.color || 'N/A'}</span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Station & Valid Period */}
+              <Card className="p-4">
+                <h4 className="font-medium mb-3 text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Thông tin trạm & thời hạn
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-gray-600 dark:text-gray-400">Trạm:</span>
+                    <span className="col-span-2 font-medium">{selectedContract.station?.name || 'N/A'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-gray-600 dark:text-gray-400">Địa chỉ:</span>
+                    <span className="col-span-2 font-medium text-xs">{selectedContract.station?.address || 'N/A'}</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Rental Details */}
+              {selectedContract.rental_details && (
+                <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800">
+                  <h4 className="font-medium mb-3 text-green-600 dark:text-green-400 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Chi tiết thuê xe
+                  </h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Mã Rental:</span>
+                        <span className="col-span-2 font-medium text-green-700 dark:text-green-300">{selectedContract.rental_details.rental_code}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Mã Booking:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.booking_code}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                        <span className="col-span-2">
+                          <Badge className={
+                            selectedContract.rental_details.rental_status === 'active' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                          }>
+                            {getRentalStatusText(selectedContract.rental_details.rental_status)}
+                          </Badge>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Tổng ngày:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.total_days} ngày</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Ngày bắt đầu:</span>
+                        <span className="col-span-2 font-medium">{formatDate(selectedContract.rental_details.start_date)}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Ngày kết thúc:</span>
+                        <span className="col-span-2 font-medium">{formatDate(selectedContract.rental_details.end_date)}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Giờ nhận xe:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.pickup_time}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="text-gray-600 dark:text-gray-400">Giờ trả xe:</span>
+                        <span className="col-span-2 font-medium">{selectedContract.rental_details.return_time}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Pricing Information */}
+                  <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-700">
+                    <h5 className="font-medium mb-2 text-green-700 dark:text-green-300">Thông tin giá</h5>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Giá/ngày:</span>
+                        <span className="font-medium">{selectedContract.rental_details.price_per_day.toLocaleString('vi-VN')} VNĐ</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Tổng tiền:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">{selectedContract.rental_details.total_price.toLocaleString('vi-VN')} VNĐ</span>
+                      </div>
+                      <div className="flex justify-between col-span-2 border-t pt-2">
+                        <span className="text-gray-600 dark:text-gray-400">Tiền cọc:</span>
+                        <span className="font-medium text-blue-600 dark:text-blue-400">{selectedContract.rental_details.deposit_amount.toLocaleString('vi-VN')} VNĐ</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Payment Summary */}
+              {selectedContract.payment_summary && (
+                <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
+                  <h4 className="font-medium mb-3 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Tóm tắt thanh toán
+                  </h4>
+                  
+                  {/* Deposit Payment */}
+                  {selectedContract.payment_summary.deposit_payment && (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <h5 className="font-medium mb-3 text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Thanh toán cọc
+                        </h5>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Mã thanh toán:</span>
+                              <span className="col-span-2 font-medium text-blue-700 dark:text-blue-300">{selectedContract.payment_summary.deposit_payment.code}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Số tiền:</span>
+                              <span className="col-span-2 font-medium text-green-600 dark:text-green-400">{selectedContract.payment_summary.deposit_payment.amount.toLocaleString('vi-VN')} VNĐ</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Phương thức:</span>
+                              <span className="col-span-2 font-medium">{selectedContract.payment_summary.deposit_payment.payment_method.toUpperCase()}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                              <span className="col-span-2">
+                                <Badge className={
+                                  selectedContract.payment_summary.deposit_payment.status === 'completed' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                                    : selectedContract.payment_summary.deposit_payment.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                                }>
+                                  {getPaymentStatusText(selectedContract.payment_summary.deposit_payment.status)}
+                                </Badge>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Ngày tạo:</span>
+                              <span className="col-span-2 font-medium text-xs">{formatDateTime(selectedContract.payment_summary.deposit_payment.createdAt)}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <span className="text-gray-600 dark:text-gray-400">Cập nhật:</span>
+                              <span className="col-span-2 font-medium text-xs">{formatDateTime(selectedContract.payment_summary.deposit_payment.updatedAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Payment Notes */}
+                        {selectedContract.payment_summary.deposit_payment.notes && (
+                          <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+                            <span className="text-gray-600 dark:text-gray-400">Ghi chú: </span>
+                            <span className="text-gray-800 dark:text-gray-200">{selectedContract.payment_summary.deposit_payment.notes}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rental Fee Payment */}
+                  {selectedContract.payment_summary.rental_fee_payment && (
+                    <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-700">
+                      <h5 className="font-medium mb-2 text-green-700 dark:text-green-300 flex items-center gap-2">
+                        <Receipt className="h-4 w-4" />
+                        Thanh toán phí thuê
+                      </h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Thông tin thanh toán phí thuê sẽ được hiển thị ở đây</p>
+                    </div>
+                  )}
+
+                  {/* Additional Fee Payments */}
+                  {selectedContract.payment_summary.additional_fee_payments && selectedContract.payment_summary.additional_fee_payments.length > 0 && (
+                    <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-orange-200 dark:border-orange-700">
+                      <h5 className="font-medium mb-2 text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Phí bổ sung
+                      </h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Có {selectedContract.payment_summary.additional_fee_payments.length} khoản phí bổ sung</p>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* Signatures */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 text-orange-600 dark:text-orange-400 flex items-center justify-between">
+                    <span>Chữ ký Staff</span>
+                    {selectedContract.staff_signed_at && (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Đã ký
+                      </Badge>
+                    )}
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    {selectedContract.staff_signed_at ? (
+                      <>
+                        {/* Signature Image - Display actual signature from base64 */}
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+                          <p className="text-xs text-gray-500 mb-2 text-center">✍️ Chữ ký điện tử</p>
+                          <div className="flex justify-center items-center min-h-24 bg-white dark:bg-gray-900 rounded">
+                            {selectedContract.staff_signature ? (
+                              <img 
+                                src={`data:image/png;base64,${selectedContract.staff_signature}`}
+                                alt="Staff Signature"
+                                className="max-h-20 max-w-full object-contain"
+                                style={{ imageRendering: 'crisp-edges' }}
+                              />
+                            ) : (
+                              <p className="text-2xl font-signature text-orange-600 dark:text-orange-400">
+                                {selectedContract.staff_signed_by?.fullname || 'N/A'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Người ký:</span>
+                          <span className="font-medium">{selectedContract.staff_signed_by?.fullname || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                          <span className="font-medium text-xs">{selectedContract.staff_signed_by?.email || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>
+                          <span className="font-medium text-xs">{formatDateTime(selectedContract.staff_signed_at)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Clock className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-sm">Chưa ký</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 text-purple-600 dark:text-purple-400 flex items-center justify-between">
+                    <span>Chữ ký Khách hàng</span>
+                    {selectedContract.customer_signed_at && (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Đã ký
+                      </Badge>
+                    )}
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    {selectedContract.customer_signed_at ? (
+                      <>
+                        {/* Signature Image - Display actual signature from base64 */}
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+                          <p className="text-xs text-gray-500 mb-2 text-center">✍️ Chữ ký điện tử</p>
+                          <div className="flex justify-center items-center min-h-24 bg-white dark:bg-gray-900 rounded">
+                            {selectedContract.customer_signature ? (
+                              <img 
+                                src={`data:image/png;base64,${selectedContract.customer_signature}`}
+                                alt="Customer Signature"
+                                className="max-h-20 max-w-full object-contain"
+                                style={{ imageRendering: 'crisp-edges' }}
+                              />
+                            ) : (
+                              <p className="text-2xl font-signature text-purple-600 dark:text-purple-400">
+                                {selectedContract.customer.fullname || 'N/A'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Người ký:</span>
+                          <span className="font-medium">{selectedContract.customer?.fullname || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                          <span className="font-medium text-xs">{selectedContract.customer?.email || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Thời gian:</span>
+                          <span className="font-medium text-xs">{formatDateTime(selectedContract.customer_signed_at)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Clock className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-sm">Chưa ký</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Special Conditions & Notes */}
+              {(selectedContract.special_conditions || selectedContract.notes) && (
+                <Card className="p-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Điều khoản & Ghi chú
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    {selectedContract.special_conditions && (
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Điều khoản đặc biệt:</p>
+                        <p className="p-2 bg-gray-50 dark:bg-gray-800 rounded">{selectedContract.special_conditions}</p>
+                      </div>
+                    )}
+                    {selectedContract.notes && (
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Ghi chú:</p>
+                        <p className="p-2 bg-gray-50 dark:bg-gray-800 rounded">{selectedContract.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              {/* Rental Link */}
+              {selectedContract.rental && (
+                <Card className="p-4 bg-green-50 dark:bg-green-900/20">
+                  <h4 className="font-medium mb-2 text-green-600 dark:text-green-400">
+                    Rental liên quan
+                  </h4>
+                  <p className="text-sm">
+                    Mã Rental: <span className="font-bold">{selectedContract.rental?.code || 'N/A'}</span>
+                  </p>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap justify-center gap-4 pt-4">
+                {/* View Online Button */}
+                <Button
+                  onClick={() => handleViewContract(selectedContract._id)}
+                  className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                  size="lg"
+                >
+                  <Eye className="h-5 w-5 mr-2" />
+                  Xem Online
+                </Button>
+
+                {/* Sign Button for Staff - only show if staff hasn't signed yet and status is pending */}
+                {selectedContract.status === 'pending' && !selectedContract.staff_signed_at && (
+                  <Button
+                    onClick={() => setShowSignDialog(true)}
+                    className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                  >
+                    ✍️ Ký Contract (Staff)
+                  </Button>
+                )}
+
+                {/* Sign Button for Customer - Customer signs themselves at station */}
+                {selectedContract.status === 'pending' && !selectedContract.customer_signed_at && (
+                  <Button
+                    onClick={() => setShowSignCustomerDialog(true)}
+                    className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                  >
+                    ✍️ Khách hàng ký
+                  </Button>
+                )}
+
+                {/* Download Button */}
+                {selectedContract.contract_file_url && (
+                  <Button
+                    onClick={() => handleDownloadPdf(selectedContract._id, selectedContract.code)}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    size="lg"
+                    disabled={downloadingPdfId === selectedContract._id}
+                  >
+                    {downloadingPdfId === selectedContract._id ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Đang tải...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-5 w-5 mr-2" />
+                        Tải xuống PDF
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                {/* Cancel Button */}
+                {selectedContract.status !== 'cancelled' && selectedContract.status !== 'signed' && (
+                  <Button
+                    onClick={() => handleOpenCancelDialog(selectedContract)}
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    size="lg"
+                    variant="destructive"
+                  >
+                    <Ban className="h-5 w-5 mr-2" />
+                    Hủy Contract
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign Contract Dialog - Staff */}
+      <Dialog 
+        open={showSignDialog} 
+        onOpenChange={(open) => {
+          if (!signingContract) {
+            setShowSignDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (signingContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (signingContract) e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-2xl">✍️ Ký Contract - Staff</DialogTitle>
+            <DialogDescription>
+              Vẽ chữ ký của bạn để xác nhận contract
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedContract && (
+            <div className="space-y-4 py-4">
+              {/* Contract Info */}
+              <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Contract:</p>
+                    <p className="font-bold text-blue-700 dark:text-blue-300">{selectedContract.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
+                    <p className="font-semibold">{selectedContract.customer?.fullname || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
+                    <p className="font-semibold">{selectedContract.vehicle?.license_plate || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời hạn:</p>
+                    <p className="font-semibold text-xs">{formatDate(selectedContract.valid_from)} - {formatDate(selectedContract.valid_until)}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Signature Pad */}
+              {signingContract ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+                  <p className="text-lg text-gray-600 dark:text-gray-300">Đang xử lý chữ ký...</p>
+                </div>
+              ) : (
+                <SignaturePad
+                  onSave={handleSignContract}
+                  onCancel={() => setShowSignDialog(false)}
+                />
+              )}
+
+              {/* Important Note */}
+              <Card className="p-3 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-green-900 dark:text-green-300 mb-1">
+                      Lưu ý:
+                    </p>
+                    <p className="text-green-800 dark:text-green-400">
+                      Sau khi ký, chữ ký sẽ được lưu vào hệ thống. Khách hàng cũng cần ký để hoàn tất contract.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign Contract Dialog - Customer */}
+      <Dialog 
+        open={showSignCustomerDialog} 
+        onOpenChange={(open) => {
+          if (!signingCustomerContract) {
+            setShowSignCustomerDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (signingCustomerContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (signingCustomerContract) e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-2xl">✍️ Chữ ký Khách hàng</DialogTitle>
+            <DialogDescription>
+              Khách hàng ký contract trực tiếp tại trạm
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedContract && (
+            <div className="space-y-4 py-4">
+              {/* Contract Info */}
+              <Card className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Mã Contract:</p>
+                    <p className="font-bold text-purple-700 dark:text-purple-300">{selectedContract.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Khách hàng:</p>
+                    <p className="font-semibold">{selectedContract.customer?.fullname || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Xe:</p>
+                    <p className="font-semibold">{selectedContract.vehicle?.license_plate || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-xs mb-1">Thời hạn:</p>
+                    <p className="font-semibold text-xs">{formatDate(selectedContract.valid_from)} - {formatDate(selectedContract.valid_until)}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Signature Pad */}
+              {signingCustomerContract ? (
+                <div className="text-center py-8">
+                  <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-purple-500" />
+                  <p className="text-lg text-gray-600 dark:text-gray-300">Đang xử lý chữ ký...</p>
+                </div>
+              ) : (
+                <SignaturePad
+                  onSave={handleSignCustomerContract}
+                  onCancel={() => setShowSignCustomerDialog(false)}
+                />
+              )}
+
+              {/* Important Note */}
+              <Card className="p-3 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-orange-900 dark:text-orange-300 mb-1">
+                      ⚠️ Lưu ý quan trọng:
+                    </p>
+                    <p className="text-orange-800 dark:text-orange-400">
+                      Khách hàng phải có mặt tại trạm và tự vẽ chữ ký của mình. 
+                      Chữ ký này đại diện cho sự xác nhận của khách hàng với các điều khoản trong contract.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Contract Dialog */}
+      <Dialog 
+        open={showCancelDialog} 
+        onOpenChange={(open) => {
+          if (!cancellingContract) {
+            setShowCancelDialog(open);
+          }
+        }}
+      >
+        <DialogContent 
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (cancellingContract) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (cancellingContract) e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Ban className="h-6 w-6 text-red-500" />
+              Hủy Contract
+            </DialogTitle>
+            <DialogDescription>
+              Nhập lý do hủy contract {selectedContract?.code}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Contract Info */}
+            {selectedContract && (
+              <Card className="p-4 bg-gray-50 dark:bg-gray-800">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Mã Contract:</span>
+                    <p className="font-semibold">{selectedContract.code}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Khách hàng:</span>
+                    <p className="font-semibold">{selectedContract.customer?.fullname || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Xe:</span>
+                    <p className="font-semibold">{selectedContract.vehicle?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">Trạng thái:</span>
+                    <div>{getStatusBadge(selectedContract.status, selectedContract.statusText)}</div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Cancel Reason */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Lý do hủy <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                placeholder="Nhập lý do hủy contract..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Vui lòng nhập rõ lý do để lưu vào hệ thống
+              </p>
+            </div>
+
+            {/* Warning */}
+            <Card className="p-3 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-semibold text-red-900 dark:text-red-300 mb-1">
+                    ⚠️ Cảnh báo:
+                  </p>
+                  <p className="text-red-800 dark:text-red-400">
+                    Hành động này không thể hoàn tác. Contract sẽ được đánh dấu là đã hủy và không thể sử dụng lại.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCancelDialog(false);
+                  setCancelReason('');
+                }}
+                disabled={cancellingContract}
+              >
+                Đóng
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancelContract}
+                disabled={cancellingContract || !cancelReason.trim()}
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+              >
+                {cancellingContract ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Đang hủy...
+                  </>
+                ) : (
+                  <>
+                    <Ban className="h-4 w-4 mr-2" />
+                    Xác nhận hủy
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Contract Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl">Xem hợp đồng</DialogTitle>
+                <DialogDescription>
+                  Xem hợp đồng thuê xe điện dưới dạng HTML
+                </DialogDescription>
+              </div>
+              {selectedContract && (
+                <Button
+                  onClick={() => handleDownloadPdf(selectedContract._id, selectedContract.code)}
+                  disabled={downloadingPdfId === selectedContract._id}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                >
+                  {downloadingPdfId === selectedContract._id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang tải...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Tải PDF
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+            {viewLoading ? (
+              <div className="text-center py-16">
+                <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+                <p className="text-lg text-gray-600 dark:text-gray-300">Đang tải hợp đồng...</p>
+              </div>
+            ) : viewHtmlContent ? (
+              <div className="w-full h-full bg-white dark:bg-gray-900">
+                <iframe
+                  srcDoc={viewHtmlContent}
+                  title="Contract View"
+                  className="w-full border-0"
+                  style={{ minHeight: '600px', height: 'calc(90vh - 140px)' }}
+                  sandbox="allow-same-origin"
+                />
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+                <p className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+                  Không thể tải hợp đồng
+                </p>
+                <Button onClick={() => selectedContract && handleViewContract(selectedContract._id)} variant="outline" className="mt-4">
+                  Thử lại
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+  );
+}
+

@@ -8,17 +8,25 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap
+  Zap,
+  Calendar,
+  FileText,
+  FileSignature,
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/context/SidebarContext'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
-  { name: 'Xác thực KH', href: '/customers', icon: UserCheck },
-  { name: 'Thanh toán', href: '/payments', icon: CreditCard },
-  { name: 'Quản lý Xe', href: '/fleet', icon: Settings },
+  { name: 'Quản Lý Đặt Xe', href: '/bookings', icon: Calendar },
+  // { name: 'Giao - Nhận Xe', href: '/vehicles', icon: Car },
+  { name: 'Quản Lý Thuê Xe', href: '/rentals', icon: FileText },
+  { name: 'Quản Lý Hợp Đồng', href: '/contracts', icon: FileSignature },
+  { name: 'Báo Cáo Sự Cố', href: '/reports', icon: AlertTriangle },
+  { name: 'Xác Thực KH', href: '/customers', icon: UserCheck },
+  { name: 'Thanh Toán', href: '/payments', icon: CreditCard },
+  { name: 'Quản Lý Xe', href: '/fleet', icon: Settings },
 ]
 
 export function Sidebar() {

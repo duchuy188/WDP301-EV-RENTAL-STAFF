@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Zap, Mail, Lock } from 'lucide-react'
+import { Eye, EyeOff, Zap, Mail, Lock, Users, Shield, CheckCircle } from 'lucide-react'
+import { FaMotorcycle } from 'react-icons/fa'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
+import { login as loginApi, getProfile } from '@/api/auth'
 
 interface LoginProps {
   onLogin: () => void
@@ -22,14 +24,48 @@ export function Login({ onLogin }: LoginProps) {
     e.preventDefault()
     setLoading(true)
 
-    // Mock login delay
-    setTimeout(() => {
+    try {
+      const { token, refreshToken } = await loginApi({ email, password })
+
+      if (!token) {
+        throw new Error('Không nhận được token xác thực')
+      }
+
+      // Store token temporarily to call profile API
+      const tempStorage = rememberMe ? localStorage : sessionStorage
+      tempStorage.setItem('accessToken', token)
+      if (refreshToken) tempStorage.setItem('refreshToken', refreshToken)
+
+
+      const profile = await getProfile()
+      
+      
+      const userRole = profile.role.toLowerCase()
+      if (!userRole.includes('staff')) {
+        // Clear tokens if not staff
+        tempStorage.removeItem('accessToken')
+        tempStorage.removeItem('refreshToken')
+        throw new Error(`Tài khoản không có quyền Nhân viên Trạm. Role hiện tại: ${profile.role}`)
+      }
+
+      
       toast({
-        title: "Đăng nhập thành công! 🎉",
-        description: "Chào mừng bạn quay trở lại!"
+        title: 'Thành công',
+        description: 'Đăng nhập thành công! Chào mừng bạn quay trở lại!🎉',
+        variant: 'success',
+        duration: 3000,
       })
-      setTimeout(onLogin, 1000)
-    }, 2000)
+      onLogin()
+    } catch (error) {
+      toast({
+        title: 'Đăng nhập thất bại',
+        description: error instanceof Error ? error.message : 'Vui lòng kiểm tra lại thông tin',
+        variant: 'destructive',
+        duration: 5000,
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -43,25 +79,83 @@ export function Login({ onLogin }: LoginProps) {
       >
         <div className="absolute inset-0 bg-black/20" />
         <div className="relative z-10 flex flex-col justify-center items-center text-white p-12">
+          {/* Main Icon Section */}
           <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-center"
+            initial={{ scale: 0.8, rotate: -5 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, type: "spring" }}
+            className="relative mb-12"
           >
-            <div className="mb-8">
-              <img
-                src="https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=800"
-                alt="EV Station"
-                className="w-full max-w-md rounded-2xl shadow-2xl mx-auto"
-              />
+            <div className="relative">
+              <FaMotorcycle className="h-40 w-40 drop-shadow-2xl" />
+              <Zap className="absolute -top-2 -right-2 h-10 w-10 text-yellow-300 animate-pulse" />
             </div>
-            <h1 className="text-4xl font-bold mb-4">
-              Quản lý Điểm Thuê Xe Điện
+            
+            {/* Floating icons around motorcycle */}
+            <motion.div
+              animate={{ y: [-10, 10, -10] }}
+              transition={{ duration: 3, repeat: Infinity }}
+              className="absolute -left-12 top-8"
+            >
+              <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
+                <Users className="h-7 w-7 text-white" />
+              </div>
+            </motion.div>
+            <motion.div
+              animate={{ y: [10, -10, 10] }}
+              transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+              className="absolute -right-12 top-12"
+            >
+              <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
+                <Shield className="h-7 w-7 text-white" />
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Text Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="text-center max-w-lg"
+          >
+            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+              EV Rental Staff
             </h1>
-            <p className="text-xl opacity-90">
-              Hệ thống hiện đại cho nhân viên trạm
+            <p className="text-xl text-green-100 mb-10 leading-relaxed">
+              Hệ thống quản lý xe điện<br/>thông minh và bền vững
             </p>
+            
+            {/* Feature highlights */}
+            <div className="space-y-4 text-left max-w-sm mx-auto">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.8 }}
+                className="flex items-center space-x-3 bg-white/10 backdrop-blur-sm rounded-lg p-3"
+              >
+                <CheckCircle className="h-6 w-6 text-green-200 flex-shrink-0" />
+                <span className="text-green-50 font-medium">Quản lý xe điện hiện đại</span>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 1 }}
+                className="flex items-center space-x-3 bg-white/10 backdrop-blur-sm rounded-lg p-3"
+              >
+                <CheckCircle className="h-6 w-6 text-green-200 flex-shrink-0" />
+                <span className="text-green-50 font-medium">Theo dõi xe điện</span>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 1.2 }}
+                className="flex items-center space-x-3 bg-white/10 backdrop-blur-sm rounded-lg p-3"
+              >
+                <CheckCircle className="h-6 w-6 text-green-200 flex-shrink-0" />
+                <span className="text-green-50 font-medium">Báo cáo xe điện</span>
+              </motion.div>
+            </div>
           </motion.div>
         </div>
         
@@ -162,7 +256,7 @@ export function Login({ onLogin }: LoginProps) {
                 <Checkbox
                   id="remember"
                   checked={rememberMe}
-                  onCheckedChange={setRememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
                 />
                 <label
                   htmlFor="remember"

@@ -11,7 +11,8 @@ import {
   Settings, 
   LogOut,
   Zap,
-  LogIn
+  LogIn,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -94,7 +95,9 @@ const Header: React.FC = () => {
             {isAuthenticated && (
               <Button variant="ghost" size="icon" className="h-9 w-9 relative">
                 <Bell className="h-4 w-4" />
-                <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></div>
+                <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white font-bold">3</span>
+                </div>
               </Button>
             )}
 
@@ -102,38 +105,58 @@ const Header: React.FC = () => {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src="" alt={user?.fullName || ''} />
-                      <AvatarFallback>{user?.fullName?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-center space-x-2 hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-2 h-auto"
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="hidden sm:block text-left">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {user?.fullName || 'Admin'}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Quản trị viên
+                      </p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex items-center justify-start gap-3 p-3 border-b border-gray-200 dark:border-gray-700">
+                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
                     <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium">{user?.fullName}</p>
-                      <p className="w-[200px] truncate text-sm text-muted-foreground">
-                        {user?.email}
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {user?.fullName || 'Administrator'}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {user?.email || 'admin@evrental.com'}
                       </p>
                     </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Hồ sơ</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Cài đặt</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Đăng xuất</span>
-                  </DropdownMenuItem>
+                  <div className="py-2">
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Hồ sơ</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Cài đặt</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={logout}
+                      className="text-red-600 dark:text-red-400 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Đăng xuất</span>
+                    </DropdownMenuItem>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
