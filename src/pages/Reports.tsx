@@ -780,6 +780,21 @@ function ReportDetailModal({ report, open, onClose, onResolveSuccess }: ReportDe
                         <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                         <span className="text-sm font-medium text-green-700 dark:text-green-300">Đang thuê</span>
                       </div>
+                    ) : report.rental_id.status === 'completed' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                        <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Đã hoàn thành</span>
+                      </div>
+                    ) : report.rental_id.status === 'pending_payment' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
+                        <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Chờ thanh toán</span>
+                      </div>
+                    ) : report.rental_id.status === 'pending_deposit' ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                        <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        <span className="text-sm font-medium text-orange-700 dark:text-orange-300">Chờ cọc tiền</span>
+                      </div>
                     ) : (
                       <div className="font-medium text-gray-900 dark:text-white">
                         {report.rental_id.status || 'N/A'}
