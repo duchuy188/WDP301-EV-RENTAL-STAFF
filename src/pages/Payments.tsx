@@ -170,11 +170,25 @@ export function Payments() {
   const fetchRentals = useCallback(async () => {
     try {
       setLoadingRentals(true)
-      const response = await getStaffRentals({ 
+      // Fetch active rentals
+      const activeResponse = await getStaffRentals({ 
         limit: 100, 
-        status: 'active' // Only show active rentals
+        status: 'active'
       })
-      setRentals(response.data.rentals)
+      
+     
+      const pendingResponse = await getStaffRentals({ 
+        limit: 100, 
+        status: 'pending_payment'
+      })
+      
+      // Combine both lists
+      const combinedRentals = [
+        ...activeResponse.data.rentals,
+        ...pendingResponse.data.rentals
+      ]
+      
+      setRentals(combinedRentals)
     } catch (error: unknown) {
       console.error('Error fetching rentals:', error)
       const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
