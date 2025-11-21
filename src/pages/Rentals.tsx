@@ -342,9 +342,20 @@ export function Rentals() {
       loadRentals();
     } catch (error: unknown) {
       console.error('Checkout API Error:', error);
-      const errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message || 
-                          (error as Error)?.message || 
+      let errorMessage = (error as {response?: {data?: {message?: string}}, message?: string})?.response?.data?.message ||
+                          (error as Error)?.message ||
                           'Lỗi khi thực hiện checkout';
+
+      // Parse và hiển thị thông báo dễ hiểu hơn
+      try {
+        const errorData = JSON.parse(errorMessage);
+        if (errorData.message && errorData.pendingReports) {
+          errorMessage = `Không thể hoàn thành trả xe. Rental này còn ${errorData.pendingReports} báo cáo sự cố chưa được xử lý. Vui lòng xử lý tất cả các báo cáo trước khi trả xe.`;
+        }
+      } catch {
+        // If not JSON, keep original message
+      }
+
       toast({
         title: "Lỗi",
         description: errorMessage,
